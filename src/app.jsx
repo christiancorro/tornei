@@ -91,7 +91,7 @@ const INITIAL_TOURNAMENTS = [
   },
   {
     id: 't2',
-    nome: 'Ferragosto Green Cup',
+    nome: 'Green Volley Cormor',
     disciplina: 'Green Volley',
     formati: ['4x4'],
     modalita: 'Misto, minimo 2 donne in campo',
@@ -107,11 +107,11 @@ const INITIAL_TOURNAMENTS = [
     descrizioneOrganizzatore: '',
     instagram: 'https://instagram.com/codroiposport',
     facebook: '',
-    locandina: '',
+    locandina: 'https://www.volleycormor.it/wp-content/uploads/2026/06/locandina.webp',
   },
   {
     id: 't3',
-    nome: 'Sunset Green Volley',
+    nome: 'Green Volley Teor',
     disciplina: 'Green Volley',
     formati: ['3x3'],
     modalita: 'Misto, minimo 1 donna in campo',
@@ -126,8 +126,8 @@ const INITIAL_TOURNAMENTS = [
     organizzatore: 'Gorizia Volley Club',
     descrizioneOrganizzatore: '',
     instagram: 'https://instagram.com/goriziavolley',
-    facebook: 'https://facebook.com/goriziavolley',
-    locandina: '',
+    facebook: '',
+    locandina: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSW2vSQzJjkhQo9hquu76ikccdmgS2t9mYTb-IHu8U3l4rYAlbr2o9YtN4&s=10',
   },
   {
     id: 't4',
@@ -147,7 +147,7 @@ const INITIAL_TOURNAMENTS = [
     descrizioneOrganizzatore: 'Due giorni no-stop sulla sabbia: sabato 2x2 e 3x3, domenica 4x4. Premi per il vincitore assoluto. Info: Sara, 347 987 6543.',
     instagram: 'https://instagram.com/lignanobeachtour',
     facebook: 'https://facebook.com/lignanobeachtour',
-    locandina: '',
+    locandina: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT410OQY276wgF3Ojd9jIZ_tBBrro03UBHgmWEX5jnoJBetFw54M2C_6ykY&s=10',
   },
   {
     id: 't5',
@@ -167,7 +167,7 @@ const INITIAL_TOURNAMENTS = [
     descrizioneOrganizzatore: '',
     instagram: 'https://instagram.com/gradobeachevents',
     facebook: '',
-    locandina: '',
+    locandina: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT410OQY276wgF3Ojd9jIZ_tBBrro03UBHgmWEX5jnoJBetFw54M2C_6ykY&s=10',
   },
   {
     id: 't6',
@@ -187,7 +187,7 @@ const INITIAL_TOURNAMENTS = [
     descrizioneOrganizzatore: '',
     instagram: 'https://instagram.com/pordenonevolley',
     facebook: 'https://facebook.com/pordenonevolley',
-    locandina: '',
+    locandina: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT410OQY276wgF3Ojd9jIZ_tBBrro03UBHgmWEX5jnoJBetFw54M2C_6ykY&s=10',
   },
   {
     id: 't7',
@@ -207,7 +207,7 @@ const INITIAL_TOURNAMENTS = [
     descrizioneOrganizzatore: '',
     instagram: 'https://instagram.com/triestevolley',
     facebook: '',
-    locandina: '',
+    locandina: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT410OQY276wgF3Ojd9jIZ_tBBrro03UBHgmWEX5jnoJBetFw54M2C_6ykY&s=10',
   },
 ];
 
@@ -448,7 +448,7 @@ function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDeta
 
         <div className="flex items-center gap-1.5 flex-wrap mb-4">
           <span
-            className="text-xs sm:text-sm font-semibold px-2 py-0.5 rounded"
+            className="text-sm sm:text-sm font-semibold px-2 py-0.5 rounded"
             style={{ backgroundColor: style.tagBg, color: style.tagText }}
           >
             {t.disciplina}
@@ -463,9 +463,9 @@ function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDeta
             </span>
           ))}
         </div>
-        {t.modalita && <p className="text-xs sm:text-sm text-gray-500 mb-4">{t.modalita}</p>}
+        {t.modalita && <p className="text-sm sm:text-sm text-gray-500 mb-4">{t.modalita}</p>}
 
-        <div className="text-xs sm:text-sm text-gray-600 space-y-2 mb-6">
+        <div className="text-sm sm:text-sm text-gray-600 space-y-2 mb-6">
 
           <div className="flex items-center gap-1.5">
             <Calendar size={16} className="text-gray-400 shrink-0" />
@@ -520,7 +520,7 @@ function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDeta
 
       </div>
       {hasPoster && (
-        <div className="w-45 shrink-0 p-2 flex items-center justify-center sm:mr-6">
+        <div className="hidden sm:flex w-45 shrink-0 p-2 items-center justify-center sm:mr-6">
           <img
             src={t.locandina}
             alt={`Locandina di ${t.nome}`}
@@ -561,10 +561,10 @@ function TournamentDetail({ tournament, onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className="sticky top-0 bg-white border-b-2 px-6 py-4 flex items-center justify-between gap-3 rounded-t-2xl"
+          className="sticky top-0 bg-white border-b-2 px-4 py-3 flex items-center justify-between gap-3 rounded-t-2xl"
           style={{ borderColor: 'rgba(34,48,31,0.1)' }}
         >
-          <h2 className="font-black text-3xl" style={{ color: INK }}>
+          <h2 className="font-black text-2xl sm:text-3xl" style={{ color: INK }}>
             {t.nome}
           </h2>
           <button
@@ -578,23 +578,25 @@ function TournamentDetail({ tournament, onClose }) {
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-4 space-y-3">
           {showPoster && (
-            <img
-              src={posterSrc}
-              alt={`Locandina di ${t.nome}`}
-              onError={() => setPosterOk(false)}
-              className="w-full rounded-lg object-cover"
-              style={{ maxHeight: '340px' }}
-            />
+            <div className="w-full flex justify-center mb-4">
+              <img
+                src={posterSrc}
+                alt={`Locandina di ${t.nome}`}
+                onError={() => setPosterOk(false)}
+                className="rounded-lg object-contain shadow"
+                style={{ maxHeight: '800px', maxWidth: '100%' }}
+              />
+            </div>
           )}
 
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-sm font-bold px-2 py-0.5 rounded" style={{ backgroundColor: style.tagBg, color: style.tagText }}>
+            <span className="text-sm font-semibold px-2 py-0.5 rounded" style={{ backgroundColor: style.tagBg, color: style.tagText }}>
               {t.disciplina}
             </span>
             {t.formati.map((f) => (
-              <span key={f} className="text-sm font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+              <span key={f} className="text-sm font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
                 {f}
               </span>
             ))}
@@ -1251,7 +1253,7 @@ body {
               setView('tornei');
               resetFilters();
             }}
-            className="font-display text-3xl sm:text-4xl leading-none shrink-0 rounded"
+            className="font-display text-2xl sm:text-4xl leading-none shrink-0 rounded"
             style={{ color: INK }}
           >
             tornei<span style={{ color: SUN }}>FVG</span>

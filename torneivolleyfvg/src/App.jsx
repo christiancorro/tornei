@@ -22,9 +22,9 @@ import { FaFacebook, FaInstagram } from "react-icons/fa";
    sun. Kept as plain hex + inline style throughout so nothing
    depends on Tailwind's JIT/arbitrary-value features.
 --------------------------------------------------------- */
-const SAND = '#fdf5e6';
-const CARD_BG = '#fffcf5';
-const INK = '#22301F';
+const SAND = '#ffffff';
+const CARD_BG = '#fffefb';
+const INK = '#282828';
 const SUN = '#F5A524';
 const SEA = '#1C7C8C';
 const SEA_DARK = '#145A66';
@@ -355,7 +355,7 @@ function Chip({ active, onClick, children, color }) {
     <button
       type="button"
       onClick={onClick}
-      className="px-3.5 py-1.5 rounded-full text-xs font-bold border-2 border-transparent transition-colors whitespace-nowrap shrink-0 "
+      className="px-3.5 py-1.5 rounded-full text-sm font-semibold border-2 border-transparent transition-colors whitespace-nowrap shrink-0 "
       style={{
         borderColor: active ? c : 'rgba(34,48,31,0.25)',
         backgroundColor: active ? c : 'transparent',
@@ -372,7 +372,7 @@ function NavTab({ active, onClick, children }) {
     <button
       type="button"
       onClick={onClick}
-      className="px-4 py-1.5 rounded-full text-sm font-bold transition-colors "
+      className="px-4 py-1.5 rounded-full text-sm font-semibold transition-colors "
       style={{
         backgroundColor: active ? INK : 'transparent',
         color: active ? SAND : INK,
@@ -520,7 +520,7 @@ function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDeta
 
       </div>
       {hasPoster && (
-        <div className="w-44 shrink-0 p-2 flex items-center justify-center sm:mr-6">
+        <div className="w-45 shrink-0 p-2 flex items-center justify-center sm:mr-6">
           <img
             src={t.locandina}
             alt={`Locandina di ${t.nome}`}
@@ -552,7 +552,7 @@ function TournamentDetail({ tournament, onClose }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center p-4 z-50"
-      style={{ backgroundColor: 'rgba(34,48,31,0.5)' }}
+      style={{ backgroundColor: 'rgba(22, 20, 15, 0.83)' }}
       onClick={onClose}
     >
       <div
@@ -564,7 +564,7 @@ function TournamentDetail({ tournament, onClose }) {
           className="sticky top-0 bg-white border-b-2 px-6 py-4 flex items-center justify-between gap-3 rounded-t-2xl"
           style={{ borderColor: 'rgba(34,48,31,0.1)' }}
         >
-          <h2 className="font-black text-lg" style={{ color: INK }}>
+          <h2 className="font-black text-3xl" style={{ color: INK }}>
             {t.nome}
           </h2>
           <button
@@ -590,11 +590,11 @@ function TournamentDetail({ tournament, onClose }) {
           )}
 
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: style.tagBg, color: style.tagText }}>
+            <span className="text-sm font-bold px-2 py-0.5 rounded" style={{ backgroundColor: style.tagBg, color: style.tagText }}>
               {t.disciplina}
             </span>
             {t.formati.map((f) => (
-              <span key={f} className="text-xs font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+              <span key={f} className="text-sm font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
                 {f}
               </span>
             ))}
@@ -1242,7 +1242,7 @@ body {
       `}</style>
 
       {/* NAV + HEADER */}
-      <div className="border-b-2 mb-2" style={{ borderColor: 'rgba(34,48,31,0.12)' }}>
+      <div className=" mb-2" style={{ borderColor: 'rgba(34,48,31,0.12)' }}>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-9 flex items-center justify-between gap-4 py-2.5">
 
           <button
@@ -1268,12 +1268,12 @@ body {
 
           {view === 'tornei' && (
             <label
-              className="flex items-center gap-2 border-2 rounded-full pl-3 pr-1.5 py-1.5 cursor-pointer shrink-0"
+              className="flex items-center gap-2 rounded-full pl-3 pr-1.5 py-1.5 cursor-pointer shrink-0"
               style={{ borderColor: INK }}
             >
               <Settings2 size={14} style={{ color: INK }} />
-              <span className="text-xs font-bold hidden sm:inline" style={{ color: INK }}>
-                Organizzatore
+              <span className="text-sm font-semibold hidden sm:inline" style={{ color: INK }}>
+                Login
               </span>
 
               <button
@@ -1294,9 +1294,6 @@ body {
 
         </div>
       </div>
-
-
-
       {view === 'tornei' && (
         <>
           {isAdmin && (
@@ -1316,17 +1313,17 @@ body {
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Cerca per nome, città o organizzatore..."
-                  className="w-full pl-11 pr-4 py-3 rounded-full border-1 outline-none text-sm font-medium focus:ring-1 focus:ring-grey-300"
+                  placeholder="Cerca per nome, città, ..."
+                  className="w-full pl-11 pr-4 py-3 rounded-full border-1 outline-none text-sm font-medium focus:ring-1 focus:ring-grey-100"
                   style={{
-                    borderColor: INK,
+                    borderColor: "#28282834",
                     color: INK,
                     backgroundColor: SAND,
                   }}
                 />
               </div>
 
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 pt-2">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-2">
                 {DISCIPLINE.map((d) => (
                   <Chip
                     key={d}
@@ -1358,11 +1355,11 @@ body {
                   </Chip>
                 ))}
 
-                <span className="h-5 shrink-0 mr-2 ml-2" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
+                <span className="h-5 shrink-0 mr-1 ml-1" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
                 <button
                   type="button"
                   onClick={() => setShowMoreFilters((v) => !v)}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border-2 whitespace-nowrap shrink-0 "
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-semibold border-2 whitespace-nowrap shrink-0 "
                   style={{
                     borderColor: showMoreFilters ? INK : 'rgba(34,48,31,0.25)',
                     backgroundColor: showMoreFilters ? INK : 'transparent',
@@ -1378,7 +1375,7 @@ body {
                   <button
                     type="button"
                     onClick={resetFilters}
-                    className="flex items-center gap-1 text-xs font-bold px-2 shrink-0  rounded shrink-0"
+                    className="flex items-center gap-1 text-xs font-bold px-2 shrink-0 rounded shrink-0"
                     style={{ color: INK, opacity: 0.5 }}
                   >
                     <X size={13} /> Azzera
@@ -1434,14 +1431,14 @@ body {
           {/* RESULTS */}
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-6 py-2 sm:py-2">
             <div className="flex items-center justify-between mb-5">
-              <p className="text-sm font-semibold" style={{ color: INK, opacity: 0.6 }}>
+              <p className="text-sm" style={{ color: INK, opacity: 0.6 }}>
                 {filtered.length} {filtered.length === 1 ? 'torneo trovato' : 'tornei trovati'}
               </p>
               {isAdmin && (
                 <button
                   type="button"
                   onClick={() => setFormState('new')}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-white text-sm font-bold shadow-sm  focus:ring-offset-2"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-white text-sm font-semibold shadow-sm  focus:ring-offset-2"
                   style={{ backgroundColor: SUN }}
                 >
                   <Plus size={16} /> Aggiungi torneo

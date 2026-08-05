@@ -22,16 +22,17 @@ import { FaFacebook, FaInstagram } from "react-icons/fa";
    sun. Kept as plain hex + inline style throughout so nothing
    depends on Tailwind's JIT/arbitrary-value features.
 --------------------------------------------------------- */
+const SAND = '#fdf5e6';
+const CARD_BG = '#fffcf5';
 const INK = '#22301F';
-const SAND = '#F3E9D2';
 const SUN = '#F5A524';
 const SEA = '#1C7C8C';
 const SEA_DARK = '#145A66';
-const GRASS = '#77d638';
-const GRASS_DARK = '#3e8112';
+const GRASS = '#a0f34e';
+const GRASS_DARK = '#488222';
 const CLAY = '#B8472A';
 const CLAY_DARK = '#8C3520';
-const SABBIA = '#e3b82c';
+const SABBIA = '#f0c843';
 const SABBIA_DARK = '#c78c20';
 
 // Bacheca (notice board) tokens — kept separate from the discipline
@@ -59,6 +60,11 @@ const STUB_STYLE = {
   'Pallavolo': { bg: `linear-gradient(155deg, ${SEA}, ${SEA_DARK})`, tagBg: '#E0F2F4', tagText: SEA_DARK },
 };
 
+const DURATE = [
+  { value: '1', label: '1 giorno' },
+  { value: '2+', label: '2+ giorni' },
+];
+
 /* ---------------------------------------------------------
    Sample data — 5 Green Volley + 2 Beach Volley, all in FVG
 --------------------------------------------------------- */
@@ -75,13 +81,12 @@ const INITIAL_TOURNAMENTS = [
     luogo: 'Parco del Cormor',
     comune: 'Udine',
     provincia: 'UD',
-    costo: '€15 a giocatore',
+    costo: '15',
     iscrizioniEntro: '2026-08-10',
     organizzatore: 'ASD Udine Volley',
     descrizioneOrganizzatore: 'Torneo giunto alla 3ª edizione. Per iscrizioni last-minute o info scrivete a Marco, 338 123 4567.',
     instagram: 'https://instagram.com/udinevolley',
     facebook: 'https://facebook.com/udinevolley',
-    immagine: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT410OQY276wgF3Ojd9jIZ_tBBrro03UBHgmWEX5jnoJBetFw54M2C_6ykY&s=10',
     locandina: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT410OQY276wgF3Ojd9jIZ_tBBrro03UBHgmWEX5jnoJBetFw54M2C_6ykY&s=10',
   },
   {
@@ -96,13 +101,12 @@ const INITIAL_TOURNAMENTS = [
     luogo: 'Campo Sportivo Comunale',
     comune: 'Codroipo',
     provincia: 'UD',
-    costo: '€60 a squadra',
+    costo: '€60',
     iscrizioniEntro: '2026-08-12',
     organizzatore: 'Codroipo Sport Events',
     descrizioneOrganizzatore: '',
     instagram: 'https://instagram.com/codroiposport',
     facebook: '',
-    immagine: '',
     locandina: '',
   },
   {
@@ -123,7 +127,6 @@ const INITIAL_TOURNAMENTS = [
     descrizioneOrganizzatore: '',
     instagram: 'https://instagram.com/goriziavolley',
     facebook: 'https://facebook.com/goriziavolley',
-    immagine: '',
     locandina: '',
   },
   {
@@ -144,7 +147,6 @@ const INITIAL_TOURNAMENTS = [
     descrizioneOrganizzatore: 'Due giorni no-stop sulla sabbia: sabato 2x2 e 3x3, domenica 4x4. Premi per il vincitore assoluto. Info: Sara, 347 987 6543.',
     instagram: 'https://instagram.com/lignanobeachtour',
     facebook: 'https://facebook.com/lignanobeachtour',
-    immagine: '',
     locandina: '',
   },
   {
@@ -165,7 +167,6 @@ const INITIAL_TOURNAMENTS = [
     descrizioneOrganizzatore: '',
     instagram: 'https://instagram.com/gradobeachevents',
     facebook: '',
-    immagine: '',
     locandina: '',
   },
   {
@@ -186,7 +187,6 @@ const INITIAL_TOURNAMENTS = [
     descrizioneOrganizzatore: '',
     instagram: 'https://instagram.com/pordenonevolley',
     facebook: 'https://facebook.com/pordenonevolley',
-    immagine: '',
     locandina: '',
   },
   {
@@ -207,7 +207,6 @@ const INITIAL_TOURNAMENTS = [
     descrizioneOrganizzatore: '',
     instagram: 'https://instagram.com/triestevolley',
     facebook: '',
-    immagine: '',
     locandina: '',
   },
 ];
@@ -276,7 +275,6 @@ function emptyTournament() {
     descrizioneOrganizzatore: '',
     instagram: '',
     facebook: '',
-    immagine: '',
     locandina: '',
   };
 }
@@ -308,20 +306,22 @@ function formatDataRange(inizio, fine) {
 }
 
 function formatStubGiorno(inizio, fine) {
-  const [, m1s, d1s] = inizio.split('-');
+  const [y1, m1s, d1s] = inizio.split('-');
   const m1 = parseInt(m1s, 10);
   const d1 = parseInt(d1s, 10);
   if (!fine || fine === inizio) {
     return { giorno: String(d1), mese: MESI_BREVI[m1 - 1], giornoSett: GIORNI_BREVI[dayOfWeek(inizio)] };
   }
-  const [, m2s, d2s] = fine.split('-');
+  const [y2, m2s, d2s] = fine.split('-');
   const m2 = parseInt(m2s, 10);
   const d2 = parseInt(d2s, 10);
   const sameMonth = m1 === m2;
   return {
     giorno: sameMonth ? `${d1}-${d2}` : `${d1}/${m1}-${d2}/${m2}`,
     mese: sameMonth ? MESI_BREVI[m1 - 1] : '',
-    giornoSett: '',
+    giornoSett: sameMonth
+      ? `${GIORNI_BREVI[new Date(y1, m1 - 1, d1).getDay()]}-${GIORNI_BREVI[new Date(y2, m2 - 1, d2).getDay()]}`
+      : '',
   };
 }
 
@@ -390,7 +390,7 @@ function MonthHeader({ label }) {
       <h2 className="font-black text-xl sm:text-2xl uppercase tracking-wide" style={{ color: INK }}>
         {label}
       </h2>
-      <div className="flex-1 h-0" style={{ borderTop: '2px dashed rgba(34,48,31,0.25)' }} />
+      <div className="flex-1 h-0" style={{ borderTop: '2px dashed rgba(34,48,31,0.15)' }} />
     </div>
   );
 }
@@ -403,8 +403,8 @@ function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDeta
   const [imgOk, setImgOk] = useState(true);
   const style = STUB_STYLE[t.disciplina] || STUB_STYLE['Green Volley'];
   const stub = formatStubGiorno(t.data, t.dataFine);
-  const hasImage = Boolean(t.immagine) && imgOk;
-  const stubSize = stub.giorno.length <= 2 ? 'text-3xl' : stub.giorno.length <= 5 ? 'text-xl' : 'text-base';
+  const hasPoster = Boolean(t.locandina) && imgOk;
+  const stubSize = stub.giorno.length <= 2 ? 'text-3xl' : stub.giorno.length <= 5 ? 'text-[1.8rem]' : 'text-base';
 
   return (
     <div
@@ -418,41 +418,37 @@ function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDeta
         }
       }}
       aria-label={`Vedi dettagli di ${t.nome}`}
-      className="group relative bg-white rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300 overflow-hidden border cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 flex"
-      style={{ borderColor: 'rgba(34,48,31,0.1)', animation: 'card-in 0.5s ease both', animationDelay: `${delay}ms` }}
+      className="group relative bg-white rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300 flex overflow-hidden border cursor-pointer "
+      style={{
+        backgroundColor: CARD_BG,
+        borderColor: 'rgba(34,48,31,0.1)',
+        animation: 'card-in 0.3s ease both',
+        animationDelay: `${delay}ms`
+      }}
     >
       <div
-        className="relative flex flex-col items-center justify-center text-center py-4 shrink-0 overflow-hidden"
-        style={{ width: '78px', background: style.bg }}
+        className="relative flex flex-col items-center justify-center text-center py-4 sm:py-6 shrink-0 overflow-hidden w-20 sm:w-28 lg:w-32 sm:mr-8"
+        style={{ background: style.bg }}
       >
-        {hasImage && (
-          <img
-            src={t.immagine}
-            alt=""
-            onError={() => setImgOk(false)}
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{ opacity: 0.35 }}
-          />
-        )}
         <div className="relative text-white px-1">
-          {stub.giornoSett && <div className="text-xs font-bold" style={{ opacity: 0.8 }}>{stub.giornoSett}</div>}
-          <div className={`font-display leading-none ${stubSize}`}>{stub.giorno}</div>
-          {stub.mese && <div className="text-xs font-bold tracking-widest mt-1.5">{stub.mese}</div>}
+          {stub.giornoSett && <div className="text-xm font-bold" style={{ opacity: 1 }}>{stub.giornoSett}</div>}
+          <div className={`font-display text-4xl sm:text-4xl leading-none ${stubSize}`}>{stub.giorno}</div>
+          {stub.mese && <div className="text-xm font-bold tracking-widest">{stub.mese}</div>}
         </div>
-        <span className="absolute rounded-full bg-white" style={{ width: 18, height: 18, right: -9, top: -9 }} />
-        <span className="absolute rounded-full bg-white" style={{ width: 18, height: 18, right: -9, bottom: -9 }} />
+        {/* <span className="absolute rounded-full bg-white" style={{ width: 18, height: 18, right: -9, top: -9 }} /> */}
+        {/* <span className="absolute rounded-full bg-white" style={{ width: 18, height: 18, right: -9, bottom: -9 }} /> */}
       </div>
 
-      <div className="shrink-0" style={{ width: 0, borderLeft: '2px dashed rgba(34,48,31,0.15)', marginTop: 12, marginBottom: 12 }} />
+      {/* <div className="shrink-0" style={{ width: 0, borderLeft: '2px dashed rgba(34,48,31,0.15)', marginTop: 12, marginBottom: 12 }} /> */}
 
       <div className="flex-1 p-3.5 min-w-0 flex flex-col">
-        <h3 className="font-black text-xl leading-tight mb-2" style={{ color: INK }}>
+        <h3 className="font-black text-2xl sm:text-3xl leading-tight mb-3" style={{ color: INK }}>
           {t.nome}
         </h3>
 
-        <div className="flex items-center gap-1.5 flex-wrap mb-2">
+        <div className="flex items-center gap-1.5 flex-wrap mb-4">
           <span
-            className="text-xs font-bold px-2 py-0.5 rounded"
+            className="text-xs sm:text-sm font-bold px-2 py-0.5 rounded"
             style={{ backgroundColor: style.tagBg, color: style.tagText }}
           >
             {t.disciplina}
@@ -461,38 +457,38 @@ function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDeta
           {t.formati.map((f) => (
             <span
               key={f}
-              className="text-xs font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-600"
+              className="text-xs sm:text-sm font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-600"
             >
               {f}
             </span>
           ))}
         </div>
-        {t.modalita && <p className="text-xs text-gray-500 mb-2">{t.modalita}</p>}
+        {t.modalita && <p className="text-xs sm:text-sm text-gray-500 mb-4">{t.modalita}</p>}
 
-        <div className="text-xs text-gray-600 space-y-1 mb-2">
+        <div className="text-xs sm:text-sm text-gray-600 space-y-2 mb-6">
+
           <div className="flex items-center gap-1.5">
-            <MapPin size={13} className="text-gray-400 shrink-0" />
+            <Calendar size={16} className="text-gray-400 shrink-0" />
+            <span>
+              {formatDataRange(t.data, t.dataFine)}
+              {t.ora && <span className="font-normal text-gray-600"> · {t.ora}</span>}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <MapPin size={16} className="text-gray-400 shrink-0" />
             <span className="truncate">
               {t.luogo}, {t.comune} ({t.provincia})
             </span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Calendar size={13} className="text-gray-400 shrink-0" />
-            <span className="font-bold" style={{ color: INK }}>
-              {formatDataRange(t.data, t.dataFine)}
-              {t.ora && <span className="font-normal text-gray-500"> · {t.ora}</span>}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Euro size={13} className="text-gray-400 shrink-0" />
+          <div className=" flex items-center gap-1.5">
+            <Euro size={16} className="text-gray-400 shrink-0" />
             <span>{t.costo}</span>
           </div>
         </div>
 
         <div className="mt-auto pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-xs text-gray-400">Iscrizioni entro {formatDataBreve(t.iscrizioniEntro)}</div>
-            <div className="text-xs text-gray-400 truncate">{t.organizzatore}</div>
+            <div className="text-xs text-gray-400">{t.organizzatore}</div>
           </div>
           {isAdmin && (
             <div className="flex items-center gap-1 shrink-0">
@@ -505,7 +501,7 @@ function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDeta
                 className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500 "
                 aria-label={`Modifica ${t.nome}`}
               >
-                <Pencil size={13} />
+                <Pencil size={16} />
               </button>
               <button
                 type="button"
@@ -516,12 +512,23 @@ function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDeta
                 className="p-1.5 rounded-full hover:bg-gray-100 text-rose-600 "
                 aria-label={`Elimina ${t.nome}`}
               >
-                <Trash2 size={13} />
+                <Trash2 size={16} />
               </button>
             </div>
           )}
         </div>
+
       </div>
+      {hasPoster && (
+        <div className="w-44 shrink-0 p-2 flex items-center justify-center sm:mr-6">
+          <img
+            src={t.locandina}
+            alt={`Locandina di ${t.nome}`}
+            onError={() => setImgOk(false)}
+            className="w-full rounded-lg object-cover"
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -539,7 +546,7 @@ function TournamentDetail({ tournament, onClose }) {
   const [posterOk, setPosterOk] = useState(true);
   const t = tournament;
   const style = STUB_STYLE[t.disciplina] || STUB_STYLE['Green Volley'];
-  const posterSrc = t.locandina || t.immagine;
+  const posterSrc = t.locandina;
   const showPoster = Boolean(posterSrc) && posterOk;
 
   return (
@@ -549,7 +556,7 @@ function TournamentDetail({ tournament, onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl w-full max-w-lg overflow-y-auto"
+        className="bg-white rounded-xl w-full max-w-lg overflow-y-auto"
         style={{ maxHeight: '90vh' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -850,7 +857,7 @@ function TournamentForm({ initial, onSave, onCancel }) {
                 style={inputStyle}
                 value={form.costo}
                 onChange={(e) => update('costo', e.target.value)}
-                placeholder="Es. €15 a giocatore"
+                placeholder="Es: 15 (pasti e maglietta)"
               />
             </div>
           </div>
@@ -921,19 +928,6 @@ function TournamentForm({ initial, onSave, onCancel }) {
                 placeholder="https://facebook.com/..."
               />
             </div>
-          </div>
-
-          <div>
-            <label className={labelClass} style={labelStyle}>
-              Immagine di copertina (URL, opzionale)
-            </label>
-            <input
-              className={inputClass}
-              style={inputStyle}
-              value={form.immagine}
-              onChange={(e) => update('immagine', e.target.value)}
-              placeholder="Lascia vuoto per usare la cover generata"
-            />
           </div>
 
           <div>
@@ -1146,6 +1140,7 @@ export default function App() {
   const [annunci, setAnnunci] = useState(INITIAL_ANNUNCI);
   const [nuovoTesto, setNuovoTesto] = useState('');
   const [nuovoTipo, setNuovoTipo] = useState('cerca_squadra');
+  const [selectedDurate, setSelectedDurate] = useState([]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -1162,17 +1157,23 @@ export default function App() {
         const matchesProvincia = selectedProvinces.length === 0 || selectedProvinces.includes(t.provincia);
         const matchesFrom = !dateFrom || t.data >= dateFrom;
         const matchesTo = !dateTo || t.data <= dateTo;
-        return matchesSearch && matchesDisciplina && matchesFormato && matchesProvincia && matchesFrom && matchesTo;
+        const durata =
+          !t.dataFine || t.dataFine === t.data ? '1' : '2+';
+
+        const matchesDurata =
+          selectedDurate.length === 0 ||
+          selectedDurate.includes(durata);
+        return matchesSearch && matchesDisciplina && matchesFormato && matchesProvincia && matchesFrom && matchesTo && matchesDurata;
       })
       .sort((a, b) => a.data.localeCompare(b.data));
-  }, [tournaments, search, selectedDisciplines, selectedFormats, selectedProvinces, dateFrom, dateTo]);
+  }, [tournaments, search, selectedDisciplines, selectedFormats, selectedProvinces, selectedDurate, dateFrom, dateTo]);
 
   const grouped = useMemo(() => groupByMonth(filtered), [filtered]);
 
   const sortedAnnunci = useMemo(() => [...annunci].sort((a, b) => b.data.localeCompare(a.data)), [annunci]);
 
   const extraFilterCount = selectedProvinces.length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
-  const activeFilterCount = selectedDisciplines.length + selectedFormats.length + extraFilterCount;
+  const activeFilterCount = selectedDisciplines.length + selectedFormats.length + selectedDurate.length + extraFilterCount;
 
   function resetFilters() {
     setSearch('');
@@ -1181,6 +1182,7 @@ export default function App() {
     setSelectedProvinces([]);
     setDateFrom('');
     setDateTo('');
+    setSelectedDurate([]);
   }
 
   function handleSave(t) {
@@ -1230,8 +1232,8 @@ export default function App() {
       `}</style>
 
       {/* NAV + HEADER */}
-      <div className="border-b-2" style={{ borderColor: 'rgba(34,48,31,0.12)' }}>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 py-2.5">
+      <div className="border-b-2 mb-2" style={{ borderColor: 'rgba(34,48,31,0.12)' }}>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-9 flex items-center justify-between gap-4 py-2.5">
 
           <button
             type="button"
@@ -1296,7 +1298,7 @@ export default function App() {
           )}
 
           {/* SEARCH + FILTERS */}
-          <div className="sticky top-0 z-20 border-b-2" style={{ backgroundColor: SAND, borderColor: 'rgba(34,48,31,0.15)' }}>
+          <div className="sticky top-0 z-20 " style={{ backgroundColor: SAND, borderColor: 'rgba(34,48,31,0.15)' }}>
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 space-y-3">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2" size={18} style={{ color: INK, opacity: 0.45 }} />
@@ -1305,8 +1307,12 @@ export default function App() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Cerca per nome, città o organizzatore..."
-                  className="w-full pl-11 pr-4 py-3 rounded-full border-2 bg-white outline-none text-sm font-medium focus:ring-2 focus:ring-amber-500"
-                  style={{ borderColor: INK, color: INK }}
+                  className="w-full pl-11 pr-4 py-3 rounded-full border-1 outline-none text-sm font-medium focus:ring-1 focus:ring-grey-300"
+                  style={{
+                    borderColor: INK,
+                    color: INK,
+                    backgroundColor: SAND,
+                  }}
                 />
               </div>
 
@@ -1321,13 +1327,28 @@ export default function App() {
                     {d}
                   </Chip>
                 ))}
-                <span className="h-5 shrink-0" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
+                <span className="h-5 shrink-0 mr-2 ml-2" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
                 {FORMATI.map((f) => (
                   <Chip key={f} active={selectedFormats.includes(f)} onClick={() => setSelectedFormats((prev) => toggleValue(prev, f))}>
                     {f}
                   </Chip>
                 ))}
-                <span className="h-5 shrink-0" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
+                <span
+                  className="h-5 shrink-0 mr-2 ml-2"
+                  style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }}
+                />
+
+                {DURATE.map((d) => (
+                  <Chip
+                    key={d.value}
+                    active={selectedDurate.includes(d.value)}
+                    onClick={() => setSelectedDurate((prev) => toggleValue(prev, d.value))}
+                  >
+                    {d.label}
+                  </Chip>
+                ))}
+
+                <span className="h-5 shrink-0 mr-2 ml-2" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
                 <button
                   type="button"
                   onClick={() => setShowMoreFilters((v) => !v)}
@@ -1401,7 +1422,7 @@ export default function App() {
           </div>
 
           {/* RESULTS */}
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-6 py-2 sm:py-2">
             <div className="flex items-center justify-between mb-5">
               <p className="text-sm font-semibold" style={{ color: INK, opacity: 0.6 }}>
                 {filtered.length} {filtered.length === 1 ? 'torneo trovato' : 'tornei trovati'}
@@ -1424,7 +1445,7 @@ export default function App() {
               grouped.map((group) => (
                 <div key={group.key} className="mb-10">
                   <MonthHeader label={group.label} />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-1 gap-4">
                     {group.items.map((t, i) => (
                       <TournamentCard
                         key={t.id}

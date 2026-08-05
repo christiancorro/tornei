@@ -5,8 +5,6 @@ import {
   Calendar,
   Euro,
   Pin,
-  Instagram,
-  Facebook,
   SlidersHorizontal,
   X,
   Plus,
@@ -17,22 +15,25 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
+import { FaFacebook, FaInstagram } from "react-icons/fa";
+
 /* ---------------------------------------------------------
    Design tokens — grounded in the subject: sand, grass, sea,
    sun. Kept as plain hex + inline style throughout so nothing
    depends on Tailwind's JIT/arbitrary-value features.
 --------------------------------------------------------- */
-const INK = '#22301F';
-const SAND = '#F3E9D2';
+const SAND = '#fff8ef';
+const CARD_BG = '#fffefb';
+const INK = '#282828';
 const SUN = '#F5A524';
 const SEA = '#1C7C8C';
 const SEA_DARK = '#145A66';
-const GRASS = '#4C7A2E';
-const GRASS_DARK = '#35571F';
+const GRASS = '#a0f34e';
+const GRASS_DARK = '#488222';
 const CLAY = '#B8472A';
 const CLAY_DARK = '#8C3520';
-const SABBIA = '#8A6A2E';
-const SABBIA_DARK = '#614A20';
+const SABBIA = '#f0c843';
+const SABBIA_DARK = '#c78c20';
 
 // Bacheca (notice board) tokens — kept separate from the discipline
 // colors above so a post's color never implies Beach/Green Volley.
@@ -48,16 +49,21 @@ const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Lug
 const MESI_BREVI = ['GEN', 'FEB', 'MAR', 'APR', 'MAG', 'GIU', 'LUG', 'AGO', 'SET', 'OTT', 'NOV', 'DIC'];
 const GIORNI_BREVI = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
 
-const DISCIPLINE = ['Beach Volley', 'Green Volley', 'Pallavolo'];
+const DISCIPLINE = ['Green Volley', 'Beach Volley', 'Pallavolo'];
 const FORMATI = ['2x2', '3x3', '4x4', '6x6'];
 const PROVINCE = ['UD', 'PN', 'GO', 'TS'];
 const PROVINCE_LABELS = { UD: 'Udine', PN: 'Pordenone', GO: 'Gorizia', TS: 'Trieste' };
 
 const STUB_STYLE = {
-  'Beach Volley': { bg: `linear-gradient(155deg, ${SABBIA}, ${SABBIA_DARK})`, tagBg: SAND, tagText: SABBIA_DARK },
   'Green Volley': { bg: `linear-gradient(155deg, ${GRASS}, ${GRASS_DARK})`, tagBg: '#E7F0DE', tagText: GRASS_DARK },
+  'Beach Volley': { bg: `linear-gradient(155deg, ${SABBIA}, ${SABBIA_DARK})`, tagBg: SAND, tagText: SABBIA_DARK },
   'Pallavolo': { bg: `linear-gradient(155deg, ${SEA}, ${SEA_DARK})`, tagBg: '#E0F2F4', tagText: SEA_DARK },
 };
+
+const DURATE = [
+  { value: '1', label: '1 giorno' },
+  { value: '2+', label: '2+ giorni' },
+];
 
 /* ---------------------------------------------------------
    Sample data — 5 Green Volley + 2 Beach Volley, all in FVG
@@ -75,14 +81,13 @@ const INITIAL_TOURNAMENTS = [
     luogo: 'Parco del Cormor',
     comune: 'Udine',
     provincia: 'UD',
-    costo: '€15 a giocatore',
+    costo: '15',
     iscrizioniEntro: '2026-08-10',
     organizzatore: 'ASD Udine Volley',
     descrizioneOrganizzatore: 'Torneo giunto alla 3ª edizione. Per iscrizioni last-minute o info scrivete a Marco, 338 123 4567.',
     instagram: 'https://instagram.com/udinevolley',
     facebook: 'https://facebook.com/udinevolley',
-    immagine: '',
-    locandina: '',
+    locandina: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT410OQY276wgF3Ojd9jIZ_tBBrro03UBHgmWEX5jnoJBetFw54M2C_6ykY&s=10',
   },
   {
     id: 't2',
@@ -96,13 +101,12 @@ const INITIAL_TOURNAMENTS = [
     luogo: 'Campo Sportivo Comunale',
     comune: 'Codroipo',
     provincia: 'UD',
-    costo: '€60 a squadra',
+    costo: '€60',
     iscrizioniEntro: '2026-08-12',
     organizzatore: 'Codroipo Sport Events',
     descrizioneOrganizzatore: '',
     instagram: 'https://instagram.com/codroiposport',
     facebook: '',
-    immagine: '',
     locandina: '',
   },
   {
@@ -123,7 +127,6 @@ const INITIAL_TOURNAMENTS = [
     descrizioneOrganizzatore: '',
     instagram: 'https://instagram.com/goriziavolley',
     facebook: 'https://facebook.com/goriziavolley',
-    immagine: '',
     locandina: '',
   },
   {
@@ -144,7 +147,6 @@ const INITIAL_TOURNAMENTS = [
     descrizioneOrganizzatore: 'Due giorni no-stop sulla sabbia: sabato 2x2 e 3x3, domenica 4x4. Premi per il vincitore assoluto. Info: Sara, 347 987 6543.',
     instagram: 'https://instagram.com/lignanobeachtour',
     facebook: 'https://facebook.com/lignanobeachtour',
-    immagine: '',
     locandina: '',
   },
   {
@@ -165,7 +167,6 @@ const INITIAL_TOURNAMENTS = [
     descrizioneOrganizzatore: '',
     instagram: 'https://instagram.com/gradobeachevents',
     facebook: '',
-    immagine: '',
     locandina: '',
   },
   {
@@ -186,7 +187,6 @@ const INITIAL_TOURNAMENTS = [
     descrizioneOrganizzatore: '',
     instagram: 'https://instagram.com/pordenonevolley',
     facebook: 'https://facebook.com/pordenonevolley',
-    immagine: '',
     locandina: '',
   },
   {
@@ -207,7 +207,6 @@ const INITIAL_TOURNAMENTS = [
     descrizioneOrganizzatore: '',
     instagram: 'https://instagram.com/triestevolley',
     facebook: '',
-    immagine: '',
     locandina: '',
   },
 ];
@@ -252,12 +251,17 @@ const INITIAL_ANNUNCI = [
   },
 ];
 
+function getMapsUrl(t) {
+  const query = `${t.luogo}, ${t.comune}, ${t.provincia}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
 function emptyTournament() {
   return {
     id: '',
     nome: '',
     disciplina: 'Green Volley',
-    formati: ['3x3'],
+    formati: [],
     modalita: '',
     data: '',
     dataFine: '',
@@ -271,7 +275,6 @@ function emptyTournament() {
     descrizioneOrganizzatore: '',
     instagram: '',
     facebook: '',
-    immagine: '',
     locandina: '',
   };
 }
@@ -303,20 +306,22 @@ function formatDataRange(inizio, fine) {
 }
 
 function formatStubGiorno(inizio, fine) {
-  const [, m1s, d1s] = inizio.split('-');
+  const [y1, m1s, d1s] = inizio.split('-');
   const m1 = parseInt(m1s, 10);
   const d1 = parseInt(d1s, 10);
   if (!fine || fine === inizio) {
     return { giorno: String(d1), mese: MESI_BREVI[m1 - 1], giornoSett: GIORNI_BREVI[dayOfWeek(inizio)] };
   }
-  const [, m2s, d2s] = fine.split('-');
+  const [y2, m2s, d2s] = fine.split('-');
   const m2 = parseInt(m2s, 10);
   const d2 = parseInt(d2s, 10);
   const sameMonth = m1 === m2;
   return {
     giorno: sameMonth ? `${d1}-${d2}` : `${d1}/${m1}-${d2}/${m2}`,
     mese: sameMonth ? MESI_BREVI[m1 - 1] : '',
-    giornoSett: '',
+    giornoSett: sameMonth
+      ? `${GIORNI_BREVI[new Date(y1, m1 - 1, d1).getDay()]}-${GIORNI_BREVI[new Date(y2, m2 - 1, d2).getDay()]}`
+      : '',
   };
 }
 
@@ -350,7 +355,7 @@ function Chip({ active, onClick, children, color }) {
     <button
       type="button"
       onClick={onClick}
-      className="px-3.5 py-1.5 rounded-full text-xs font-bold border-2 transition-colors whitespace-nowrap shrink-0 focus:outline-none focus:ring-2 focus:ring-amber-500"
+      className="px-3.5 py-1.5 rounded-full text-sm font-semibold border-2 border-transparent transition-colors whitespace-nowrap shrink-0 "
       style={{
         borderColor: active ? c : 'rgba(34,48,31,0.25)',
         backgroundColor: active ? c : 'transparent',
@@ -367,7 +372,7 @@ function NavTab({ active, onClick, children }) {
     <button
       type="button"
       onClick={onClick}
-      className="px-4 py-1.5 rounded-full text-sm font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500"
+      className="px-4 py-1.5 rounded-full text-sm font-semibold transition-colors "
       style={{
         backgroundColor: active ? INK : 'transparent',
         color: active ? SAND : INK,
@@ -385,7 +390,7 @@ function MonthHeader({ label }) {
       <h2 className="font-black text-xl sm:text-2xl uppercase tracking-wide" style={{ color: INK }}>
         {label}
       </h2>
-      <div className="flex-1 h-0" style={{ borderTop: '2px dashed rgba(34,48,31,0.25)' }} />
+      <div className="flex-1 h-0" style={{ borderTop: '2px dashed rgba(34,48,31,0.15)' }} />
     </div>
   );
 }
@@ -398,8 +403,8 @@ function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDeta
   const [imgOk, setImgOk] = useState(true);
   const style = STUB_STYLE[t.disciplina] || STUB_STYLE['Green Volley'];
   const stub = formatStubGiorno(t.data, t.dataFine);
-  const hasImage = Boolean(t.immagine) && imgOk;
-  const stubSize = stub.giorno.length <= 2 ? 'text-3xl' : stub.giorno.length <= 5 ? 'text-xl' : 'text-base';
+  const hasPoster = Boolean(t.locandina) && imgOk;
+  const stubSize = stub.giorno.length <= 2 ? 'text-3xl' : stub.giorno.length <= 5 ? 'text-[1.8rem]' : 'text-base';
 
   return (
     <div
@@ -413,73 +418,77 @@ function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDeta
         }
       }}
       aria-label={`Vedi dettagli di ${t.nome}`}
-      className="group relative bg-white rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300 flex overflow-hidden border cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500"
-      style={{ borderColor: 'rgba(34,48,31,0.1)', animation: 'card-in 0.5s ease both', animationDelay: `${delay}ms` }}
+      className="group relative bg-white rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300 flex overflow-hidden border cursor-pointer "
+      style={{
+        backgroundColor: CARD_BG,
+        borderColor: 'rgba(34,48,31,0.1)',
+        animation: 'card-in 0.3s ease both',
+        animationDelay: `${delay}ms`
+      }}
     >
       <div
-        className="relative flex flex-col items-center justify-center text-center py-4 shrink-0 overflow-hidden"
-        style={{ width: '78px', background: style.bg }}
+        className="relative flex flex-col items-center justify-center text-center py-4 sm:py-6 shrink-0 overflow-hidden w-20 sm:w-28 lg:w-32 sm:mr-8"
+        style={{ background: style.bg }}
       >
-        {hasImage && (
-          <img
-            src={t.immagine}
-            alt=""
-            onError={() => setImgOk(false)}
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{ opacity: 0.35 }}
-          />
-        )}
         <div className="relative text-white px-1">
-          {stub.giornoSett && <div className="text-xs font-bold" style={{ opacity: 0.8 }}>{stub.giornoSett}</div>}
-          <div className={`font-display leading-none ${stubSize}`}>{stub.giorno}</div>
-          {stub.mese && <div className="text-xs font-bold tracking-widest mt-1.5">{stub.mese}</div>}
+          {stub.giornoSett && <div className="text-xm font-semibold" style={{ opacity: 1 }}>{stub.giornoSett}</div>}
+          <div className={`font-display text-4xl sm:text-4xl leading-none ${stubSize}`}>{stub.giorno}</div>
+          {stub.mese && <div className="text-xm font-semibold tracking-widest">{stub.mese}</div>}
         </div>
-        <span className="absolute rounded-full bg-white" style={{ width: 18, height: 18, right: -9, top: -9 }} />
-        <span className="absolute rounded-full bg-white" style={{ width: 18, height: 18, right: -9, bottom: -9 }} />
+        {/* <span className="absolute rounded-full bg-white" style={{ width: 18, height: 18, right: -9, top: -9 }} /> */}
+        {/* <span className="absolute rounded-full bg-white" style={{ width: 18, height: 18, right: -9, bottom: -9 }} /> */}
       </div>
 
-      <div className="shrink-0" style={{ width: 0, borderLeft: '2px dashed rgba(34,48,31,0.15)', marginTop: 12, marginBottom: 12 }} />
+      {/* <div className="shrink-0" style={{ width: 0, borderLeft: '2px dashed rgba(34,48,31,0.15)', marginTop: 12, marginBottom: 12 }} /> */}
 
       <div className="flex-1 p-3.5 min-w-0 flex flex-col">
-        <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
-          <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: style.tagBg, color: style.tagText }}>
+        <h3 className="font-black text-2xl sm:text-3xl leading-tight mb-3" style={{ color: INK }}>
+          {t.nome}
+        </h3>
+
+        <div className="flex items-center gap-1.5 flex-wrap mb-4">
+          <span
+            className="text-xs sm:text-sm font-semibold px-2 py-0.5 rounded"
+            style={{ backgroundColor: style.tagBg, color: style.tagText }}
+          >
             {t.disciplina}
           </span>
+
           {t.formati.map((f) => (
-            <span key={f} className="text-xs font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+            <span
+              key={f}
+              className="text-xs sm:text-sm font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-800"
+            >
               {f}
             </span>
           ))}
         </div>
-        <h3 className="font-black text-base leading-tight mb-1" style={{ color: INK }}>
-          {t.nome}
-        </h3>
-        {t.modalita && <p className="text-xs text-gray-500 mb-2">{t.modalita}</p>}
+        {t.modalita && <p className="text-xs sm:text-sm text-gray-500 mb-4">{t.modalita}</p>}
 
-        <div className="text-xs text-gray-600 space-y-1 mb-2">
+        <div className="text-xs sm:text-sm text-gray-600 space-y-2 mb-6">
+
           <div className="flex items-center gap-1.5">
-            <MapPin size={13} className="text-gray-400 shrink-0" />
+            <Calendar size={16} className="text-gray-400 shrink-0" />
+            <span>
+              {formatDataRange(t.data, t.dataFine)}
+              {t.ora && <span className="font-normal text-gray-600"> · {t.ora}</span>}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <MapPin size={16} className="text-gray-400 shrink-0" />
             <span className="truncate">
               {t.luogo}, {t.comune} ({t.provincia})
             </span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Calendar size={13} className="text-gray-400 shrink-0" />
-            <span className="font-bold" style={{ color: INK }}>
-              {formatDataRange(t.data, t.dataFine)}
-              {t.ora && <span className="font-normal text-gray-500"> · {t.ora}</span>}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Euro size={13} className="text-gray-400 shrink-0" />
+          <div className=" flex items-center gap-1.5">
+            <Euro size={16} className="text-gray-400 shrink-0" />
             <span>{t.costo}</span>
           </div>
         </div>
 
         <div className="mt-auto pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-xs text-gray-400">Iscrizioni entro {formatDataBreve(t.iscrizioniEntro)}</div>
-            <div className="text-xs text-gray-400 truncate">{t.organizzatore}</div>
+            <div className="text-xs text-gray-400">{t.organizzatore}</div>
           </div>
           {isAdmin && (
             <div className="flex items-center gap-1 shrink-0">
@@ -489,10 +498,10 @@ function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDeta
                   e.stopPropagation();
                   onEdit();
                 }}
-                className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500 "
                 aria-label={`Modifica ${t.nome}`}
               >
-                <Pencil size={13} />
+                <Pencil size={16} />
               </button>
               <button
                 type="button"
@@ -500,15 +509,26 @@ function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDeta
                   e.stopPropagation();
                   onDeleteRequest();
                 }}
-                className="p-1.5 rounded-full hover:bg-gray-100 text-rose-600 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="p-1.5 rounded-full hover:bg-gray-100 text-rose-600 "
                 aria-label={`Elimina ${t.nome}`}
               >
-                <Trash2 size={13} />
+                <Trash2 size={16} />
               </button>
             </div>
           )}
         </div>
+
       </div>
+      {hasPoster && (
+        <div className="w-45 shrink-0 p-2 flex items-center justify-center sm:mr-6">
+          <img
+            src={t.locandina}
+            alt={`Locandina di ${t.nome}`}
+            onError={() => setImgOk(false)}
+            className="w-full rounded-lg object-cover"
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -526,17 +546,17 @@ function TournamentDetail({ tournament, onClose }) {
   const [posterOk, setPosterOk] = useState(true);
   const t = tournament;
   const style = STUB_STYLE[t.disciplina] || STUB_STYLE['Green Volley'];
-  const posterSrc = t.locandina || t.immagine;
+  const posterSrc = t.locandina;
   const showPoster = Boolean(posterSrc) && posterOk;
 
   return (
     <div
       className="fixed inset-0 flex items-center justify-center p-4 z-50"
-      style={{ backgroundColor: 'rgba(34,48,31,0.5)' }}
+      style={{ backgroundColor: 'rgba(22, 20, 15, 0.83)' }}
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl w-full max-w-lg overflow-y-auto"
+        className="bg-white rounded-xl w-full max-w-lg overflow-y-auto"
         style={{ maxHeight: '90vh' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -544,13 +564,13 @@ function TournamentDetail({ tournament, onClose }) {
           className="sticky top-0 bg-white border-b-2 px-6 py-4 flex items-center justify-between gap-3 rounded-t-2xl"
           style={{ borderColor: 'rgba(34,48,31,0.1)' }}
         >
-          <h2 className="font-black text-lg" style={{ color: INK }}>
+          <h2 className="font-black text-3xl" style={{ color: INK }}>
             {t.nome}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-gray-100 shrink-0 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="p-1.5 rounded-full hover:bg-gray-100 shrink-0 "
             style={{ color: INK }}
             aria-label="Chiudi"
           >
@@ -570,11 +590,11 @@ function TournamentDetail({ tournament, onClose }) {
           )}
 
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: style.tagBg, color: style.tagText }}>
+            <span className="text-sm font-bold px-2 py-0.5 rounded" style={{ backgroundColor: style.tagBg, color: style.tagText }}>
               {t.disciplina}
             </span>
             {t.formati.map((f) => (
-              <span key={f} className="text-xs font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+              <span key={f} className="text-sm font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
                 {f}
               </span>
             ))}
@@ -596,9 +616,13 @@ function TournamentDetail({ tournament, onClose }) {
             </div>
             <div className="flex items-start gap-2.5">
               <MapPin size={15} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
-              <span>
+              <a href={getMapsUrl(t)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="cursor-pointer hover:underline"
+              >
                 {t.luogo}, {t.comune} ({t.provincia})
-              </span>
+              </a>
             </div>
             <div className="flex items-start gap-2.5">
               <Euro size={15} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
@@ -623,10 +647,10 @@ function TournamentDetail({ tournament, onClose }) {
                   href={t.instagram}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm font-bold "
                   style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
                 >
-                  <Instagram size={15} /> Instagram
+                  <FaInstagram size={15} /> Instagram
                 </a>
               )}
               {t.facebook && (
@@ -634,10 +658,10 @@ function TournamentDetail({ tournament, onClose }) {
                   href={t.facebook}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm font-bold "
                   style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
                 >
-                  <Facebook size={15} /> Facebook
+                  <FaFacebook size={15} /> Facebook
                 </a>
               )}
             </div>
@@ -687,7 +711,7 @@ function TournamentForm({ initial, onSave, onCancel }) {
           <button
             type="button"
             onClick={onCancel}
-            className="p-1.5 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="p-1.5 rounded-full hover:bg-gray-100 "
             style={{ color: INK }}
           >
             <X size={18} />
@@ -731,7 +755,6 @@ function TournamentForm({ initial, onSave, onCancel }) {
                   key={f}
                   active={form.formati.includes(f)}
                   onClick={() => {
-                    if (form.formati.includes(f) && form.formati.length === 1) return;
                     update('formati', toggleValue(form.formati, f));
                   }}
                 >
@@ -834,7 +857,7 @@ function TournamentForm({ initial, onSave, onCancel }) {
                 style={inputStyle}
                 value={form.costo}
                 onChange={(e) => update('costo', e.target.value)}
-                placeholder="Es. €15 a giocatore"
+                placeholder="Es: 15 (pasti e maglietta)"
               />
             </div>
           </div>
@@ -909,19 +932,6 @@ function TournamentForm({ initial, onSave, onCancel }) {
 
           <div>
             <label className={labelClass} style={labelStyle}>
-              Immagine di copertina (URL, opzionale)
-            </label>
-            <input
-              className={inputClass}
-              style={inputStyle}
-              value={form.immagine}
-              onChange={(e) => update('immagine', e.target.value)}
-              placeholder="Lascia vuoto per usare la cover generata"
-            />
-          </div>
-
-          <div>
-            <label className={labelClass} style={labelStyle}>
               Locandina (URL, opzionale)
             </label>
             <input
@@ -937,14 +947,14 @@ function TournamentForm({ initial, onSave, onCancel }) {
             <button
               type="button"
               onClick={onCancel}
-              className="flex-1 py-2.5 rounded-lg border-2 font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+              className="flex-1 py-2.5 rounded-lg border-2 font-bold "
               style={{ borderColor: 'rgba(34,48,31,0.25)', color: INK }}
             >
               Annulla
             </button>
             <button
               type="submit"
-              className="flex-1 py-2.5 rounded-lg font-bold text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+              className="flex-1 py-2.5 rounded-lg font-bold text-white shadow-sm  focus:ring-offset-2"
               style={{ backgroundColor: SUN }}
             >
               Salva torneo
@@ -980,7 +990,7 @@ function DeleteConfirm({ tournament, onConfirm, onCancel }) {
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 py-2.5 rounded-lg border-2 font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="flex-1 py-2.5 rounded-lg border-2 font-bold "
             style={{ borderColor: 'rgba(34,48,31,0.25)', color: INK }}
           >
             Annulla
@@ -988,7 +998,7 @@ function DeleteConfirm({ tournament, onConfirm, onCancel }) {
           <button
             type="button"
             onClick={onConfirm}
-            className="flex-1 py-2.5 rounded-lg font-bold text-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+            className="flex-1 py-2.5 rounded-lg font-bold text-white  focus:ring-offset-2"
             style={{ backgroundColor: CLAY }}
           >
             Elimina torneo
@@ -1012,7 +1022,7 @@ function EmptyState({ onReset }) {
       <button
         type="button"
         onClick={onReset}
-        className="px-5 py-2.5 rounded-full text-white font-bold focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+        className="px-5 py-2.5 rounded-full text-white font-bold  focus:ring-offset-2"
         style={{ backgroundColor: INK }}
       >
         Azzera filtri
@@ -1050,7 +1060,7 @@ function BachecaComposer({ testo, setTesto, tipo, setTipo, onSubmit }) {
           type="button"
           onClick={onSubmit}
           disabled={!testo.trim()}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm disabled:opacity-40 "
           style={{ backgroundColor: INK, color: SAND, cursor: testo.trim() ? 'pointer' : 'not-allowed' }}
         >
           <Pin size={14} />
@@ -1100,7 +1110,7 @@ function BachecaNote({ post, onDelete }) {
       <button
         type="button"
         onClick={() => onDelete(post.id)}
-        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-500"
+        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-200 "
         style={{ color: INK, opacity: 0.45 }}
         aria-label="Rimuovi annuncio"
       >
@@ -1130,6 +1140,7 @@ export default function App() {
   const [annunci, setAnnunci] = useState(INITIAL_ANNUNCI);
   const [nuovoTesto, setNuovoTesto] = useState('');
   const [nuovoTipo, setNuovoTipo] = useState('cerca_squadra');
+  const [selectedDurate, setSelectedDurate] = useState([]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -1146,17 +1157,23 @@ export default function App() {
         const matchesProvincia = selectedProvinces.length === 0 || selectedProvinces.includes(t.provincia);
         const matchesFrom = !dateFrom || t.data >= dateFrom;
         const matchesTo = !dateTo || t.data <= dateTo;
-        return matchesSearch && matchesDisciplina && matchesFormato && matchesProvincia && matchesFrom && matchesTo;
+        const durata =
+          !t.dataFine || t.dataFine === t.data ? '1' : '2+';
+
+        const matchesDurata =
+          selectedDurate.length === 0 ||
+          selectedDurate.includes(durata);
+        return matchesSearch && matchesDisciplina && matchesFormato && matchesProvincia && matchesFrom && matchesTo && matchesDurata;
       })
       .sort((a, b) => a.data.localeCompare(b.data));
-  }, [tournaments, search, selectedDisciplines, selectedFormats, selectedProvinces, dateFrom, dateTo]);
+  }, [tournaments, search, selectedDisciplines, selectedFormats, selectedProvinces, selectedDurate, dateFrom, dateTo]);
 
   const grouped = useMemo(() => groupByMonth(filtered), [filtered]);
 
   const sortedAnnunci = useMemo(() => [...annunci].sort((a, b) => b.data.localeCompare(a.data)), [annunci]);
 
   const extraFilterCount = selectedProvinces.length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
-  const activeFilterCount = selectedDisciplines.length + selectedFormats.length + extraFilterCount;
+  const activeFilterCount = selectedDisciplines.length + selectedFormats.length + selectedDurate.length + extraFilterCount;
 
   function resetFilters() {
     setSearch('');
@@ -1165,6 +1182,7 @@ export default function App() {
     setSelectedProvinces([]);
     setDateFrom('');
     setDateTo('');
+    setSelectedDurate([]);
   }
 
   function handleSave(t) {
@@ -1203,9 +1221,19 @@ export default function App() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: SAND }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
-        .font-display { font-family: 'Anton', 'Arial Narrow', sans-serif; }
-        @keyframes card-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+       @import url('https://fonts.googleapis.com/css2?family=SN+Pro:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Fredoka:wght@400;500;600;700;800&display=swap');
+
+body {
+  font-family: 'Fredoka', 'SN Pro', sans-serif;
+}
+
+.font-display {
+  font-family: 'Fredoka', 'SN Pro', 'Anton', 'Arial Narrow', sans-serif;
+  font-weight:600
+}
+       
+       @keyframes card-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @media (prefers-reduced-motion: reduce) {
@@ -1213,211 +1241,234 @@ export default function App() {
         }
       `}</style>
 
-      {/* NAV */}
-      <div className="border-b-2" style={{ borderColor: 'rgba(34,48,31,0.12)' }}>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center gap-1.5 py-2.5">
-          <NavTab active={view === 'tornei'} onClick={() => setView('tornei')}>
-            Tornei
-          </NavTab>
-          <NavTab active={view === 'bacheca'} onClick={() => setView('bacheca')}>
-            Bacheca
-          </NavTab>
-        </div>
-      </div>
+      {/* NAV + HEADER */}
+      <div className=" mb-2" style={{ borderColor: 'rgba(34,48,31,0.12)' }}>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-9 flex items-center justify-between gap-4 py-2.5">
 
-      {/* HERO */}
-      <div className="pt-8 sm:pt-12 pb-3">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-start justify-between gap-4 mb-3">
-            <div>
-              <h1 className="font-display text-4xl sm:text-6xl leading-none" style={{ color: INK }}>
-                tornei<span style={{ color: SUN }}>FVG</span>
-              </h1>
-            </div>
-            {view === 'tornei' && (
-              <label
-                className="flex items-center gap-2 border-2 rounded-full pl-3 pr-1.5 py-1.5 cursor-pointer shrink-0 mt-1 bg-white"
-                style={{ borderColor: INK }}
-              >
-                <Settings2 size={14} style={{ color: INK }} />
-                <span className="text-xs font-bold hidden sm:inline" style={{ color: INK }}>
-                  Organizzatore
-                </span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={isAdmin}
-                  onClick={() => setIsAdmin((v) => !v)}
-                  className="w-9 h-5 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  style={{ backgroundColor: isAdmin ? SUN : '#D8D0BC' }}
-                >
-                  <span
-                    className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform"
-                    style={{ transform: isAdmin ? 'translateX(16px)' : 'translateX(0)' }}
-                  />
-                </button>
-              </label>
-            )}
-          </div>
-        </div>
-      </div>
+          <button
+            type="button"
+            onClick={() => {
+              setView('tornei');
+              resetFilters();
+            }}
+            className="font-display text-3xl sm:text-4xl leading-none shrink-0 rounded"
+            style={{ color: INK }}
+          >
+            tornei<span style={{ color: SUN }}>FVG</span>
+          </button>
 
-      {view === 'tornei' && (
-        <>
-      {isAdmin && (
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-xs font-semibold rounded-lg px-3 py-2 mb-1" style={{ backgroundColor: '#FFF4DE', color: '#8A5A00' }}>
-            Modalità organizzatore attiva: puoi aggiungere, modificare ed eliminare i tornei.
-          </div>
-        </div>
-      )}
-
-      {/* SEARCH + FILTERS */}
-      <div className="sticky top-0 z-20 border-b-2" style={{ backgroundColor: SAND, borderColor: 'rgba(34,48,31,0.15)' }}>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 space-y-3">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2" size={18} style={{ color: INK, opacity: 0.45 }} />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cerca per nome, città o organizzatore..."
-              className="w-full pl-11 pr-4 py-3 rounded-full border-2 bg-white outline-none text-sm font-medium focus:ring-2 focus:ring-amber-500"
-              style={{ borderColor: INK, color: INK }}
-            />
+          <div className="flex items-center gap-1.5">
+            <NavTab active={view === 'tornei'} onClick={() => setView('tornei')}>
+              Tornei
+            </NavTab>
+            <NavTab active={view === 'bacheca'} onClick={() => setView('bacheca')}>
+              Bacheca
+            </NavTab>
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-            {DISCIPLINE.map((d) => (
-              <Chip
-                key={d}
-                active={selectedDisciplines.includes(d)}
-                onClick={() => setSelectedDisciplines((prev) => toggleValue(prev, d))}
-                color={d === 'Beach Volley' ? SABBIA : d === 'Green Volley' ? GRASS : SEA}
-              >
-                {d}
-              </Chip>
-            ))}
-            <span className="h-5 shrink-0" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
-            {FORMATI.map((f) => (
-              <Chip key={f} active={selectedFormats.includes(f)} onClick={() => setSelectedFormats((prev) => toggleValue(prev, f))}>
-                {f}
-              </Chip>
-            ))}
-            <span className="h-5 shrink-0" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
-            <button
-              type="button"
-              onClick={() => setShowMoreFilters((v) => !v)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border-2 whitespace-nowrap shrink-0 focus:outline-none focus:ring-2 focus:ring-amber-500"
-              style={{
-                borderColor: showMoreFilters ? INK : 'rgba(34,48,31,0.25)',
-                backgroundColor: showMoreFilters ? INK : 'transparent',
-                color: showMoreFilters ? '#FFFFFF' : INK,
-              }}
+          {view === 'tornei' && (
+            <label
+              className="flex items-center gap-2 rounded-full pl-3 pr-1.5 py-1.5 cursor-pointer shrink-0"
+              style={{ borderColor: INK }}
             >
-              <SlidersHorizontal size={13} />
-              Altri filtri
-              {extraFilterCount > 0 && <span>({extraFilterCount})</span>}
-              <ChevronDown size={13} style={{ transform: showMoreFilters ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
-            </button>
-            {activeFilterCount > 0 && (
+              <Settings2 size={14} style={{ color: INK }} />
+              <span className="text-sm font-semibold hidden sm:inline" style={{ color: INK }}>
+                Login
+              </span>
+
               <button
                 type="button"
-                onClick={resetFilters}
-                className="flex items-center gap-1 text-xs font-bold px-2 shrink-0 focus:outline-none focus:ring-2 focus:ring-amber-500 rounded"
-                style={{ color: INK, opacity: 0.5 }}
+                role="switch"
+                aria-checked={isAdmin}
+                onClick={() => setIsAdmin((v) => !v)}
+                className="w-9 h-5 rounded-full relative transition-colors "
+                style={{ backgroundColor: isAdmin ? SUN : '#D8D0BC' }}
               >
-                <X size={13} /> Azzera
+                <span
+                  className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform"
+                  style={{ transform: isAdmin ? 'translateX(16px)' : 'translateX(0)' }}
+                />
               </button>
-            )}
+            </label>
+          )}
+
+        </div>
+      </div>
+      {view === 'tornei' && (
+        <>
+          {isAdmin && (
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-xs font-semibold rounded-lg px-3 py-2 mb-1" style={{ backgroundColor: '#FFF4DE', color: '#8A5A00' }}>
+                Modalità organizzatore attiva: puoi aggiungere, modificare ed eliminare i tornei.
+              </div>
+            </div>
+          )}
+
+          {/* SEARCH + FILTERS */}
+          <div className="sticky top-0 z-20 " style={{ backgroundColor: SAND, borderColor: 'rgba(34,48,31,0.15)' }}>
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 space-y-3">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2" size={18} style={{ color: INK, opacity: 0.45 }} />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Cerca per nome, città, ..."
+                  className="w-full pl-11 pr-4 py-3 rounded-full border-1 outline-none text-sm font-medium focus:ring-1 focus:ring-grey-100"
+                  style={{
+                    borderColor: "#28282834",
+                    color: INK,
+                    backgroundColor: SAND,
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-2">
+                {DISCIPLINE.map((d) => (
+                  <Chip
+                    key={d}
+                    active={selectedDisciplines.includes(d)}
+                    onClick={() => setSelectedDisciplines((prev) => toggleValue(prev, d))}
+                    color={d === 'Beach Volley' ? SABBIA_DARK : d === 'Green Volley' ? GRASS_DARK : SEA_DARK}
+                  >
+                    {d}
+                  </Chip>
+                ))}
+                <span className="h-5 shrink-0 mr-2 ml-2" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
+                {FORMATI.map((f) => (
+                  <Chip key={f} active={selectedFormats.includes(f)} onClick={() => setSelectedFormats((prev) => toggleValue(prev, f))}>
+                    {f}
+                  </Chip>
+                ))}
+                <span
+                  className="h-5 shrink-0 mr-2 ml-2"
+                  style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }}
+                />
+
+                {DURATE.map((d) => (
+                  <Chip
+                    key={d.value}
+                    active={selectedDurate.includes(d.value)}
+                    onClick={() => setSelectedDurate((prev) => toggleValue(prev, d.value))}
+                  >
+                    {d.label}
+                  </Chip>
+                ))}
+
+                <span className="h-5 shrink-0 mr-1 ml-1" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
+                <button
+                  type="button"
+                  onClick={() => setShowMoreFilters((v) => !v)}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-semibold border-2 whitespace-nowrap shrink-0 "
+                  style={{
+                    borderColor: showMoreFilters ? INK : 'rgba(34,48,31,0.25)',
+                    backgroundColor: showMoreFilters ? INK : 'transparent',
+                    color: showMoreFilters ? '#FFFFFF' : INK,
+                  }}
+                >
+                  <SlidersHorizontal size={13} />
+                  Altri filtri
+                  {extraFilterCount > 0 && <span>({extraFilterCount})</span>}
+                  <ChevronDown size={13} style={{ transform: showMoreFilters ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                </button>
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="flex items-center gap-1 text-xs font-bold px-2 shrink-0 rounded shrink-0"
+                    style={{ color: INK, opacity: 0.5 }}
+                  >
+                    <X size={13} /> Azzera
+                  </button>
+                )}
+              </div>
+
+              {showMoreFilters && (
+                <div className="bg-white border-2 rounded-xl p-4 space-y-4" style={{ borderColor: 'rgba(34,48,31,0.15)' }}>
+                  <div>
+                    <div className="text-xs font-bold mb-2" style={{ color: INK, opacity: 0.6 }}>
+                      PROVINCIA
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {PROVINCE.map((p) => (
+                        <Chip key={p} active={selectedProvinces.includes(p)} onClick={() => setSelectedProvinces((prev) => toggleValue(prev, p))}>
+                          {PROVINCE_LABELS[p]}
+                        </Chip>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 max-w-xs">
+                    <div>
+                      <div className="text-xs font-bold mb-1.5" style={{ color: INK, opacity: 0.6 }}>
+                        DAL
+                      </div>
+                      <input
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        className="w-full px-2.5 py-2 rounded-lg border-2 text-sm "
+                        style={{ borderColor: 'rgba(34,48,31,0.25)', color: INK }}
+                      />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold mb-1.5" style={{ color: INK, opacity: 0.6 }}>
+                        AL
+                      </div>
+                      <input
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        className="w-full px-2.5 py-2 rounded-lg border-2 text-sm "
+                        style={{ borderColor: 'rgba(34,48,31,0.25)', color: INK }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
-          {showMoreFilters && (
-            <div className="bg-white border-2 rounded-xl p-4 space-y-4" style={{ borderColor: 'rgba(34,48,31,0.15)' }}>
-              <div>
-                <div className="text-xs font-bold mb-2" style={{ color: INK, opacity: 0.6 }}>
-                  PROVINCIA
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {PROVINCE.map((p) => (
-                    <Chip key={p} active={selectedProvinces.includes(p)} onClick={() => setSelectedProvinces((prev) => toggleValue(prev, p))}>
-                      {PROVINCE_LABELS[p]}
-                    </Chip>
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3 max-w-xs">
-                <div>
-                  <div className="text-xs font-bold mb-1.5" style={{ color: INK, opacity: 0.6 }}>
-                    DAL
-                  </div>
-                  <input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-lg border-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    style={{ borderColor: 'rgba(34,48,31,0.25)', color: INK }}
-                  />
-                </div>
-                <div>
-                  <div className="text-xs font-bold mb-1.5" style={{ color: INK, opacity: 0.6 }}>
-                    AL
-                  </div>
-                  <input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-lg border-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    style={{ borderColor: 'rgba(34,48,31,0.25)', color: INK }}
-                  />
-                </div>
-              </div>
+          {/* RESULTS */}
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-6 py-2 sm:py-2">
+            <div className="flex items-center justify-between mb-5">
+              <p className="text-sm" style={{ color: INK, opacity: 0.6 }}>
+                {filtered.length} {filtered.length === 1 ? 'torneo trovato' : 'tornei trovati'}
+              </p>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setFormState('new')}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-white text-sm font-semibold shadow-sm  focus:ring-offset-2"
+                  style={{ backgroundColor: SUN }}
+                >
+                  <Plus size={16} /> Aggiungi torneo
+                </button>
+              )}
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* RESULTS */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <div className="flex items-center justify-between mb-5">
-          <p className="text-sm font-semibold" style={{ color: INK, opacity: 0.6 }}>
-            {filtered.length} {filtered.length === 1 ? 'torneo trovato' : 'tornei trovati'}
-          </p>
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={() => setFormState('new')}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-white text-sm font-bold shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
-              style={{ backgroundColor: SUN }}
-            >
-              <Plus size={16} /> Aggiungi torneo
-            </button>
-          )}
-        </div>
-
-        {grouped.length === 0 ? (
-          <EmptyState onReset={resetFilters} />
-        ) : (
-          grouped.map((group) => (
-            <div key={group.key} className="mb-10">
-              <MonthHeader label={group.label} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {group.items.map((t, i) => (
-                  <TournamentCard
-                    key={t.id}
-                    t={t}
-                    delay={i * 60}
-                    isAdmin={isAdmin}
-                    onEdit={() => setFormState(t)}
-                    onDeleteRequest={() => setDeleteTarget(t)}
-                    onOpenDetail={setDetailTarget}
-                  />
-                ))}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+            {grouped.length === 0 ? (
+              <EmptyState onReset={resetFilters} />
+            ) : (
+              grouped.map((group) => (
+                <div key={group.key} className="mb-10">
+                  <MonthHeader label={group.label} />
+                  <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-1 gap-4">
+                    {group.items.map((t, i) => (
+                      <TournamentCard
+                        key={t.id}
+                        t={t}
+                        delay={i * 60}
+                        isAdmin={isAdmin}
+                        onEdit={() => setFormState(t)}
+                        onDeleteRequest={() => setDeleteTarget(t)}
+                        onOpenDetail={setDetailTarget}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </>
       )}
 

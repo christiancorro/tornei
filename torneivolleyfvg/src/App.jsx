@@ -1221,9 +1221,19 @@ export default function App() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: SAND }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
-        .font-display { font-family: 'Anton', 'Arial Narrow', sans-serif; }
-        @keyframes card-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+       @import url('https://fonts.googleapis.com/css2?family=SN+Pro:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Fredoka:wght@400;500;600;700;800&display=swap');
+
+body {
+  font-family: 'Fredoka', 'SN Pro', sans-serif;
+}
+
+.font-display {
+  font-family: 'Fredoka', 'SN Pro', 'Anton', 'Arial Narrow', sans-serif;
+  font-weight:600
+}
+       
+       @keyframes card-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @media (prefers-reduced-motion: reduce) {
@@ -1241,7 +1251,7 @@ export default function App() {
               setView('tornei');
               resetFilters();
             }}
-            className="font-display text-3xl sm:text-5xl leading-none shrink-0 rounded"
+            className="font-display text-3xl sm:text-4xl leading-none shrink-0 rounded"
             style={{ color: INK }}
           >
             tornei<span style={{ color: SUN }}>FVG</span>

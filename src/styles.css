@@ -14,6 +14,61 @@ body {
   font-weight: 600;
 }
 
+/* Cambio modalità di visualizzazione: lista / mappa / calendario */
+.view-swap {
+  animation: view-swap-in 0.22s ease-out both;
+}
+
+@keyframes view-swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Apertura modali: sfondo in dissolvenza, pannello che sale */
+.modal-backdrop {
+  animation: modal-fade-in 0.18s ease-out both;
+}
+
+.modal-panel {
+  animation: modal-pop-in 0.24s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Tornei nelle celle del calendario: bordo al passaggio del mouse */
+.calendar-event {
+  border: 2px solid transparent;
+  transition: border-color 0.2s ease-out;
+}
+
+.calendar-event:hover {
+  border-color: currentColor;
+}
+
 /* Press feedback on anything clickable */
 /* button,
 a {

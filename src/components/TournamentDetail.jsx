@@ -20,12 +20,12 @@ export default function TournamentDetail({ tournament, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center p-4 z-50"
+      className="fixed inset-0 flex items-center justify-center p-4 z-50 modal-backdrop"
       style={{ backgroundColor: 'rgba(22, 20, 15, 0.83)' }}
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl w-full max-w-xl overflow-y-auto"
+        className="bg-white rounded-xl w-full max-w-xl overflow-y-auto modal-panel"
         style={{ maxHeight: '90vh' }}
         onClick={(e) => e.stopPropagation()}
       >

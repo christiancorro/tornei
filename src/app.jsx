@@ -138,6 +138,7 @@ export default function App() {
         setView={setView}
         onLogoClick={() => {
           setView('tornei');
+          setViewMode('lista');
           resetFilters();
         }}
         isAdmin={isAdmin}
@@ -173,38 +174,46 @@ export default function App() {
         />
       )}
 
-      {view === 'tornei' && viewMode === 'lista' && (
-        <TournamentList
-          grouped={grouped}
-          isAdmin={isAdmin}
-          onEdit={(t) => setFormState(t)}
-          onDeleteRequest={(t) => setDeleteTarget(t)}
-          onOpenDetail={setDetailTarget}
-          onResetFilters={resetFilters}
-        />
-      )}
+      {/* key={viewMode} rimonta il blocco a ogni cambio, così l'animazione riparte */}
+      {view === 'tornei' && (
+        <div key={viewMode} className="view-swap">
+          {viewMode === 'lista' && (
+            <TournamentList
+              grouped={grouped}
+              isAdmin={isAdmin}
+              onEdit={(t) => setFormState(t)}
+              onDeleteRequest={(t) => setDeleteTarget(t)}
+              onOpenDetail={setDetailTarget}
+              onResetFilters={resetFilters}
+            />
+          )}
 
-      {false && view === 'tornei' && viewMode === 'mappa' && (
-        <MapView tournaments={filtered} />
-      )}
-      {view === 'tornei' && viewMode === 'calendario' && (
-        <CalendarView
-          tournaments={filtered}
-          onOpenDetail={setDetailTarget}
-        />
+          {false && viewMode === 'mappa' && (
+            <MapView tournaments={filtered} />
+          )}
+
+          {viewMode === 'calendario' && (
+            <CalendarView
+              tournaments={filtered}
+              onOpenDetail={setDetailTarget}
+            />
+          )}
+        </div>
       )}
 
       {view === 'bacheca' && (
-        <Bacheca
-          annunci={sortedAnnunci}
-          nuovoTesto={nuovoTesto}
-          setNuovoTesto={setNuovoTesto}
-          nuovoTipo={nuovoTipo}
-          setNuovoTipo={setNuovoTipo}
-          onPubblica={handlePubblicaAnnuncio}
-          onElimina={handleEliminaAnnuncio}
-          isAdmin={isAdmin}
-        />
+        <div className="view-swap">
+          <Bacheca
+            annunci={sortedAnnunci}
+            nuovoTesto={nuovoTesto}
+            setNuovoTesto={setNuovoTesto}
+            nuovoTipo={nuovoTipo}
+            setNuovoTipo={setNuovoTipo}
+            onPubblica={handlePubblicaAnnuncio}
+            onElimina={handleEliminaAnnuncio}
+            isAdmin={isAdmin}
+          />
+        </div>
       )}
 
       <Footer />
@@ -217,4 +226,3 @@ export default function App() {
     </div>
   );
 }
-// 

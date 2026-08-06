@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Search,
   SlidersHorizontal,
@@ -46,12 +46,33 @@ export default function Header({
   resetFilters,
 }) {
   const [moreHover, setMoreHover] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef(null);
+  const rowRef = useRef(null);
+
+  // Il focus su un campo dentro una riga scrollabile fa scorrere la riga
+  // per "rivelarlo": preventScroll + reset tengono l'icona ferma a sinistra.
+  function focusSearch() {
+    searchRef.current?.focus({ preventScroll: true });
+    if (rowRef.current) rowRef.current.scrollLeft = 0;
+  }
+
+  function toggleSearch() {
+    if (searchOpen) {
+      // Con del testo dentro il campo resta aperto: chiuderlo lo nasconderebbe.
+      if (search) focusSearch();
+      else setSearchOpen(false);
+      return;
+    }
+    setSearchOpen(true);
+    requestAnimationFrame(focusSearch);
+  }
 
   return (
     <>
       {/* NAV + HEADER */}
       <div style={{ borderColor: 'rgba(34,48,31,0.12)' }}>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-9 py-2.5">
+        <div className="max-w-[70rem] mx-auto px-4 sm:px-6 lg:px-9 py-2.5">
           {/* Mobile: il logo occupa solo lo spazio che gli serve e i tab
               si centrano in quello che resta, quindi scivolano a destra.
               Da sm in su torna la griglia a 3 colonne uguali. */}
@@ -111,30 +132,42 @@ export default function Header({
           )} */}
 
           {/* SEARCH + FILTERS */}
-          <div className="sticky top-0 z-20 shadow-xs" style={{ backgroundColor: SAND, borderColor: 'rgba(34,48,31,0.15)', }}>
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 space-y-3">
-              <div className="relative">
-                <Search
-                  className="absolute left-4 top-1/2 -translate-y-1/2"
-                  size={18}
-                  style={{ color: INK, opacity: 0.45 }}
-                />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Cerca per nome, città, ..."
-                  className="w-full pl-11 pr-4 py-2 rounded-full border-1 outline-none text-sm font-medium focus:ring-2"
+          <div className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: SAND, borderColor: 'rgba(34,48,31,0.15)', }}>
+            <div className="max-w-[69rem] mx-auto px-4 sm:px-6 lg:px-8 py-3.5 space-y-3">
+              <div ref={rowRef} className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-2">
+                {/* Ricerca a scomparsa: da icona a campo, spingendo i filtri a destra */}
+                <div
+                  className="flex items-center h-9 rounded-full border-2 shrink-0 overflow-hidden transition-all duration-300"
                   style={{
-                    borderColor: "#28282834",
-                    color: INK,
-                    backgroundColor: SAND,
-                    '--tw-ring-color': SUN,
+                    borderColor: searchOpen || search ? INK : 'rgba(34,48,31,0.25)',
+                    width: searchOpen || search ? '15rem' : '2.25rem',
                   }}
-                />
-              </div>
+                >
+                  <button
+                    type="button"
+                    onClick={toggleSearch}
+                    className="w-8 h-8 flex items-center justify-center shrink-0"
+                    style={{ color: INK }}
+                    aria-label="Cerca"
+                    aria-expanded={searchOpen}
+                  >
+                    <Search size={16} />
+                  </button>
+                  <input
+                    ref={searchRef}
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    onBlur={() => { if (!search) setSearchOpen(false); }}
+                    placeholder="Cerca per nome, città, ..."
+                    tabIndex={searchOpen ? 0 : -1}
+                    className="flex-1 min-w-0 pr-3 bg-transparent outline-none text-sm font-medium"
+                    style={{ color: INK }}
+                  />
+                </div>
 
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-2">
+                <span className="h-5 shrink-0 mr-2 ml-2" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
+
                 {DISCIPLINE.map((d) => (
                   <Chip
                     key={d}
@@ -166,7 +199,7 @@ export default function Header({
                   </Chip>
                 ))}
 
-                <span className="h-5 shrink-0 mr-1 ml-1" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
+                <span className="h-5 shrink-0 mr-2 ml-2" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
                 <button
                   type="button"
                   onClick={() => setShowMoreFilters((v) => !v)}

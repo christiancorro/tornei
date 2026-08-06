@@ -132,7 +132,7 @@ export default function Bacheca({
   isAdmin,
 }) {
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-4 mb-6">
+    <div className="max-w-[70rem] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-4 mb-6">
       {isAdmin ? (
         <BachecaComposer testo={nuovoTesto} setTesto={setNuovoTesto} tipo={nuovoTipo} setTipo={setNuovoTipo} onSubmit={onPubblica} />
       ) : (

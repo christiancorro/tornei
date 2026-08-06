@@ -23,7 +23,7 @@ export default function ResultsBar({ viewMode, onCycleViewMode, isAdmin, onAdd, 
     const [hover, setHover] = useState(false);
 
     return (
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-6">
+        <div className="max-w-[65rem] mx-auto px-4 sm:px-6 lg:px-6">
             <div className="flex items-center justify-between gap-3 mb-2 mt-2 min-h-10">
 
                 <div className="flex items-center gap-4">

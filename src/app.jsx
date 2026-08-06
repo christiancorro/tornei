@@ -14,7 +14,7 @@ import {
   Settings2,
   AlertTriangle,
   CircleUserRound,
-  List,
+  LayoutList,
   Map
 } from 'lucide-react';
 
@@ -1147,6 +1147,7 @@ function BachecaNote({ post, onDelete, isAdmin }) {
 --------------------------------------------------------- */
 export default function App() {
   const [view, setView] = useState('tornei');
+  const [viewMode, setViewMode] = useState('lista');
   const [tournaments, setTournaments] = useState(INITIAL_TOURNAMENTS);
   const [search, setSearch] = useState('');
   const [selectedDisciplines, setSelectedDisciplines] = useState([]);
@@ -1359,30 +1360,28 @@ body {
                   />
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center shrink-0">
                   <button
                     type="button"
-                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-full border-2 text-sm font-semibold"
+                    onClick={() =>
+                      setViewMode((v) => v === 'lista' ? 'mappa' : 'lista')
+                    }
+                    className="flex items-center justify-start gap-1.5 ml-2 w-21 px-1 py-2 rounded-full text-2sm font-semibold"
                     style={{
-                      borderColor: INK,
-                      backgroundColor: INK,
-                      color: SAND,
-                    }}
-                  >
-                    <List size={16} />
-                    Lista
-                  </button>
-
-                  <button
-                    type="button"
-                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-full border-2 text-sm font-semibold"
-                    style={{
-                      borderColor: 'rgba(34,48,31,0.25)',
                       color: INK,
                     }}
                   >
-                    <Map size={16} />
-                    Mappa
+                    {viewMode === 'lista' ? (
+                      <>
+                        <Map size={18} />
+                        Mappa
+                      </>
+                    ) : (
+                      <>
+                        <LayoutList size={18} />
+                        Lista
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

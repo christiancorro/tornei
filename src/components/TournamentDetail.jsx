@@ -142,3 +142,4 @@ export default function TournamentDetail({ tournament, onClose }) {
     </div>
   );
 }
+// 

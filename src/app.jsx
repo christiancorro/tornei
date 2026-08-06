@@ -1108,6 +1108,7 @@ function BachecaNote({ post, onDelete, isAdmin }) {
       <span
         className="absolute rounded-full"
         style={{
+          display: "none",
           width: 16,
           height: 16,
           left: '50%',
@@ -1557,7 +1558,7 @@ body {
             </div>
           ) : (
             <div
-              className="rounded-2xl p-5 sm:p-12 shadow"
+              className="rounded-2xl p-5 sm:p-6 shadow"
               style={{
                 backgroundColor: CORK,
                 backgroundImage:
@@ -1567,7 +1568,7 @@ body {
 
               }}
             >
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '2rem 1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '2rem 1.5rem' }}>
                 {sortedAnnunci.map((post) => (
                   <BachecaNote key={post.id} post={post} onDelete={handleEliminaAnnuncio} isAdmin={isAdmin} />
                 ))}

@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=SN+Pro:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Fredoka:wght@400;500;600;700;800&display=swap');
+
+html {
+  overflow-y: scroll;
+}
+
+body {
+  font-family: 'Fredoka', 'SN Pro', sans-serif;
+}
+
+.font-display {
+  font-family: 'Fredoka', 'SN Pro', 'Anton', 'Arial Narrow', sans-serif;
+  font-weight: 600;
+}
+
+/* Press feedback on anything clickable */
+/* button,
+a {
+  transition: transform 0.1s ease;
+}
+
+button:active,
+a:active {
+  transform: scale(0.98);
+} */
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

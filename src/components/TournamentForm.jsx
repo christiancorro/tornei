@@ -24,14 +24,14 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
   }
 
   const inputClass = 'w-full px-3.5 py-2.5 rounded-lg border-2 outline-none text-sm focus:ring-2 focus:ring-amber-500';
-  const inputStyle = { borderColor: 'rgba(34,48,31,0.25)', color: INK };
+  const inputStyle = { borderColor: 'rgba(43, 43, 43, 0.25)', color: INK };
   const labelClass = 'text-xs font-semibold mb-1 block';
   const labelStyle = { color: INK, opacity: 0.6 };
 
   return (
     <div
       className="fixed inset-0 flex items-center justify-center p-4 z-50"
-      style={{ backgroundColor: 'rgba(34,48,31,0.5)' }}
+      style={{ backgroundColor: 'rgba(22, 20, 15, 0.83)' }}
       onClick={onCancel}
     >
       <div

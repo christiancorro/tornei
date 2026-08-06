@@ -44,12 +44,43 @@ export default function App() {
     const q = search.trim().toLowerCase();
     return tournaments
       .filter((t) => {
-        const matchesSearch =
-          !q ||
-          t.nome.toLowerCase().includes(q) ||
-          t.comune.toLowerCase().includes(q) ||
-          t.luogo.toLowerCase().includes(q) ||
-          t.organizzatore.toLowerCase().includes(q);
+        const matchesSearch = (() => {
+          if (!q) return true;
+
+          const mesi = [
+            'gennaio',
+            'febbraio',
+            'marzo',
+            'aprile',
+            'maggio',
+            'giugno',
+            'luglio',
+            'agosto',
+            'settembre',
+            'ottobre',
+            'novembre',
+            'dicembre',
+          ];
+
+          const date = [t.data, t.dataFine]
+            .filter(Boolean)
+            .map((d) => {
+              const parsed = new Date(d);
+              return mesi[parsed.getMonth()];
+            });
+
+          const values = Object.values(t)
+            .filter(Boolean)
+            .flatMap((value) =>
+              Array.isArray(value) ? value : [value]
+            )
+            .map((value) => String(value).toLowerCase());
+
+          return [
+            ...values,
+            ...date,
+          ].some((value) => value.includes(q));
+        })();
         const matchesDisciplina = selectedDisciplines.length === 0 || selectedDisciplines.includes(t.disciplina);
         const matchesFormato = selectedFormats.length === 0 || t.formati.some((f) => selectedFormats.includes(f));
         const matchesProvincia = selectedProvinces.length === 0 || selectedProvinces.includes(t.provincia);
@@ -136,6 +167,7 @@ export default function App() {
       <Header
         view={view}
         setView={setView}
+        setViewMode={setViewMode}
         onLogoClick={() => {
           setView('tornei');
           setViewMode('lista');

@@ -22,6 +22,7 @@ import NavTab from './ui/NavTab';
 export default function Header({
   view,
   setView,
+  setViewMode,
   onLogoClick,
   isAdmin,
   setIsAdmin,
@@ -89,9 +90,18 @@ export default function Header({
             </div>
 
             <div className="flex flex-1 items-center justify-center gap-1.5 sm:gap-3">
-              <NavTab active={view === 'tornei'} onClick={() => setView('tornei')}>
+              <NavTab
+                active={view === 'tornei'}
+                onClick={() => {
+                  if (view === 'tornei') {
+                    setViewMode('lista');
+                  }
+                  setView('tornei');
+                }}
+              >
                 Tornei
               </NavTab>
+
               <NavTab active={view === 'bacheca'} onClick={() => setView('bacheca')}>
                 Bacheca
               </NavTab>
@@ -119,7 +129,7 @@ export default function Header({
             </div>
           </div>
         </div>
-      </div>
+      </div >
 
       {view === 'tornei' && (
         <>
@@ -276,7 +286,8 @@ export default function Header({
             </div>
           </div>
         </>
-      )}
+      )
+      }
     </>
   );
 }

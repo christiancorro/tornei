@@ -89,10 +89,10 @@ export default function CalendarView({
   };
 
   return (
-    <div className="max-w-[65rem] mx-auto sm:px-4 lg:px-4">
+    <div className="max-w-[69rem] mx-auto sm:px-4 lg:px-4">
 
       <div
-        className="rounded-2xl p-4"
+        className="rounded-2xl p-3 pt-0"
         style={{ color: INK }}
       >
 
@@ -153,22 +153,22 @@ export default function CalendarView({
             return (
               <div
                 key={index}
-                className={`min-h-15 sm:min-h-25 rounded-xl border p-1 sm:p-2 ${isToday(day)
-                  ? 'ring-1 bg-blue-50'
-                  : isPastDay(day)
-                    ? 'bg-gray-100 text-gray-400'
+                className={`min-h-15 sm:min-h-25 rounded-xl border p-1 sm:p-2 ${!day || isPastDay(day)
+                  ? 'opacity-50'
+                  : ''
+                  } ${isToday(day)
+                    ? 'bg-gray-100'
                     : ''
                   }`}
                 style={{
-                  borderColor:
-                    'rgba(34,48,31,0.3)',
+                  borderColor: 'rgba(34,48,31,0.3)',
                 }}
               >
 
                 {day && (
                   <>
 
-                    <div className="text-xs font-semibold mb-1">
+                    <div className="text-xs font-regular mb-1">
                       {day}
                     </div>
 
@@ -184,7 +184,8 @@ export default function CalendarView({
                         return (
                           <div
                             key={tournament.id}
-                            className="calendar-event rounded-md px-1.5 py-1 text-[9px] line-clamp-4 sm:text-xs font-semibold leading-tight break-words cursor-pointer transition-transform"
+                            className={`calendar-event rounded-md px-1.5 py-1 text-[9px] line-clamp-4 sm:text-xs font-semibold leading-tight break-words cursor-pointer transition-transform ${isPastDay(day) ? 'opacity-100' : ''
+                              }`}
                             style={{
                               backgroundColor:
                                 tournament.disciplina === 'Beach Volley'

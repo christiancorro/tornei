@@ -6,7 +6,7 @@ export default function EmptyState({ onReset }) {
     <div className="text-center py-16 px-4">
       <div className="text-5xl mb-4">🏐</div>
       <h3 className="font-black text-xl mb-2" style={{ color: INK }}>
-        Nessun torneo da queste parti
+        Nessun torneo trovato
       </h3>
       <p className="text-sm mb-6" style={{ color: INK, opacity: 0.6 }}>
         Prova ad allargare la ricerca o azzera i filtri.

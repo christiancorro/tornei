@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search,
   MapPin,
@@ -13,6 +13,9 @@ import {
   ChevronDown,
   Settings2,
   AlertTriangle,
+  CircleUserRound,
+  List,
+  Map
 } from 'lucide-react';
 
 import { FaFacebook, FaInstagram } from "react-icons/fa";
@@ -39,11 +42,11 @@ const SABBIA_DARK = '#c78c20';
 // colors above so a post's color never implies Beach/Green Volley.
 const BOARD_A = SUN; // 'Cerco squadra' accent — reuses the primary accent
 const BOARD_B = '#6B4E8E'; // 'Cercasi giocatori' accent — a new, distinct hue
-const CORK = '#C9A876';
-const CORK_FRAME = '#7A5230';
-const PIN_COLOR = '#C0392B';
-const NOTE_YELLOW = '#F5E6A3';
-const NOTE_WHITE = '#FFFDF6';
+const CORK = '#fff6e9';
+const CORK_FRAME = 'rgb(142, 101, 65)';
+const PIN_COLOR = '#d56e63';
+const NOTE_YELLOW = '#fff6cd';
+const NOTE_WHITE = '#f7f7ff';
 
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 const MESI_BREVI = ['GEN', 'FEB', 'MAR', 'APR', 'MAG', 'GIU', 'LUG', 'AGO', 'SET', 'OTT', 'NOV', 'DIC'];
@@ -74,7 +77,7 @@ const INITIAL_TOURNAMENTS = [
     nome: 'Smash in the Grass',
     disciplina: 'Green Volley',
     formati: ['3x3'],
-    modalita: 'Misto, minimo 1 donna in campo',
+    modalita: 'Misto, minimo 2 donne in campo',
     data: '2026-08-15',
     dataFine: '',
     ora: '09:00',
@@ -218,7 +221,7 @@ const INITIAL_ANNUNCI = [
     testo:
       'ASD Udine Volley cerca 2 giocatori per completare il roster del Green Volley di Ferragosto (15/8, Parco del Cormor). Livello amatoriale, si gioca per divertirsi. Scrivete su IG @asdudinevolley.',
     data: '2026-08-04',
-    rotazione: -2.5,
+    rotazione: -1.5,
   },
   {
     id: 'b2',
@@ -226,29 +229,15 @@ const INITIAL_ANNUNCI = [
     testo:
       'Ciao! Sono libera per tutto agosto, gioco centrale/opposto da 4 anni, livello amatoriale ma con tanta voglia di giocare 😄 Zona Udine/Pordenone, ma mi muovo. Scrivetemi su IG @giulia.volley',
     data: '2026-08-03',
-    rotazione: 3,
+    rotazione: 2,
   },
   {
     id: 'b3',
     tipo: 'cerca_giocatore',
-    testo: 'Squadra mista cerca 2 donne per rispettare il minimo richiesto dal regolamento. Torneo 3x3 a Gorizia il 22/8. Rispondete pure qui sotto o al 333 456 7890.',
+    testo: 'Siamo 2 ragazzi e 1 ragazza e cerchiamo gente per il torneo di Majano del 12-13 settembre: 2 ragazze e 1 ragazzo, oppure 2 ragazzi e 3 ragazze. Livello tranquillo, si punta a divertirsi. Contattatemi su Facebook: @MatteoRossi',
     data: '2026-08-02',
-    rotazione: -1.5,
-  },
-  {
-    id: 'b4',
-    tipo: 'cerca_squadra',
-    testo: 'Cerco squadra per il Beach Volley di Lignano (29-30/8). Gioco da qualche stagione, buona ricezione, disponibile tutto il weekend. Contattatemi pure!',
-    data: '2026-08-01',
-    rotazione: 2,
-  },
-  {
-    id: 'b5',
-    tipo: 'cerca_giocatore',
-    testo: 'Cerchiamo un quarto giocatore per il 2x2 di Pordenone (6/9), livello base+. Chi si aggiunge? Scrivete in DM.',
-    data: '2026-07-30',
-    rotazione: -3.5,
-  },
+    rotazione: -1,
+  }
 ];
 
 function getMapsUrl(t) {
@@ -283,6 +272,25 @@ function formatDataBreve(iso) {
   if (!iso) return '—';
   const [, m, d] = iso.split('-');
   return `${parseInt(d, 10)} ${MESI_BREVI[parseInt(m, 10) - 1]}`;
+}
+
+function timeAgo(date) {
+  const now = new Date();
+  const past = new Date(date);
+  const diff = Math.floor((now - past) / 1000);
+
+  const minutes = Math.floor(diff / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  const months = Math.floor(days / 30);
+
+  if (minutes < 1) return 'adesso';
+  if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minuto' : 'minuti'} fa`;
+  if (hours < 24) return `${hours} ${hours === 1 ? 'ora' : 'ore'} fa`;
+  if (days < 30) return `${days} ${days === 1 ? 'giorno' : 'giorni'} fa`;
+  if (months < 12) return `${months} ${months === 1 ? 'mese' : 'mesi'} fa`;
+
+  return past.toLocaleDateString('it-IT');
 }
 
 function formatDataLunga(iso) {
@@ -372,12 +380,15 @@ function NavTab({ active, onClick, children }) {
     <button
       type="button"
       onClick={onClick}
-      className="px-4 py-1.5 rounded-full text-sm font-semibold transition-colors "
-      style={{
-        backgroundColor: active ? INK : 'transparent',
-        color: active ? SAND : INK,
-        opacity: active ? 1 : 0.55,
-      }}
+      className={`
+  px-4 py-1.5 rounded-full text-sm font-semibold
+  border-2 border-transparent
+  transition-all
+  ${active
+          ? 'bg-[#282828] text-[#fff8ef]'
+          : 'text-[#282828] opacity-60 hover:opacity-100 hover:border-[#282828]'
+        }
+`}
     >
       {children}
     </button>
@@ -422,7 +433,7 @@ function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDeta
       style={{
         backgroundColor: CARD_BG,
         borderColor: 'rgba(34,48,31,0.1)',
-        animation: 'card-in 0.3s ease both',
+        animation: 'card-in 0.2s ease-in-out both',
         animationDelay: `${delay}ms`
       }}
     >
@@ -430,7 +441,7 @@ function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDeta
         className="relative flex flex-col items-center justify-center text-center py-4 sm:py-6 shrink-0 overflow-hidden w-20 sm:w-28 lg:w-32 sm:mr-8"
         style={{ background: style.bg }}
       >
-        <div className="relative text-white px-1">
+        <div className="relative text-white px-1" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.35)' }}>
           {stub.giornoSett && <div className="text-xm font-semibold" style={{ opacity: 1 }}>{stub.giornoSett}</div>}
           <div className={`font-display text-4xl sm:text-4xl leading-none ${stubSize}`}>{stub.giorno}</div>
           {stub.mese && <div className="text-xm font-semibold tracking-widest">{stub.mese}</div>}
@@ -525,7 +536,7 @@ function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDeta
             src={t.locandina}
             alt={`Locandina di ${t.nome}`}
             onError={() => setImgOk(false)}
-            className="w-full rounded-lg object-cover"
+            className="w-full rounded-lg object-cover shadow"
           />
         </div>
       )}
@@ -556,8 +567,8 @@ function TournamentDetail({ tournament, onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl w-full max-w-lg overflow-y-auto"
-        style={{ maxHeight: '90vh' }}
+        className="bg-white rounded-xl w-full max-w-xl overflow-y-auto"
+        style={{ maxHeight: '98vh' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
@@ -574,7 +585,7 @@ function TournamentDetail({ tournament, onClose }) {
             style={{ color: INK }}
             aria-label="Chiudi"
           >
-            <X size={18} />
+            <X size={20} />
           </button>
         </div>
 
@@ -586,7 +597,7 @@ function TournamentDetail({ tournament, onClose }) {
                 alt={`Locandina di ${t.nome}`}
                 onError={() => setPosterOk(false)}
                 className="rounded-lg object-contain shadow"
-                style={{ maxHeight: '800px', maxWidth: '100%' }}
+                style={{ maxHeight: '500px', maxWidth: '100%' }}
               />
             </div>
           )}
@@ -643,13 +654,13 @@ function TournamentDetail({ tournament, onClose }) {
           )}
 
           {(t.instagram || t.facebook) && (
-            <div className="flex items-center gap-2 flex-wrap pt-1">
+            <div className="flex items-center gap-2 justify-center flex-wrap pt-1">
               {t.instagram && (
                 <a
                   href={t.instagram}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm font-bold "
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm font-semibold "
                   style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
                 >
                   <FaInstagram size={15} /> Instagram
@@ -660,7 +671,7 @@ function TournamentDetail({ tournament, onClose }) {
                   href={t.facebook}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm font-bold "
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm font-semibold "
                   style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
                 >
                   <FaFacebook size={15} /> Facebook
@@ -689,7 +700,7 @@ function TournamentForm({ initial, onSave, onCancel }) {
 
   const inputClass = 'w-full px-3.5 py-2.5 rounded-lg border-2 outline-none text-sm focus:ring-2 focus:ring-amber-500';
   const inputStyle = { borderColor: 'rgba(34,48,31,0.25)', color: INK };
-  const labelClass = 'text-xs font-bold mb-1 block';
+  const labelClass = 'text-xs font-semibold mb-1 block';
   const labelStyle = { color: INK, opacity: 0.6 };
 
   return (
@@ -730,7 +741,7 @@ function TournamentForm({ initial, onSave, onCancel }) {
               style={inputStyle}
               value={form.nome}
               onChange={(e) => update('nome', e.target.value)}
-              placeholder="Es. Smash in the Grass"
+              placeholder="Es. Green Volley X"
             />
           </div>
 
@@ -775,7 +786,7 @@ function TournamentForm({ initial, onSave, onCancel }) {
               style={inputStyle}
               value={form.modalita}
               onChange={(e) => update('modalita', e.target.value)}
-              placeholder="Es. Misto, minimo 1 donna in campo"
+              placeholder="Es. Misto, minimo 2 donne in campo"
             />
           </div>
 
@@ -803,7 +814,7 @@ function TournamentForm({ initial, onSave, onCancel }) {
 
           <div>
             <label className={labelClass} style={labelStyle}>
-              Ora
+              Ora inizio
             </label>
             <input type="time" className={inputClass} style={inputStyle} value={form.ora} onChange={(e) => update('ora', e.target.value)} />
           </div>
@@ -859,7 +870,7 @@ function TournamentForm({ initial, onSave, onCancel }) {
                 style={inputStyle}
                 value={form.costo}
                 onChange={(e) => update('costo', e.target.value)}
-                placeholder="Es: 15 (pasti e maglietta)"
+                placeholder="Es: 15"
               />
             </div>
           </div>
@@ -886,14 +897,14 @@ function TournamentForm({ initial, onSave, onCancel }) {
                 style={inputStyle}
                 value={form.organizzatore}
                 onChange={(e) => update('organizzatore', e.target.value)}
-                placeholder="Es. ASD Udine Volley"
+                placeholder="Es. ASD X"
               />
             </div>
           </div>
 
           <div>
             <label className={labelClass} style={labelStyle}>
-              Descrizione organizzatore (opzionale, testo libero)
+              Altre info (opzionale, testo libero)
             </label>
             <textarea
               rows={3}
@@ -901,7 +912,7 @@ function TournamentForm({ initial, onSave, onCancel }) {
               style={inputStyle}
               value={form.descrizioneOrganizzatore}
               onChange={(e) => update('descrizioneOrganizzatore', e.target.value)}
-              placeholder="Spazio libero: recapito telefonico, regole particolari, altre info per chi si iscrive..."
+              placeholder="Breve testo per altre info mostrato nella scheda dettagliata del torneo: come iscriversi, recapito telefonico, regole particolari, ..."
             />
           </div>
 
@@ -934,9 +945,10 @@ function TournamentForm({ initial, onSave, onCancel }) {
 
           <div>
             <label className={labelClass} style={labelStyle}>
-              Locandina (URL, opzionale)
+              Locandina (URL link immagine locandina)
             </label>
             <input
+              required
               className={inputClass}
               style={inputStyle}
               value={form.locandina}
@@ -949,17 +961,17 @@ function TournamentForm({ initial, onSave, onCancel }) {
             <button
               type="button"
               onClick={onCancel}
-              className="flex-1 py-2.5 rounded-lg border-2 font-bold "
+              className="flex-1 py-2.5 rounded-lg border-2 font-semibold "
               style={{ borderColor: 'rgba(34,48,31,0.25)', color: INK }}
             >
               Annulla
             </button>
             <button
               type="submit"
-              className="flex-1 py-2.5 rounded-lg font-bold text-white shadow-sm  focus:ring-offset-2"
+              className="flex-1 py-2.5 rounded-lg font-semibold text-white shadow-sm  focus:ring-offset-2"
               style={{ backgroundColor: SUN }}
             >
-              Salva torneo
+              Crea torneo
             </button>
           </div>
         </form>
@@ -1024,7 +1036,7 @@ function EmptyState({ onReset }) {
       <button
         type="button"
         onClick={onReset}
-        className="px-5 py-2.5 rounded-full text-white font-bold  focus:ring-offset-2"
+        className="px-5 py-2.5 rounded-full text-white font-semibold  focus:ring-offset-2"
         style={{ backgroundColor: INK }}
       >
         Azzera filtri
@@ -1039,7 +1051,11 @@ function EmptyState({ onReset }) {
 --------------------------------------------------------- */
 function BachecaComposer({ testo, setTesto, tipo, setTipo, onSubmit }) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border-2 p-4 sm:p-5 mb-8" style={{ borderColor: 'rgba(34,48,31,0.12)' }}>
+    <div className="rounded-lg  border-2 p-4 sm:p-5 mb-8"
+      style={{
+        backgroundColor: SAND,
+        borderColor: 'rgba(34,48,31,0.12)'
+      }}>
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <Chip active={tipo === 'cerca_squadra'} onClick={() => setTipo('cerca_squadra')} color={BOARD_A}>
           Cerco squadra
@@ -1051,21 +1067,25 @@ function BachecaComposer({ testo, setTesto, tipo, setTipo, onSubmit }) {
       <textarea
         value={testo}
         onChange={(e) => setTesto(e.target.value)}
-        placeholder="Scrivi il tuo annuncio: torneo, disponibilità, come contattarti..."
+        placeholder="Scrivi il tuo annuncio: torneo, ruolo, come contattarti ..."
         rows={3}
         maxLength={400}
-        className="w-full rounded-lg border-2 p-3 text-sm outline-none focus:ring-2 focus:ring-amber-500 resize-none"
-        style={{ borderColor: 'rgba(34,48,31,0.18)', color: INK }}
+        className="w-full rounded-lg border-1 p-3 text-sm outline-none focus:ring-1 focus:ring-gray-900 resize-none"
+        style={{
+          borderColor: 'rgba(34,48,31,0.18)',
+          color: INK,
+          '--tw-ring-color': tipo === 'cerca_squadra' ? BOARD_A : BOARD_B,
+        }}
       />
       <div className="flex justify-end mt-3">
         <button
           type="button"
           onClick={onSubmit}
           disabled={!testo.trim()}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm disabled:opacity-40 "
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold text-sm disabled:opacity-40 "
           style={{ backgroundColor: INK, color: SAND, cursor: testo.trim() ? 'pointer' : 'not-allowed' }}
         >
-          <Pin size={14} />
+          <Pin size={18} />
           Attacca l'annuncio
         </button>
       </div>
@@ -1073,7 +1093,7 @@ function BachecaComposer({ testo, setTesto, tipo, setTipo, onSubmit }) {
   );
 }
 
-function BachecaNote({ post, onDelete }) {
+function BachecaNote({ post, onDelete, isAdmin }) {
   const isSquadra = post.tipo === 'cerca_squadra';
   const accent = isSquadra ? BOARD_A : BOARD_B;
   return (
@@ -1082,7 +1102,7 @@ function BachecaNote({ post, onDelete }) {
       style={{
         backgroundColor: isSquadra ? NOTE_YELLOW : NOTE_WHITE,
         transform: `rotate(${post.rotazione}deg)`,
-        boxShadow: '0 6px 14px rgba(34,48,31,0.28)',
+        boxShadow: '0 6px 14px rgba(29, 32, 27, 0.18)',
       }}
     >
       <span
@@ -1097,27 +1117,27 @@ function BachecaNote({ post, onDelete }) {
           boxShadow: '0 2px 3px rgba(0,0,0,0.4)',
         }}
       />
-      {!isSquadra && (
-        <span className="absolute left-4 right-4" style={{ top: 24, height: 2, backgroundColor: 'rgba(192,57,43,0.35)' }} />
-      )}
-      <span className="inline-block text-xs font-bold px-2 py-0.5 rounded mb-2" style={{ backgroundColor: accent, color: '#FFFFFF' }}>
+
+      <span className="inline-block text-sm font-semibold px-2 py-0.5 rounded mb-3" style={{ backgroundColor: accent, color: '#FFFFFF' }}>
         {isSquadra ? 'Cerco squadra' : 'Cercasi giocatori'}
       </span>
-      <p className="text-sm leading-snug whitespace-pre-wrap break-words" style={{ color: INK }}>
+      <p className="text-lg font-regular leading-snug whitespace-pre-wrap break-words" style={{ color: INK }}>
         {post.testo}
       </p>
       <div className="mt-3 text-xs" style={{ color: INK, opacity: 0.45 }}>
-        {formatDataBreve(post.data)}
+        {formatDataBreve(post.data)} · {timeAgo(post.data)}
       </div>
-      <button
-        type="button"
-        onClick={() => onDelete(post.id)}
-        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-200 "
-        style={{ color: INK, opacity: 0.45 }}
-        aria-label="Rimuovi annuncio"
-      >
-        <X size={13} />
-      </button>
+      {isAdmin && (
+        <button
+          type="button"
+          onClick={() => onDelete(post.id)}
+          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-200"
+          style={{ color: INK, opacity: 0.45 }}
+          aria-label="Rimuovi annuncio"
+        >
+          <X size={13} />
+        </button>
+      )}
     </div>
   );
 }
@@ -1172,7 +1192,7 @@ export default function App() {
 
   const grouped = useMemo(() => groupByMonth(filtered), [filtered]);
 
-  const sortedAnnunci = useMemo(() => [...annunci].sort((a, b) => b.data.localeCompare(a.data)), [annunci]);
+  const sortedAnnunci = useMemo(() => [...annunci].sort((a, b) => new Date(b.data) - new Date(a.data)), [annunci]);
 
   const extraFilterCount = selectedProvinces.length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
   const activeFilterCount = selectedDisciplines.length + selectedFormats.length + selectedDurate.length + extraFilterCount;
@@ -1200,19 +1220,22 @@ export default function App() {
     setDeleteTarget(null);
   }
 
+
   function handlePubblicaAnnuncio() {
     const testo = nuovoTesto.trim();
     if (!testo) return;
+
     setAnnunci((prev) => [
       {
         id: `a${Date.now()}`,
         tipo: nuovoTipo,
         testo,
-        data: new Date().toISOString().slice(0, 10),
+        data: new Date().toISOString(),
         rotazione: (Math.random() * 8 - 4).toFixed(1),
       },
       ...prev,
     ]);
+
     setNuovoTesto('');
   }
 
@@ -1220,12 +1243,22 @@ export default function App() {
     setAnnunci((prev) => prev.filter((a) => a.id !== id));
   }
 
+  useEffect(() => {
+    document.body.style.overflow = detailTarget ? 'hidden' : '';
+
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [detailTarget]);
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: SAND }}>
       <style>{`
        @import url('https://fonts.googleapis.com/css2?family=SN+Pro:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Fredoka:wght@400;500;600;700;800&display=swap');
-
+ html {
+    overflow-y: scroll;
+  }
 body {
   font-family: 'Fredoka', 'SN Pro', sans-serif;
 }
@@ -1244,22 +1277,23 @@ body {
       `}</style>
 
       {/* NAV + HEADER */}
-      <div className=" mb-2" style={{ borderColor: 'rgba(34,48,31,0.12)' }}>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-9 flex items-center justify-between gap-4 py-2.5">
+      <div style={{ borderColor: 'rgba(34,48,31,0.12)' }}>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-9 grid grid-cols-3 items-center py-2.5">
+          <div>
+            <button
+              type="button"
+              onClick={() => {
+                setView('tornei');
+                resetFilters();
+              }}
+              className="font-display text-xl sm:text-4xl leading-none shrink-0 rounded"
+              style={{ color: INK }}
+            >
+              tornei<span style={{ color: SUN }}>FVG</span>
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setView('tornei');
-              resetFilters();
-            }}
-            className="font-display text-2xl sm:text-4xl leading-none shrink-0 rounded"
-            style={{ color: INK }}
-          >
-            tornei<span style={{ color: SUN }}>FVG</span>
-          </button>
-
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center justify-center gap-3">
             <NavTab active={view === 'tornei'} onClick={() => setView('tornei')}>
               Tornei
             </NavTab>
@@ -1268,61 +1302,89 @@ body {
             </NavTab>
           </div>
 
-          {view === 'tornei' && (
+          <div className="flex justify-end">
             <label
-              className="flex items-center gap-2 rounded-full pl-3 pr-1.5 py-1.5 cursor-pointer shrink-0"
-              style={{ borderColor: INK }}
+              className="flex items-center gap-2 cursor-pointer shrink-0"
+              style={{ color: INK }}
             >
-              <Settings2 size={14} style={{ color: INK }} />
-              <span className="text-sm font-semibold hidden sm:inline" style={{ color: INK }}>
+              <span className="text-sm font-semibold hidden sm:inline">
                 Login
               </span>
+
+              <CircleUserRound size={22} />
 
               <button
                 type="button"
                 role="switch"
                 aria-checked={isAdmin}
                 onClick={() => setIsAdmin((v) => !v)}
-                className="w-9 h-5 rounded-full relative transition-colors "
-                style={{ backgroundColor: isAdmin ? SUN : '#D8D0BC' }}
-              >
-                <span
-                  className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform"
-                  style={{ transform: isAdmin ? 'translateX(16px)' : 'translateX(0)' }}
-                />
-              </button>
+                style={{ display: 'none' }}
+              />
             </label>
-          )}
+          </div>
 
         </div>
       </div>
       {view === 'tornei' && (
         <>
-          {isAdmin && (
+          {/* {isAdmin && (
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="text-xs font-semibold rounded-lg px-3 py-2 mb-1" style={{ backgroundColor: '#FFF4DE', color: '#8A5A00' }}>
                 Modalità organizzatore attiva: puoi aggiungere, modificare ed eliminare i tornei.
               </div>
             </div>
-          )}
+          )} */}
 
           {/* SEARCH + FILTERS */}
-          <div className="sticky top-0 z-20 " style={{ backgroundColor: SAND, borderColor: 'rgba(34,48,31,0.15)' }}>
+          <div className="sticky top-0 z-20 shadow-xs" style={{ backgroundColor: SAND, borderColor: 'rgba(34,48,31,0.15)', }}>
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 space-y-3">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2" size={18} style={{ color: INK, opacity: 0.45 }} />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Cerca per nome, città, ..."
-                  className="w-full pl-11 pr-4 py-3 rounded-full border-1 outline-none text-sm font-medium focus:ring-1 focus:ring-grey-100"
-                  style={{
-                    borderColor: "#28282834",
-                    color: INK,
-                    backgroundColor: SAND,
-                  }}
-                />
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search
+                    className="absolute left-4 top-1/2 -translate-y-1/2"
+                    size={18}
+                    style={{ color: INK, opacity: 0.45 }}
+                  />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Cerca per nome, città, ..."
+                    className="w-full pl-11 pr-4 py-3 rounded-full border-1 outline-none text-sm font-medium"
+                    style={{
+                      borderColor: "#28282834",
+                      color: INK,
+                      backgroundColor: SAND,
+                    }}
+                  />
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-full border-2 text-sm font-semibold"
+                    style={{
+                      borderColor: INK,
+                      backgroundColor: INK,
+                      color: SAND,
+                    }}
+                  >
+                    <List size={16} />
+                    Lista
+                  </button>
+
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-full border-2 text-sm font-semibold"
+                    style={{
+                      borderColor: 'rgba(34,48,31,0.25)',
+                      color: INK,
+                    }}
+                  >
+                    <Map size={16} />
+                    Mappa
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-2">
@@ -1377,7 +1439,7 @@ body {
                   <button
                     type="button"
                     onClick={resetFilters}
-                    className="flex items-center gap-1 text-xs font-bold px-2 shrink-0 rounded shrink-0"
+                    className="flex items-center gap-1 text-xs font-semibold px-2 shrink-0 rounded shrink-0"
                     style={{ color: INK, opacity: 0.5 }}
                   >
                     <X size={13} /> Azzera
@@ -1386,7 +1448,7 @@ body {
               </div>
 
               {showMoreFilters && (
-                <div className="bg-white border-2 rounded-xl p-4 space-y-4" style={{ borderColor: 'rgba(34,48,31,0.15)' }}>
+                <div className="border-2 rounded-xl p-4 space-y-4" style={{ borderColor: 'rgba(34,48,31,0.15)' }}>
                   <div>
                     <div className="text-xs font-bold mb-2" style={{ color: INK, opacity: 0.6 }}>
                       PROVINCIA
@@ -1431,21 +1493,27 @@ body {
           </div>
 
           {/* RESULTS */}
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-6 py-2 sm:py-2">
-            <div className="flex items-center justify-between mb-5">
-              <p className="text-sm" style={{ color: INK, opacity: 0.6 }}>
-                {filtered.length} {filtered.length === 1 ? 'torneo trovato' : 'tornei trovati'}
-              </p>
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-6 py-2 sm:py-2">
+            <div className="relative flex items-center justify-center mb-2 mt-2 min-h-10">
+
               {isAdmin && (
                 <button
                   type="button"
                   onClick={() => setFormState('new')}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-white text-sm font-semibold shadow-sm  focus:ring-offset-2"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-white text-sm font-semibold shadow-sm focus:ring-offset-2"
                   style={{ backgroundColor: SUN }}
                 >
                   <Plus size={16} /> Aggiungi torneo
                 </button>
               )}
+
+              <p
+                className="absolute right-0 text-sm"
+                style={{ color: INK, opacity: 0.6 }}
+              >
+                {filtered.length} {filtered.length === 1 ? 'torneo trovato' : 'tornei trovati'}
+              </p>
+
             </div>
 
             {grouped.length === 0 ? (
@@ -1475,7 +1543,7 @@ body {
       )}
 
       {view === 'bacheca' && (
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-4 mb-6">
           <BachecaComposer testo={nuovoTesto} setTesto={setNuovoTesto} tipo={nuovoTipo} setTipo={setNuovoTipo} onSubmit={handlePubblicaAnnuncio} />
 
           {sortedAnnunci.length === 0 ? (
@@ -1490,19 +1558,19 @@ body {
             </div>
           ) : (
             <div
-              className="rounded-2xl p-5 sm:p-9"
+              className="rounded-2xl p-5 sm:p-12 shadow"
               style={{
                 backgroundColor: CORK,
                 backgroundImage:
                   'radial-gradient(circle at 20% 30%, rgba(0,0,0,0.07) 1px, transparent 1px), radial-gradient(circle at 65% 65%, rgba(0,0,0,0.06) 1.5px, transparent 1.5px), radial-gradient(circle at 85% 15%, rgba(0,0,0,0.05) 1px, transparent 1px), radial-gradient(circle at 40% 85%, rgba(0,0,0,0.05) 1px, transparent 1px)',
                 backgroundSize: '26px 26px, 34px 34px, 30px 30px, 22px 22px',
-                border: `10px solid ${CORK_FRAME}`,
-                boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.25), 0 8px 20px rgba(34,48,31,0.2)',
+                border: `3px solid ${CORK_FRAME}`,
+
               }}
             >
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '2rem 1.5rem' }}>
                 {sortedAnnunci.map((post) => (
-                  <BachecaNote key={post.id} post={post} onDelete={handleEliminaAnnuncio} />
+                  <BachecaNote key={post.id} post={post} onDelete={handleEliminaAnnuncio} isAdmin={isAdmin} />
                 ))}
               </div>
             </div>
@@ -1510,8 +1578,25 @@ body {
         </div>
       )}
 
-      <div className="text-center text-xs pb-8 px-4" style={{ color: INK, opacity: 0.4 }}>
-        Prototipo front-end con dati di esempio — le modifiche non vengono salvate.
+      <div className="text-center text-xs pb-8 px-4 space-y-2" style={{ color: INK, opacity: 0.6 }}>
+        <p>
+          TorneiFVG nasce da un progetto personale di Christian Corrò per aiutare giocatori e organizzatori a trovare e condividere tornei di volley in Friuli Venezia Giulia.
+        </p>
+        <p>
+          Se il progetto ti è utile e vuoi supportarne lo sviluppo puoi offrire un piccolo contributo:
+        </p>
+        <a
+          href="https://paypal.me/christiancorro?locale.x=it_IT&country.x=IT"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center mt-4 px-4 py-2 rounded-full font-semibold text-sm transition-all hover:scale-101"
+          style={{
+            backgroundColor: "#ffefba",
+            color: "#242424",
+          }}
+        >
+          Supporta TorneiFVG ❤️
+        </a>
       </div>
 
       {formState && (

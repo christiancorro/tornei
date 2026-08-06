@@ -80,6 +80,7 @@ export function BachecaNote({ post, onDelete, isAdmin }) {
         transform: `rotate(${post.rotazione}deg)`,
         // boxShadow: '0 2px 2px rgba(95, 95, 95, 0.20)',
         border: `2px solid ${accent}`,
+        // 
       }}
     >
       <span

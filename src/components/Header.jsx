@@ -143,7 +143,7 @@ export default function Header({
 
           {/* SEARCH + FILTERS */}
           <div className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: SAND, borderColor: 'rgba(34,48,31,0.15)', }}>
-            <div className="max-w-[69rem] mx-auto px-4 sm:px-6 lg:px-8 py-3.5 space-y-3">
+            <div className="max-w-[69rem] mx-auto px-4 sm:px-6 lg:px-8 py-3 space-y-3 pt-0 pb-2 sm:pb-3 sm:pt-2">
               <div ref={rowRef} className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-2">
                 {/* Ricerca a scomparsa: da icona a campo, spingendo i filtri a destra */}
                 <div

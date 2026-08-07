@@ -89,7 +89,7 @@ export default function CalendarView({
   };
 
   return (
-    <div className="max-w-[69rem] mx-auto sm:px-4 lg:px-4">
+    <div className="max-w-[69rem] mx-auto sm:px-4 lg:px-4 bg-[#fffefb] shadow rounded-xl mb-8 pt-2">
 
       <div
         className="rounded-2xl p-3 pt-0"
@@ -105,7 +105,7 @@ export default function CalendarView({
             ←
           </button>
 
-          <h2 className="font-semibold text-2xl capitalize">
+          <h2 className="font-semibold text-2xl sm:text-3xl capitalize">
             {new Date(year, month).toLocaleDateString(
               'it-IT',
               {
@@ -125,7 +125,7 @@ export default function CalendarView({
         </div>
 
 
-        <div className="grid grid-cols-7 gap-1 mb-2 text-xs text-center opacity-60">
+        <div className="grid grid-cols-7 gap-1 mb-2 text-sm text-center opacity-60">
           {[
             'Lun',
             'Mar',
@@ -168,7 +168,7 @@ export default function CalendarView({
                 {day && (
                   <>
 
-                    <div className="text-xs font-regular mb-1">
+                    <div className="text-xs sm:text-sm font-regular mb-1">
                       {day}
                     </div>
 
@@ -184,7 +184,7 @@ export default function CalendarView({
                         return (
                           <div
                             key={tournament.id}
-                            className={`calendar-event rounded-md px-1.5 py-1 text-[9px] line-clamp-4 sm:text-xs font-semibold leading-tight break-words cursor-pointer transition-transform ${isPastDay(day) ? 'opacity-100' : ''
+                            className={`calendar-event rounded-md px-1.5 py-1 text-[9px] line-clamp-4 sm:text-xs font-regular leading-tight break-words cursor-pointer transition-transform ${isPastDay(day) ? 'opacity-100' : ''
                               }`}
                             style={{
                               backgroundColor:

@@ -11,7 +11,7 @@ body {
 
 .font-display {
   font-family: 'Fredoka', 'SN Pro', 'Anton', 'Arial Narrow', sans-serif;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* Cambio modalità di visualizzazione: lista / mappa / calendario */
@@ -98,6 +98,17 @@ a:active {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+@keyframes scale-in {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

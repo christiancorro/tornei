@@ -5,6 +5,7 @@ import { INK, SUN } from '../theme';
 import { DISCIPLINE, FORMATI, PROVINCE, PROVINCE_LABELS } from '../constants';
 import { emptyTournament, toggleValue } from '../utils';
 import Chip from './ui/Chip';
+import { uploadLocandina } from '../services/tournaments';
 
 /* ---------------------------------------------------------
    Admin form (add / edit) — no backend yet, so this writes
@@ -12,15 +13,41 @@ import Chip from './ui/Chip';
 --------------------------------------------------------- */
 export default function TournamentForm({ initial, onSave, onCancel }) {
   const [form, setForm] = useState(initial || emptyTournament());
+  const [uploading, setUploading] = useState(false);
+  const [uploadComplete, setUploadComplete] = useState(false);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    const id = form.id || `t${Date.now()}`;
-    onSave({ ...form, id });
+
+    let data = { ...form };
+
+    try {
+      setUploading(true);
+
+      if (data.locandinaFile) {
+        const uploaded = await uploadLocandina(data.locandinaFile);
+
+        data.locandina = uploaded.url;
+        data.locandinaPath = uploaded.path;
+        delete data.locandinaFile;
+      }
+
+      setUploading(false);
+      setUploadComplete(true);
+
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+
+      await onSave(data);
+
+    } catch (err) {
+      console.error(err);
+      setUploading(false);
+      alert('Upload non riuscito.');
+    }
   }
 
   const inputClass = 'w-full px-3.5 py-2.5 rounded-lg border-2 outline-none text-sm focus:ring-2 focus:ring-amber-500';
@@ -273,12 +300,20 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
               Locandina (URL link immagine locandina)
             </label>
             <input
-              required
+              type="file"
+              accept="image/*"
               className={inputClass}
-              style={inputStyle}
-              value={form.locandina}
-              onChange={(e) => update('locandina', e.target.value)}
-              placeholder="Mostrata nella scheda dettagliata del torneo"
+              onChange={async (e) => {
+                const file = e.target.files[0];
+
+                if (!file) return;
+
+                try {
+                  update('locandinaFile', file);
+                } catch (err) {
+                  alert(err.message);
+                }
+              }}
             />
           </div>
 
@@ -293,10 +328,35 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
             </button>
             <button
               type="submit"
-              className="flex-1 py-2.5 rounded-lg font-semibold text-white shadow-sm  focus:ring-offset-2"
-              style={{ backgroundColor: SUN }}
+              disabled={uploading || uploadComplete}
+              className="flex-1 py-2.5 rounded-lg font-semibold text-white shadow-sm transition-all duration-300"
+              style={{
+                backgroundColor: uploadComplete ? '#4CAF50' : SUN,
+                opacity: uploading ? 0.75 : 1,
+                transform: uploadComplete ? 'scale(1.02)' : 'scale(1)',
+              }}
             >
-              Crea torneo
+              <span className="flex items-center justify-center gap-2 transition-all duration-300">
+                {uploading && (
+                  <span
+                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
+                  />
+                )}
+
+                {uploadComplete && (
+                  <span className="text-lg animate-[scale-in_0.2s_ease-out]">
+                    ✓
+                  </span>
+                )}
+
+                <span className="transition-opacity duration-300">
+                  {uploading
+                    ? 'Caricamento...'
+                    : uploadComplete
+                      ? 'Caricamento completato'
+                      : 'Crea torneo'}
+                </span>
+              </span>
             </button>
           </div>
         </form>

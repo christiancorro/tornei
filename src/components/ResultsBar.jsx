@@ -15,7 +15,7 @@ const VIEW_MODE_ICONS = {
    Results bar — shared by lista, mappa and calendario.
    Left to right: view switch, add (admin only), result count.
 --------------------------------------------------------- */
-export default function ResultsBar({ viewMode, onCycleViewMode, isAdmin, onAdd, count }) {
+export default function ResultsBar({ viewMode, onCycleViewMode, canAdd, isOrganizer, onAdd, count }) {
     // The button always shows the mode you'd switch to next:
     // lista → mappa → calendario → lista.
     const nextMode = nextViewMode(viewMode);
@@ -37,16 +37,16 @@ export default function ResultsBar({ viewMode, onCycleViewMode, isAdmin, onAdd, 
 
                 </div>
 
-                {isAdmin && (
+                {/* {canAdd && (
                     <button
                         type="button"
                         onClick={onAdd}
                         className="flex items-center gap-1.5 px-4 py-2 rounded-full text-white text-sm font-regular shadow-sm shrink-0"
                         style={{ backgroundColor: SUN }}
                     >
-                        <Plus size={18} /> Aggiungi torneo
+                        <Plus size={18} /> {isOrganizer ? 'Aggiungi torneo' : 'Proponi un torneo'}
                     </button>
-                )}
+                )} */}
 
                 <button
                     type="button"

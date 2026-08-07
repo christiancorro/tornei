@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pin, X, CircleUserRound } from 'lucide-react';
+import { Pin, X, CircleUserRound, MessageCircle } from 'lucide-react';
 
 import {
   INK,
@@ -173,7 +173,7 @@ export function BachecaComposer({ testo, setTesto, tipo, setTipo, onSubmit }) {
   );
 }
 
-export function BachecaNote({ post, onDelete, isAdmin, isNew }) {
+export function BachecaNote({ post, onDelete, canDelete, canReply, onReply, isNew }) {
   const [removing, setRemoving] = useState(false);
   const isSquadra = post.tipo === 'cerca_squadra';
   const accent = isSquadra ? BOARD_A : BOARD_B;
@@ -219,9 +219,21 @@ export function BachecaNote({ post, onDelete, isAdmin, isNew }) {
         {post.testo}
       </p>
       <div className="mt-3 text-xs" style={{ color: INK, opacity: 0.45 }}>
-        {formatDataBreve(post.data)} · {timeAgo(post.data)}
+        {post.authorName ? `${post.authorName} · ` : ''}{formatDataBreve(post.data)} · {timeAgo(post.data)}
       </div>
-      {isAdmin && (
+
+      {canReply && (
+        <button
+          type="button"
+          onClick={() => onReply(post)}
+          className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+          style={{ border: `1.5px solid ${accent}`, color: accent }}
+        >
+          <MessageCircle size={14} /> Rispondi in privato
+        </button>
+      )}
+
+      {canDelete && (
         <button
           type="button"
           onClick={handleDelete}
@@ -244,7 +256,11 @@ export default function Bacheca({
   setNuovoTipo,
   onPubblica,
   onElimina,
-  isAdmin,
+  onRispondi,
+  profile,
+  canPost,
+  canDelete,
+  onLoginClick,
 }) {
   // Track which notes are new so only they play the drop animation.
   const seenRef = useRef(null);
@@ -274,7 +290,7 @@ export default function Bacheca({
     <div className="max-w-[70rem] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-4 mb-6">
       <style>{BACHECA_MOTION_CSS}</style>
 
-      {isAdmin ? (
+      {canPost ? (
         <BachecaComposer testo={nuovoTesto} setTesto={setNuovoTesto} tipo={nuovoTipo} setTipo={setNuovoTipo} onSubmit={onPubblica} />
       ) : (
         <div
@@ -283,8 +299,20 @@ export default function Bacheca({
         >
           <CircleUserRound size={22} className="shrink-0" style={{ color: INK, opacity: 0.45 }} />
           <p className="text-sm" style={{ color: INK, opacity: 0.7 }}>
-            Effettua il login per scrivere un annuncio.
+            {profile
+              ? 'Il tuo account non può pubblicare annunci.'
+              : 'Accedi o registrati per scrivere un annuncio.'}
           </p>
+          {!profile && (
+            <button
+              type="button"
+              onClick={onLoginClick}
+              className="ml-auto px-3 py-1.5 rounded-full text-sm font-bold shrink-0"
+              style={{ backgroundColor: INK, color: SAND }}
+            >
+              Accedi
+            </button>
+          )}
         </div>
       )}
 
@@ -315,7 +343,9 @@ export default function Bacheca({
                 key={post.id}
                 post={post}
                 onDelete={onElimina}
-                isAdmin={isAdmin}
+                canDelete={canDelete(post)}
+                canReply={Boolean(profile) && post.authorId && post.authorId !== profile.uid}
+                onReply={onRispondi}
                 isNew={newIds.includes(post.id)}
               />
             ))}

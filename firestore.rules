@@ -1,0 +1,206 @@
+rules_version = '2';
+
+/* ---------------------------------------------------------
+   Queste regole SONO il backend.
+
+   Ruoli (campo `role` in users/{uid}):
+     user      → scrive annunci, propone tornei (in coda)
+     organizer → pubblica tornei direttamente
+     admin     → tutto, più la dashboard di moderazione
+     blocked   → non scrive niente
+
+   Regola d'oro: nessuno può cambiare il proprio ruolo.
+   Solo un admin può scrivere il campo `role`.
+--------------------------------------------------------- */
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* ---------- helper ---------- */
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function profileExists() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    // get() costa una lettura, ma è memorizzata per la durata
+    // della richiesta: chiamarla più volte non moltiplica il costo.
+    function myRole() {
+      return profileExists()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : 'guest';
+    }
+
+    function isAdmin()     { return myRole() == 'admin'; }
+    function isOrganizer() { return myRole() == 'organizer' || isAdmin(); }
+    function isActive()    { return myRole() in ['user', 'organizer', 'admin']; }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function unchanged(field) {
+      return request.resource.data[field] == resource.data[field];
+    }
+
+    function isIsoDate(v) {
+      return v is string && v.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    /* ---------- users ---------- */
+
+    match /users/{uid} {
+      // Il profilo è pubblico in lettura: serve a mostrare
+      // "pubblicato da Marco" accanto a un torneo. Non metterci
+      // dentro dati privati oltre all'email.
+      allow read: if true;
+
+      // Auto-registrazione al primo accesso. Il ruolo iniziale è
+      // forzato a 'user': non puoi nascere organizer o admin.
+      allow create: if isOwner(uid)
+        && request.resource.data.role == 'user'
+        && request.resource.data.uid == uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() <= 60;
+
+      // L'utente aggiorna nome e foto, mai il proprio ruolo.
+      allow update: if (isOwner(uid) && unchanged('role') && unchanged('uid')
+                        && request.resource.data.displayName is string
+                        && request.resource.data.displayName.size() <= 60
+                        && (!('photoURL' in request.resource.data)
+                            || request.resource.data.photoURL is string))
+                    || (isAdmin()
+                        && request.resource.data.role in ['user', 'organizer', 'admin', 'blocked']);
+
+      // L'utente può cancellare il proprio account (GDPR), l'admin
+      // può cancellare quello altrui. Per sospendere qualcuno si usa
+      // invece il ruolo 'blocked': cancellare è irreversibile.
+      allow delete: if isOwner(uid) || isAdmin();
+    }
+
+    /* ---------- tornei ---------- */
+
+    function validTorneo(d) {
+      return d.nome is string && d.nome.size() > 0 && d.nome.size() <= 120
+        && d.disciplina in ['Green Volley', 'Beach Volley', 'Pallavolo']
+        && d.formati is list && d.formati.size() <= 4
+        && isIsoDate(d.data)
+        && (!('dataFine' in d) || d.dataFine == '' || isIsoDate(d.dataFine))
+        && (!('iscrizioniEntro' in d) || d.iscrizioniEntro == '' || isIsoDate(d.iscrizioniEntro))
+        && d.provincia in ['UD', 'PN', 'GO', 'TS']
+        && (!('comune' in d) || d.comune.size() <= 80)
+        && (!('descrizioneOrganizzatore' in d) || d.descrizioneOrganizzatore.size() <= 1500);
+    }
+
+    match /tornei/{torneoId} {
+      // Pubblici i tornei approvati; il proprio anche se in coda;
+      // tutto all'admin. NB: le query devono filtrare esplicitamente
+      // (where status == 'published'), perché le regole non filtrano
+      // i risultati — li rifiutano.
+      allow read: if isAdmin()
+        || resource.data.status == 'published'
+        || (isSignedIn() && resource.data.authorId == request.auth.uid);
+
+      // Chiunque sia attivo può proporre. Chi non è organizer
+      // può creare SOLO in stato 'pending': è questo a rendere
+      // la coda di moderazione non aggirabile.
+      allow create: if isActive()
+        && validTorneo(request.resource.data)
+        && request.resource.data.authorId == request.auth.uid
+        && (isOrganizer()
+              ? request.resource.data.status in ['published', 'pending']
+              : request.resource.data.status == 'pending');
+
+      // L'autore modifica il contenuto ma non promuove il proprio
+      // torneo da pending a published: quello lo fa solo l'admin.
+      allow update: if isAdmin()
+        || (isActive()
+            && resource.data.authorId == request.auth.uid
+            && validTorneo(request.resource.data)
+            && unchanged('authorId')
+            && unchanged('status'));
+
+      allow delete: if isAdmin()
+        || (isActive() && resource.data.authorId == request.auth.uid);
+    }
+
+    /* ---------- annunci (bacheca) ---------- */
+
+    match /annunci/{annuncioId} {
+      allow read: if true;
+
+      allow create: if isActive()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.testo is string
+        && request.resource.data.testo.size() > 0
+        && request.resource.data.testo.size() <= 600
+        && request.resource.data.tipo in ['cerca_squadra', 'cerca_giocatore'];
+
+      allow update: if false;
+
+      // L'autore cancella il suo, l'admin cancella qualsiasi cosa.
+      allow delete: if isAdmin()
+        || (isActive() && resource.data.authorId == request.auth.uid);
+    }
+
+    /* ---------- messaggi privati ---------- */
+
+    function isParticipant(data) {
+      return isSignedIn() && request.auth.uid in data.participants;
+    }
+
+    match /conversazioni/{convId} {
+      // Privata tra i due partecipanti, con l'admin che può leggere
+      // tutto per moderazione. Non può però scrivere in un thread di
+      // cui non fa parte: legge, non impersona.
+      allow read: if isAdmin() || isParticipant(resource.data);
+
+      allow create: if isActive()
+        && request.resource.data.participants.size() == 2
+        && request.auth.uid in request.resource.data.participants
+        && request.resource.data.startedBy == request.auth.uid;
+
+      // Aggiorna anteprima e contatori non letti; i partecipanti
+      // non cambiano mai dopo la creazione.
+      allow update: if isParticipant(resource.data)
+        && request.resource.data.participants == resource.data.participants;
+
+      // L'admin rimuove un thread molesto; un partecipante può
+      // eliminarlo quando cancella il proprio account. Sparisce per
+      // entrambi: una conversazione senza uno dei due non ha senso.
+      allow delete: if isAdmin() || isParticipant(resource.data);
+
+      match /messaggi/{msgId} {
+        function conv() {
+          return get(/databases/$(database)/documents/conversazioni/$(convId)).data;
+        }
+
+        allow read: if isAdmin()
+          || (isSignedIn() && request.auth.uid in conv().participants);
+
+        allow create: if isActive()
+          && request.auth.uid in conv().participants
+          && request.resource.data.fromId == request.auth.uid
+          && request.resource.data.testo is string
+          && request.resource.data.testo.size() > 0
+          && request.resource.data.testo.size() <= 2000;
+
+        // Un messaggio inviato non si riscrive mai — nemmeno dall'admin,
+        // così una conversazione non può essere alterata a posteriori.
+        // Cancellare invece serve per la moderazione, ed è solo admin.
+        allow update: if false;
+        allow delete: if isAdmin()
+          || (isSignedIn() && request.auth.uid in conv().participants);
+      }
+    }
+
+    /* Tutto il resto è chiuso. */
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

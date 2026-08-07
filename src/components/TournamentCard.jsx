@@ -40,9 +40,9 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
         className="relative flex flex-col items-center justify-center text-center py-4 sm:py-6 shrink-0 overflow-hidden w-20 sm:w-28 lg:w-32 sm:mr-8"
         style={{ background: style.bg }}
       >
-        <div className="relative text-white px-1" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.25)' }}>
+        <div className="relative text-white px-1" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.35)' }}>
           {stub.giornoSett && <div className="text-xm font-semibold" style={{ opacity: 1 }}>{stub.giornoSett}</div>}
-          <div className={`font-display text- text-4xl sm:text-4xl leading-none ${stubSize}`}>{stub.giorno}</div>
+          <div className={`font-display text-4xl sm:text-4xl leading-none ${stubSize}`}>{stub.giorno}</div>
           {stub.mese && <div className="text-xm font-semibold tracking-widest">{stub.mese}</div>}
         </div>
         {/* <span className="absolute rounded-full bg-white" style={{ width: 18, height: 18, right: -9, top: -9 }} /> */}
@@ -52,7 +52,7 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
       {/* <div className="shrink-0" style={{ width: 0, borderLeft: '2px dashed rgba(34,48,31,0.15)', marginTop: 12, marginBottom: 12 }} /> */}
 
       <div className="flex-1 p-3.5 min-w-0 flex flex-col">
-        <h3 className="font-semibold text-[1.65rem] sm:text-[1.95rem] leading-tight mb-3" style={{ color: INK }}>
+        <h3 className="font-black text-2xl sm:text-3xl leading-tight mb-3" style={{ color: INK }}>
           {t.nome}
         </h3>
 

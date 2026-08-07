@@ -153,7 +153,7 @@ export default function CalendarView({
             return (
               <div
                 key={index}
-                className={`min-h-15 sm:min-h-25 rounded-xl border p-1 sm:p-2 ${!day || isPastDay(day)
+                className={`min-h-15 sm:min-h-30 rounded-xl border p-1 sm:p-2 ${!day || isPastDay(day)
                   ? 'opacity-50'
                   : ''
                   } ${isToday(day)

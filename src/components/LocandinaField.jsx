@@ -112,11 +112,11 @@ export default function LocandinaField({
             <p className="text-sm font-bold" style={{ color: GRASS_DARK }}>
               Immagine caricata
             </p>
-            {info && (
+            {/* {info && (
               <p className="text-xs" style={{ color: INK, opacity: 0.55 }}>
                 Compressa: {info}
               </p>
-            )}
+            )} */}
             <button
               type="button"
               onClick={() => inputRef.current?.click()}

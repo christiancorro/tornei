@@ -176,7 +176,7 @@ export default function Header({
                   />
                 </div>
 
-                <span className="h-5 shrink-0 mr-2 ml-2" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
+                <span className="h-5 shrink-0 mr-1 ml-1 sm:mr-2 sm:ml-2" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
 
                 {DISCIPLINE.map((d) => (
                   <Chip
@@ -188,14 +188,14 @@ export default function Header({
                     {d}
                   </Chip>
                 ))}
-                <span className="h-5 shrink-0 mr-2 ml-2" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
+                <span className="h-5 shrink-0 mr-1 ml-1 sm:mr-2 sm:ml-2" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
                 {FORMATI.map((f) => (
                   <Chip key={f} active={selectedFormats.includes(f)} onClick={() => setSelectedFormats((prev) => toggleValue(prev, f))}>
                     {f}
                   </Chip>
                 ))}
                 <span
-                  className="h-5 shrink-0 mr-2 ml-2"
+                  className="h-5 shrink-0 mr-1 ml-1 sm:mr-2 sm:ml-2"
                   style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }}
                 />
 
@@ -209,7 +209,7 @@ export default function Header({
                   </Chip>
                 ))}
 
-                <span className="h-5 shrink-0 mr-2 ml-2" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
+                <span className="h-5 shrink-0 mr-1 ml-1 sm:mr-2 sm:ml-2" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
                 <button
                   type="button"
                   onClick={() => setShowMoreFilters((v) => !v)}

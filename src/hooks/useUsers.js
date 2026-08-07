@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 
-import { subscribeUsers, setRole } from '../services/users';
+import {
+  subscribeUsers, setRole, deleteUserData, userFootprint,
+} from '../services/users';
 import { ROLE_ADMIN, ROLE_ORGANIZER, ROLE_USER, ROLE_BLOCKED } from '../roles';
 
 /* Lista utenti per la dashboard admin. Il listener parte solo
@@ -31,8 +33,10 @@ export function useUsers(enabled) {
   }), [users]);
 
   const changeRole = useCallback((uid, role) => setRole(uid, role), []);
+  const removeUser = useCallback((uid) => deleteUserData(uid), []);
+  const footprint = useCallback((uid) => userFootprint(uid), []);
 
-  return { users, counts, loading, error, changeRole };
+  return { users, counts, loading, error, changeRole, removeUser, footprint };
 }
 
 export default useUsers;

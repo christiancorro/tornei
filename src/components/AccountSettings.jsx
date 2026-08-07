@@ -81,7 +81,7 @@ export default function AccountSettings({ profile, onDeleted }) {
         />
 
         <div className="text-xs mb-3 space-y-1" style={{ color: INK, opacity: 0.6 }}>
-          <p>Email: <strong>{profile?.email}</strong> (account Google)</p>
+          <p>Email: <strong>{profile?.email}</strong></p>
           <p>Ruolo: <strong>{ROLE_LABELS[profile?.role] ?? '—'}</strong></p>
         </div>
 
@@ -91,7 +91,7 @@ export default function AccountSettings({ profile, onDeleted }) {
           type="button"
           onClick={handleSaveName}
           disabled={saving || !nome.trim() || nome.trim() === profile?.displayName}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold"
           style={{
             backgroundColor: SUN,
             color: INK,
@@ -107,7 +107,7 @@ export default function AccountSettings({ profile, onDeleted }) {
       <div className="rounded-xl border-2 p-4" style={{ backgroundColor: CARD_BG, borderColor: `${CLAY}55` }}>
         <div className="flex items-center gap-2 mb-2">
           <AlertTriangle size={18} style={{ color: CLAY }} />
-          <h3 className="font-black text-base" style={{ color: CLAY }}>Elimina account</h3>
+          <h3 className="font-semibold text-base" style={{ color: CLAY }}>Elimina account</h3>
         </div>
 
         {!showDelete ? (
@@ -119,7 +119,7 @@ export default function AccountSettings({ profile, onDeleted }) {
             <button
               type="button"
               onClick={() => setShowDelete(true)}
-              className="px-4 py-2 rounded-full text-sm font-bold"
+              className="px-4 py-2 rounded-full text-sm font-semibold"
               style={{ border: `2px solid ${CLAY}`, color: CLAY }}
             >
               Voglio eliminare il mio account

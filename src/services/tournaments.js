@@ -19,7 +19,13 @@ import {
   serverTimestamp,
   writeBatch,
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import {
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject,
+} from 'firebase/storage';
+import imageCompression from 'browser-image-compression';
 
 import { db, storage, COL_TORNEI, COL_USERS } from '../firebase';
 import {
@@ -160,35 +166,94 @@ export async function rejectTournament(torneo, adminUid, motivo = '') {
 /* ---------------------------------------------------------
    Upload locandina (Firebase Storage).
 --------------------------------------------------------- */
-import imageCompression from 'browser-image-compression';
 
-export async function uploadLocandina(file) {
+/* ---------------------------------------------------------
+   Upload della locandina.
+
+   Le locandine arrivano quasi sempre da uno screenshot o da
+   una foto del telefono: 4–8 MB, 4000px di lato. Nella scheda
+   ne vediamo al massimo 800px. Comprimere prima di caricare
+   fa risparmiare banda a chi carica, soldi di Storage a te, e
+   secondi di attesa a chi guarda.
+
+   `onProgress` riceve 0–100: senza, su una connessione lenta
+   l'utente non sa se sta succedendo qualcosa e ripreme il
+   bottone.
+--------------------------------------------------------- */
+export const MAX_LOCANDINA_MB = 20;
+
+/* WebP pesa il 25–35% meno di JPEG a parità di qualità ed è
+   supportato ovunque tranne Safari molto vecchio: se il browser
+   non sa produrlo, il canvas restituisce un PNG e ripieghiamo. */
+function supportsWebP() {
+  try {
+    const c = document.createElement('canvas');
+    return c.toDataURL('image/webp').startsWith('data:image/webp');
+  } catch {
+    return false;
+  }
+}
+
+export async function compressLocandina(file) {
   if (!file) return null;
-
   if (!file.type.startsWith('image/')) {
-    throw new Error("Il file deve essere un'immagine.");
+    throw new Error("Il file deve essere un'immagine (JPG, PNG, WebP).");
+  }
+  if (file.size > MAX_LOCANDINA_MB * 1024 * 1024) {
+    throw new Error(`L'immagine non può superare i ${MAX_LOCANDINA_MB} MB.`);
   }
 
-  const options = {
+  const webp = supportsWebP();
+
+  const compressed = await imageCompression(file, {
     maxSizeMB: 0.4,
     maxWidthOrHeight: 1600,
-    useWebWorker: true,
-    fileType: 'image/jpeg',
-  };
-
-  const compressed = await imageCompression(file, options);
-
-  const path = `locandine/${Date.now()}.jpg`;
-  const storageRef = ref(storage, path);
-
-  await uploadBytes(storageRef, compressed, {
-    contentType: 'image/jpeg',
+    initialQuality: 0.82,
+    useWebWorker: true, // la compressione non blocca l'interfaccia
+    fileType: webp ? 'image/webp' : 'image/jpeg',
   });
 
   return {
-    url: await getDownloadURL(storageRef),
-    path,
+    blob: compressed,
+    type: webp ? 'image/webp' : 'image/jpeg',
+    ext: webp ? 'webp' : 'jpg',
+    originalSize: file.size,
+    size: compressed.size,
   };
+}
+
+export async function uploadLocandina(file, onProgress) {
+  const c = await compressLocandina(file);
+  if (!c) return null;
+
+  const path = `locandine/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${c.ext}`;
+  const task = uploadBytesResumable(ref(storage, path), c.blob, {
+    contentType: c.type,
+    cacheControl: 'public, max-age=31536000', // le locandine non cambiano mai
+  });
+
+  await new Promise((resolve, reject) => {
+    task.on(
+      'state_changed',
+      (snap) => onProgress?.(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
+      reject,
+      resolve
+    );
+  });
+
+  return {
+    url: await getDownloadURL(task.snapshot.ref),
+    path,
+    size: c.size,
+    originalSize: c.originalSize,
+  };
+}
+
+/* Cancella un file orfano: serve quando si sostituisce la
+   locandina prima di salvare il torneo. */
+export async function deleteLocandina(path) {
+  if (!path) return;
+  await deleteObject(ref(storage, path)).catch(() => { });
 }
 
 export async function createTestTournament(profile) {

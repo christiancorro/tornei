@@ -1,16 +1,21 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { useModalClose } from '../hooks/useModalClose';
 
 import { INK, CLAY, CLAY_DARK } from '../theme';
 
 export default function DeleteConfirm({ tournament, onConfirm, onCancel }) {
+  const { closing, close } = useModalClose(onCancel);
+
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center p-4 z-50"
-      style={{ backgroundColor: 'rgba(34,48,31,0.5)' }}
-      onClick={onCancel}
+      className={`fixed inset-0 flex items-center justify-center p-4 z-50 modal-backdrop ${closing ? 'is-closing' : ''}`}
+      onClick={close}
     >
-      <div className="bg-white rounded-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`bg-white rounded-2xl w-full max-w-sm p-6 modal-panel ${closing ? 'is-closing' : ''}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: '#FBE3DC', color: CLAY_DARK }}>
           <AlertTriangle size={22} />
         </div>

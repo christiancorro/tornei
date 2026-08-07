@@ -157,7 +157,10 @@ service cloud.firestore {
       // Privata tra i due partecipanti, con l'admin che può leggere
       // tutto per moderazione. Non può però scrivere in un thread di
       // cui non fa parte: legge, non impersona.
-      allow read: if isAdmin() || isParticipant(resource.data);
+      // `resource != null` prima di toccare resource.data: su un
+      // documento inesistente resource è null e la regola andrebbe
+      // in errore, restituendo permission-denied invece di "non trovato".
+      allow read: if isAdmin() || (resource != null && isParticipant(resource.data));
 
       allow create: if isActive()
         && request.resource.data.participants.size() == 2
@@ -166,13 +169,14 @@ service cloud.firestore {
 
       // Aggiorna anteprima e contatori non letti; i partecipanti
       // non cambiano mai dopo la creazione.
-      allow update: if isParticipant(resource.data)
+      allow update: if resource != null
+        && isParticipant(resource.data)
         && request.resource.data.participants == resource.data.participants;
 
       // L'admin rimuove un thread molesto; un partecipante può
       // eliminarlo quando cancella il proprio account. Sparisce per
       // entrambi: una conversazione senza uno dei due non ha senso.
-      allow delete: if isAdmin() || isParticipant(resource.data);
+      allow delete: if isAdmin() || (resource != null && isParticipant(resource.data));
 
       match /messaggi/{msgId} {
         function conv() {

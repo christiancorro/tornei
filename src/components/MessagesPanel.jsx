@@ -5,8 +5,10 @@ import { INK, SAND, SUN, CARD_BG, GRASS_DARK, CLAY } from '../theme';
 import { timeAgo } from '../utils';
 import { otherParticipant, MAX_MESSAGGIO } from '../services/messages';
 import { useMessages } from '../hooks/useMessages';
+import { useFeedback } from './FeedbackProvider';
 
 function Thread({ conv, profile, onBack, readOnly, onDelete }) {
+  const { confirm, toast } = useFeedback();
   const other = otherParticipant(conv, profile.uid);
   // In sola lettura (moderazione) non azzero i "non letti" altrui:
   // il destinatario non deve credere che l'abbia letto lui.
@@ -28,7 +30,7 @@ function Thread({ conv, profile, onBack, readOnly, onDelete }) {
       setTesto('');
     } catch (err) {
       console.error(err);
-      alert('Messaggio non inviato.');
+      toast('Messaggio non inviato.', 'error');
     } finally {
       setBusy(false);
     }
@@ -50,11 +52,23 @@ function Thread({ conv, profile, onBack, readOnly, onDelete }) {
             Su: {conv.annuncioTesto}
           </p>
         </div>
-        {readOnly && onDelete && (
+        {onDelete && (
           <button
             type="button"
-            onClick={() => {
-              if (confirm('Eliminare questa conversazione e tutti i suoi messaggi?')) {
+            onClick={async () => {
+              // Il documento della conversazione è uno solo e condiviso:
+              // cancellarlo la fa sparire anche all'altra persona. Meglio
+              // dirlo, invece di lasciar credere che sia un archivio privato.
+              const ok = await confirm({
+                title: readOnly
+                  ? 'Eliminare questa conversazione?'
+                  : `Eliminare la conversazione con ${other.name}?`,
+                message: readOnly
+                  ? 'Verranno rimossi anche tutti i messaggi.'
+                  : `Sparirà anche a ${other.name} e non è recuperabile.`,
+                confirmLabel: 'Elimina',
+              });
+              if (ok) {
                 onDelete(conv.id);
                 onBack();
               }
@@ -62,6 +76,7 @@ function Thread({ conv, profile, onBack, readOnly, onDelete }) {
             className="shrink-0 p-1.5 rounded-full"
             style={{ color: CLAY }}
             aria-label="Elimina conversazione"
+            title="Elimina conversazione"
           >
             <Trash2 size={16} />
           </button>
@@ -137,6 +152,7 @@ function Thread({ conv, profile, onBack, readOnly, onDelete }) {
 export default function MessagesPanel({
   conversations, profile, readOnly = false, onDeleteConversation, emptyLabel,
 }) {
+  const { confirm } = useFeedback();
   const [openId, setOpenId] = useState(null);
   const open = conversations.find((c) => c.id === openId);
 
@@ -171,39 +187,71 @@ export default function MessagesPanel({
       ? Object.values(c.names ?? {}).filter(Boolean).join('  ↔  ') || 'Conversazione'
       : other.name;
     return (
-      <button
+      /* Riga = contenitore, non bottone: dentro c'è il cestino, e un
+         <button> annidato in un altro <button> è HTML non valido (il
+         click interno risalirebbe comunque al genitore). */
+      <div
         key={c.id}
-        type="button"
-        onClick={() => setOpenId(c.id)}
-        className="w-full text-left rounded-xl border-2 p-3 mb-2 flex items-center gap-3"
+        className="w-full rounded-xl border-2 p-3 mb-2 flex items-center gap-3"
         style={{
           backgroundColor: CARD_BG,
           borderColor: unread > 0 ? SUN : 'rgba(34,48,31,0.15)',
         }}
       >
-        <div
-          className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm shrink-0"
-          style={{ backgroundColor: SAND, color: GRASS_DARK }}
+        <button
+          type="button"
+          onClick={() => setOpenId(c.id)}
+          className="flex-1 min-w-0 text-left flex items-center gap-3"
         >
-          {readOnly ? <MessageCircle size={16} /> : (other.name || '?').charAt(0).toUpperCase()}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <p className="font-bold text-sm truncate" style={{ color: INK }}>{label}</p>
-            {c.lastAt?.toDate && (
-              <span className="text-xs shrink-0" style={{ color: INK, opacity: 0.45 }}>
-                {timeAgo(c.lastAt.toDate())}
-              </span>
-            )}
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm shrink-0"
+            style={{ backgroundColor: SAND, color: GRASS_DARK }}
+          >
+            {readOnly ? <MessageCircle size={16} /> : (other.name || '?').charAt(0).toUpperCase()}
           </div>
-          <p className="text-xs truncate" style={{ color: INK, opacity: 0.6 }}>{c.lastMessage}</p>
-        </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-bold text-sm truncate" style={{ color: INK }}>{label}</p>
+              {c.lastAt?.toDate && (
+                <span className="text-xs shrink-0" style={{ color: INK, opacity: 0.45 }}>
+                  {timeAgo(c.lastAt.toDate())}
+                </span>
+              )}
+            </div>
+            <p className="text-xs truncate" style={{ color: INK, opacity: 0.6 }}>{c.lastMessage}</p>
+          </div>
+        </button>
+
         {unread > 0 && (
           <span className="text-xs font-black px-2 py-0.5 rounded-full shrink-0" style={{ backgroundColor: SUN, color: INK }}>
             {unread}
           </span>
         )}
-      </button>
+
+        {onDeleteConversation && (
+          <button
+            type="button"
+            onClick={async () => {
+              const ok = await confirm({
+                title: readOnly
+                  ? 'Eliminare questa conversazione?'
+                  : `Eliminare la conversazione con ${other.name}?`,
+                message: readOnly
+                  ? 'Verranno rimossi anche tutti i messaggi.'
+                  : `Sparirà anche a ${other.name} e non è recuperabile.`,
+                confirmLabel: 'Elimina',
+              });
+              if (ok) onDeleteConversation(c.id);
+            }}
+            className="shrink-0 p-1.5 rounded-full"
+            style={{ color: CLAY }}
+            aria-label="Elimina conversazione"
+            title="Elimina conversazione"
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
+      </div>
     );
   });
 }

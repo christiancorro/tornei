@@ -1,53 +1,37 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import { useModalClose } from '../hooks/useModalClose';
 
 import { INK, SUN } from '../theme';
 import { DISCIPLINE, FORMATI, PROVINCE, PROVINCE_LABELS } from '../constants';
 import { emptyTournament, toggleValue } from '../utils';
 import Chip from './ui/Chip';
-import { uploadLocandina } from '../services/tournaments';
+import LocandinaField from './LocandinaField';
 
 /* ---------------------------------------------------------
    Admin form (add / edit) — no backend yet, so this writes
    straight into local state.
 --------------------------------------------------------- */
 export default function TournamentForm({ initial, onSave, onCancel }) {
+  const { closing, close } = useModalClose(onCancel);
   const [form, setForm] = useState(initial || emptyTournament());
-  const [uploading, setUploading] = useState(false);
-  const [uploadComplete, setUploadComplete] = useState(false);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  async function handleSubmit(e) {
+  const [errore, setErrore] = useState('');
+
+  function handleSubmit(e) {
     e.preventDefault();
-
-    let data = { ...form };
-
-    try {
-      setUploading(true);
-
-      if (data.locandinaFile) {
-        const uploaded = await uploadLocandina(data.locandinaFile);
-
-        data.locandina = uploaded.url;
-        data.locandinaPath = uploaded.path;
-        delete data.locandinaFile;
-      }
-
-      setUploading(false);
-      setUploadComplete(true);
-
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-
-      await onSave(data);
-
-    } catch (err) {
-      console.error(err);
-      setUploading(false);
-      alert('Upload non riuscito.');
+    // `required` non funziona su un input file nascosto, quindi il
+    // controllo sulla locandina va fatto qui a mano.
+    if (!form.locandina) {
+      setErrore('Aggiungi la locandina: è la prima cosa che si guarda.');
+      return;
     }
+    setErrore('');
+    onSave(form);
   }
 
   const inputClass = 'w-full px-3.5 py-2.5 rounded-lg border-2 outline-none text-sm focus:ring-2 focus:ring-amber-500';
@@ -57,12 +41,12 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center p-4 z-50"
-      style={{ backgroundColor: 'rgba(22, 20, 15, 0.83)' }}
-      onClick={onCancel}
+      className={`fixed inset-0 flex items-center justify-center p-4 z-50 modal-backdrop ${closing ? 'is-closing' : ''}`}
+      style={{ backgroundColor: 'rgba(20, 19, 18, 0.93)' }}
+      onClick={close}
     >
       <div
-        className="bg-white rounded-2xl w-full max-w-2xl overflow-y-auto"
+        className={`bg-white rounded-2xl w-full max-w-2xl overflow-y-auto modal-panel ${closing ? 'is-closing' : ''}`}
         style={{ maxHeight: '90vh' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -75,7 +59,7 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
           </h2>
           <button
             type="button"
-            onClick={onCancel}
+            onClick={close}
             className="p-1.5 rounded-full hover:bg-gray-100 "
             style={{ color: INK }}
           >
@@ -295,32 +279,24 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
             </div>
           </div>
 
-          <div>
-            <label className={labelClass} style={labelStyle}>
-              Locandina (URL link immagine locandina)
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              className={inputClass}
-              onChange={async (e) => {
-                const file = e.target.files[0];
+          <LocandinaField
+            value={form.locandina}
+            path={form.locandinaPath}
+            onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+            labelClass={labelClass}
+            labelStyle={labelStyle}
+            inputClass={inputClass}
+            inputStyle={inputStyle}
+          />
 
-                if (!file) return;
-
-                try {
-                  update('locandinaFile', file);
-                } catch (err) {
-                  alert(err.message);
-                }
-              }}
-            />
-          </div>
+          {errore && (
+            <p className="text-sm font-semibold" style={{ color: '#8C3520' }}>{errore}</p>
+          )}
 
           <div className="flex gap-3 pt-2">
             <button
               type="button"
-              onClick={onCancel}
+              onClick={close}
               className="flex-1 py-2.5 rounded-lg border-2 font-semibold "
               style={{ borderColor: 'rgba(34,48,31,0.25)', color: INK }}
             >
@@ -328,35 +304,10 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
             </button>
             <button
               type="submit"
-              disabled={uploading || uploadComplete}
-              className="flex-1 py-2.5 rounded-lg font-semibold text-white shadow-sm transition-all duration-300"
-              style={{
-                backgroundColor: uploadComplete ? '#4CAF50' : SUN,
-                opacity: uploading ? 0.75 : 1,
-                transform: uploadComplete ? 'scale(1.02)' : 'scale(1)',
-              }}
+              className="flex-1 py-2.5 rounded-lg font-semibold text-white shadow-sm  focus:ring-offset-2"
+              style={{ backgroundColor: SUN }}
             >
-              <span className="flex items-center justify-center gap-2 transition-all duration-300">
-                {uploading && (
-                  <span
-                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
-                  />
-                )}
-
-                {uploadComplete && (
-                  <span className="text-lg animate-[scale-in_0.2s_ease-out]">
-                    ✓
-                  </span>
-                )}
-
-                <span className="transition-opacity duration-300">
-                  {uploading
-                    ? 'Caricamento...'
-                    : uploadComplete
-                      ? 'Caricamento completato'
-                      : 'Crea torneo'}
-                </span>
-              </span>
+              Crea torneo
             </button>
           </div>
         </form>

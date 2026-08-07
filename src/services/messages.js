@@ -18,7 +18,6 @@ import {
   updateDoc,
   deleteDoc,
   getDocs,
-  getDoc,
   onSnapshot,
   query,
   where,
@@ -92,27 +91,32 @@ export async function replyToAnnuncio(annuncio, sender, testo) {
   if (annuncio.authorId === sender.uid) throw new Error('È il tuo annuncio.');
 
   const convId = conversationId(annuncio.id, sender.uid);
-  const ref = convRef(convId);
-  const existing = await getDoc(ref);
 
-  if (!existing.exists()) {
-    await setDoc(ref, {
-      annuncioId: annuncio.id,
-      annuncioTesto: annuncio.testo.slice(0, 140),
-      annuncioTipo: annuncio.tipo,
-      participants: [sender.uid, annuncio.authorId],
-      names: {
-        [sender.uid]: sender.displayName ?? '',
-        [annuncio.authorId]: annuncio.authorName ?? '',
-      },
-      startedBy: sender.uid,
-      createdAt: serverTimestamp(),
-      lastAt: serverTimestamp(),
-      lastMessage: clean.slice(0, 140),
-      unread: { [annuncio.authorId]: 0, [sender.uid]: 0 },
-    });
-  }
+  /* Niente getDoc prima di creare: leggere un documento che non
+     esiste fa fallire le regole (`resource` è null, quindi
+     `resource.data.participants` esplode) e l'errore arriva come
+     "Missing or insufficient permissions". Capitava riscrivendo a
+     qualcuno dopo aver cancellato la conversazione precedente.
 
+     setDoc con merge copre entrambi i casi: crea se manca, aggiorna
+     l'anteprima se c'è già. */
+  await setDoc(convRef(convId), {
+    annuncioId: annuncio.id,
+    annuncioTesto: annuncio.testo.slice(0, 140),
+    annuncioTipo: annuncio.tipo,
+    participants: [sender.uid, annuncio.authorId],
+    names: {
+      [sender.uid]: sender.displayName ?? '',
+      [annuncio.authorId]: annuncio.authorName ?? '',
+    },
+    startedBy: sender.uid,
+    lastAt: serverTimestamp(),
+    lastMessage: clean.slice(0, 140),
+  }, { merge: true });
+
+  // `unread` non sta qui di proposito: con merge lo azzererebbe a
+  // ogni nuovo messaggio. Ci pensa increment() in sendMessage, che
+  // funziona anche su un campo che non esiste ancora.
   await sendMessage(convId, sender.uid, annuncio.authorId, clean);
   return convId;
 }
@@ -138,7 +142,7 @@ export async function sendMessage(convId, fromId, toId, testo) {
 }
 
 export function markAsRead(convId, uid) {
-  return updateDoc(convRef(convId), { [`unread.${uid}`]: 0 }).catch(() => {});
+  return updateDoc(convRef(convId), { [`unread.${uid}`]: 0 }).catch(() => { });
 }
 
 /* Moderazione: elimina il thread e i suoi messaggi. Firestore non

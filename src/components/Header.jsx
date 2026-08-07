@@ -146,7 +146,7 @@ export default function Header({
                   className={`
                     group flex items-center gap-2 cursor-pointer shrink-0
                     rounded-full border-2 border-transparent transition-all
-                    py-1 pl-1 pr-1 sm:pl-3
+                    py-1 pl-1 pr-1 sm:pl-4
                     ${onAccount
                       ? 'bg-[#282828] text-[#fff8ef]'
                       : 'text-[#282828] hover:border-[#282828]'
@@ -160,7 +160,8 @@ export default function Header({
                     className={`text-sm font-semibold hidden sm:inline max-w-32 truncate transition-opacity ${onAccount ? '' : 'opacity-60 group-hover:opacity-100'
                       }`}
                   >
-                    {profile.displayName || 'Profilo'}
+                    {/* {profile.displayName || 'Profilo'} */}
+                    Il mio profilo
                   </span>
 
                   {/* Solo questo bottone diventa scuro quando sei nell'area
@@ -169,7 +170,7 @@ export default function Header({
                     <Avatar
                       src={profile.photoURL}
                       name={profile.displayName}
-                      size={34}
+                      size={30}
                     />
                     {unreadTotal > 0 && (
                       <span

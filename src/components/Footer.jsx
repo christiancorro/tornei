@@ -16,7 +16,7 @@ export default function Footer() {
         rel="noopener noreferrer"
         className="inline-flex items-center mt-4 px-4 py-2 rounded-full font-regular text-sm transition-all hover:scale-101"
         style={{
-          backgroundColor: "#fff4d1",
+          backgroundColor: "#fff5e1",
           color: "#242424",
         }}
       >

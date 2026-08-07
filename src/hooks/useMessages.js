@@ -31,8 +31,9 @@ export function useConversations(uid) {
   );
 
   const reply = useCallback((annuncio, sender, testo) => replyToAnnuncio(annuncio, sender, testo), []);
+  const remove = useCallback((convId) => deleteConversation(convId), []);
 
-  return { conversations, unreadTotal, loading, reply };
+  return { conversations, unreadTotal, loading, reply, remove };
 }
 
 /* Vista admin: ogni conversazione dell'app. Parte solo se

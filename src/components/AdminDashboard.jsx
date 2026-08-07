@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   ShieldCheck, Check, X, Users, Clock, Search, MessageCircle, StickyNote, Trash2,
+  UserX, Loader2,
 } from 'lucide-react';
 
 import { INK, SAND, SUN, GRASS_DARK, CLAY, CARD_BG } from '../theme';
@@ -10,7 +11,7 @@ import {
 } from '../roles';
 import { formatDataLunga, timeAgo } from '../utils';
 import MessagesPanel from './MessagesPanel';
-import { createTournament, uploadLocandina } from '../services/tournaments';
+import { useFeedback } from './FeedbackProvider';
 
 const ROLE_COLOR = {
   [ROLE_ADMIN]: '#6B4E8E',
@@ -18,67 +19,6 @@ const ROLE_COLOR = {
   [ROLE_USER]: '#7A7A7A',
   [ROLE_BLOCKED]: CLAY,
 };
-
-async function createTestTournament() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 800;
-  canvas.height = 1100;
-
-  const ctx = canvas.getContext('2d');
-
-  ctx.fillStyle = '#22301F';
-  ctx.fillRect(0, 0, 800, 1100);
-
-  ctx.fillStyle = '#F6C344';
-  ctx.font = 'bold 70px Arial';
-  ctx.fillText('TORNEO', 120, 300);
-
-  ctx.fillText('TEST FVG', 100, 400);
-
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = '40px Arial';
-  ctx.fillText('Beach Volley', 180, 600);
-
-  ctx.font = '32px Arial';
-  ctx.fillText('20 Agosto 2026', 180, 750);
-
-  const blob = await new Promise((resolve) =>
-    canvas.toBlob(resolve, 'image/jpeg', 0.9)
-  );
-
-  const file = new File(
-    [blob],
-    'torneo-test.jpg',
-    { type: 'image/jpeg' }
-  );
-
-  const uploaded = await uploadLocandina(file);
-
-  const torneo = {
-    nome: "Torneo Test FVG",
-    disciplina: "Beach Volley",
-    formati: ["2x2"],
-    modalita: "Misto",
-    data: "2026-08-20",
-    dataFine: "",
-    ora: "09:00",
-    luogo: "Parco Test",
-    comune: "Udine",
-    provincia: "UD",
-    costo: "15",
-    iscrizioniEntro: "2026-08-15",
-    organizzatore: "ASD Test",
-    descrizioneOrganizzatore: "Torneo creato automaticamente per test Storage.",
-    instagram: "",
-    facebook: "",
-    locandina: uploaded.url,
-    locandinaPath: uploaded.path,
-  };
-
-  await createTournament(torneo, profile);
-
-  alert("Torneo test creato con immagine Storage");
-}
 
 function Tab({ active, onClick, children, badge }) {
   return (
@@ -107,6 +47,7 @@ function Tab({ active, onClick, children, badge }) {
 
 /* --- Coda di moderazione --- */
 function PendingCard({ torneo, onApprove, onReject }) {
+  const { toast } = useFeedback();
   const [motivo, setMotivo] = useState('');
   const [showReject, setShowReject] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -115,7 +56,7 @@ function PendingCard({ torneo, onApprove, onReject }) {
     setBusy(true);
     try { await fn(); } catch (err) {
       console.error(err);
-      alert('Operazione non riuscita.');
+      toast('Operazione non riuscita.', 'error');
     } finally { setBusy(false); }
   }
 
@@ -185,16 +126,43 @@ function PendingCard({ torneo, onApprove, onReject }) {
 }
 
 /* --- Riga utente --- */
-function UserRow({ utente, isMe, onChangeRole }) {
+function UserRow({ utente, isMe, onChangeRole, onDelete, onFootprint }) {
+  const { confirm, toast } = useFeedback();
   const [busy, setBusy] = useState(false);
+  const [confermaElimina, setConfermaElimina] = useState(false);
+  const [footprint, setFootprint] = useState(null);
 
   async function change(role) {
     if (role === utente.role) return;
-    if (role === ROLE_ADMIN && !confirm(`Rendere ${utente.email} amministratore? Avrà i tuoi stessi poteri.`)) return;
+    if (role === ROLE_ADMIN) {
+      const ok = await confirm({
+        title: 'Rendere questa persona amministratore?',
+        message: `${utente.email} avrà i tuoi stessi poteri: potrà approvare tornei, gestire utenti e leggere i messaggi privati.`,
+        confirmLabel: 'Rendi admin',
+      });
+      if (!ok) return;
+    }
     setBusy(true);
     try { await onChangeRole(utente.uid, role); } catch (err) {
       console.error(err);
-      alert('Cambio ruolo non riuscito.');
+      toast('Cambio ruolo non riuscito.', 'error');
+    } finally { setBusy(false); }
+  }
+
+  async function apriElimina() {
+    setConfermaElimina(true);
+    setFootprint(await onFootprint(utente.uid).catch(() => null));
+  }
+
+  async function elimina() {
+    setBusy(true);
+    try {
+      await onDelete(utente.uid);
+      setConfermaElimina(false);
+      toast('Utente eliminato.', 'success');
+    } catch (err) {
+      console.error(err);
+      toast('Eliminazione non riuscita.', 'error');
     } finally { setBusy(false); }
   }
 
@@ -217,8 +185,44 @@ function UserRow({ utente, isMe, onChangeRole }) {
 
       {isMe ? (
         <p className="text-xs" style={{ color: INK, opacity: 0.5 }}>
-          Non puoi cambiare il tuo ruolo da qui.
+          Non puoi cambiare il tuo ruolo né eliminarti da qui.
         </p>
+      ) : utente.deleted ? (
+        <p className="text-xs" style={{ color: INK, opacity: 0.5 }}>
+          Contenuti eliminati. Rimuovi l'account da Firebase Console →
+          Authentication, oppure con <code>--delete-user {utente.email}</code>.
+        </p>
+      ) : confermaElimina ? (
+        <div>
+          <p className="text-xs mb-2 px-2 py-1.5 rounded" style={{ backgroundColor: '#FBE3DC', color: '#8C3520' }}>
+            Verranno eliminati definitivamente{' '}
+            <strong>{footprint ? footprint.tornei : '…'} tornei</strong>,{' '}
+            <strong>{footprint ? footprint.annunci : '…'} annunci</strong> e{' '}
+            <strong>{footprint ? footprint.conversazioni : '…'} conversazioni</strong>.
+            L'account non potrà più accedere.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setConfermaElimina(false)}
+              disabled={busy}
+              className="px-3 py-1.5 rounded-full text-xs font-bold"
+              style={{ border: '1px solid rgba(34,48,31,0.25)', color: INK }}
+            >
+              Annulla
+            </button>
+            <button
+              type="button"
+              onClick={elimina}
+              disabled={busy}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
+              style={{ backgroundColor: CLAY, color: '#fff', opacity: busy ? 0.6 : 1 }}
+            >
+              {busy ? <Loader2 size={13} className="animate-spin" /> : <UserX size={13} />}
+              {busy ? 'Eliminazione...' : 'Conferma eliminazione'}
+            </button>
+          </div>
+        </div>
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {[ROLE_USER, ROLE_ORGANIZER, ROLE_ADMIN, ROLE_BLOCKED].map((r) => (
@@ -239,6 +243,19 @@ function UserRow({ utente, isMe, onChangeRole }) {
               {ROLE_LABELS[r]}
             </button>
           ))}
+
+          <span className="w-px h-6 mx-1" style={{ backgroundColor: 'rgba(34,48,31,0.15)' }} />
+
+          <button
+            type="button"
+            onClick={apriElimina}
+            disabled={busy}
+            title="Elimina utente e tutti i suoi contenuti"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold"
+            style={{ border: `1px solid ${CLAY}`, color: CLAY, opacity: busy ? 0.5 : 1 }}
+          >
+            <UserX size={13} /> Elimina
+          </button>
         </div>
       )}
     </div>
@@ -247,7 +264,8 @@ function UserRow({ utente, isMe, onChangeRole }) {
 
 export default function AdminDashboard({
   pending, users, counts, myUid, profile, conversations, annunci,
-  onApprove, onReject, onChangeRole, onDeleteConversation, onDeleteAnnuncio, onCreateTestTournament,
+  onApprove, onReject, onChangeRole, onDeleteConversation, onDeleteAnnuncio,
+  onDeleteUser, onUserFootprint,
 }) {
   const [tab, setTab] = useState('coda');
   const [q, setQ] = useState('');
@@ -265,7 +283,6 @@ export default function AdminDashboard({
       <div className="flex items-center gap-2 mb-1">
         <ShieldCheck size={22} style={{ color: '#6B4E8E' }} />
         <h2 className="font-black text-2xl" style={{ color: INK }}>Dashboard admin</h2>
-
       </div>
       <p className="text-sm mb-5" style={{ color: INK, opacity: 0.6 }}>
         {counts[ROLE_ORGANIZER]} organizzatori · {counts[ROLE_USER]} utenti · {counts[ROLE_BLOCKED]} bloccati
@@ -286,7 +303,10 @@ export default function AdminDashboard({
         </Tab>
       </div>
 
-      {tab === 'coda' && (
+      {/* key={tab}: rimonta il blocco così l'animazione riparte,
+          come nel cambio vista in app.jsx. */}
+      <div key={tab} className="view-swap">
+        {tab === 'coda' && (
         pending.length === 0 ? (
           <div className="text-center py-16">
             <div className="text-5xl mb-3">✅</div>
@@ -302,7 +322,7 @@ export default function AdminDashboard({
         )
       )}
 
-      {tab === 'utenti' && (
+        {tab === 'utenti' && (
         <>
           <div className="relative mb-3">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: INK, opacity: 0.4 }} />
@@ -316,15 +336,22 @@ export default function AdminDashboard({
             />
           </div>
           {filteredUsers.map((u) => (
-            <UserRow key={u.uid} utente={u} isMe={u.uid === myUid} onChangeRole={onChangeRole} />
+            <UserRow
+              key={u.uid}
+              utente={u}
+              isMe={u.uid === myUid}
+              onChangeRole={onChangeRole}
+              onDelete={onDeleteUser}
+              onFootprint={onUserFootprint}
+            />
           ))}
         </>
       )}
 
-      {tab === 'bacheca' && (
+        {tab === 'bacheca' && (
         annunci.length === 0 ? (
           <p className="text-sm text-center py-12" style={{ color: INK, opacity: 0.6 }}>
-            La tua bacheca è vuota.
+            La bacheca è vuota.
           </p>
         ) : (
           annunci.map((a) => (
@@ -355,21 +382,22 @@ export default function AdminDashboard({
         )
       )}
 
-      {tab === 'messaggi' && (
+        {tab === 'messaggi' && (
         <>
           <p className="text-xs rounded-lg px-3 py-2 mb-3" style={{ backgroundColor: '#FFF4DE', color: '#8A5A00' }}>
             Vedi tutte le conversazioni private dell'app, in sola lettura. Gli utenti
             sono avvisati che un amministratore può leggerle.
           </p>
-          <MessagesPanel
-            conversations={conversations}
-            profile={profile}
-            readOnly
-            onDeleteConversation={onDeleteConversation}
-            emptyLabel="Nessuna conversazione è ancora stata avviata."
-          />
-        </>
-      )}
+            <MessagesPanel
+              conversations={conversations}
+              profile={profile}
+              readOnly
+              onDeleteConversation={onDeleteConversation}
+              emptyLabel="Nessuna conversazione è ancora stata avviata."
+            />
+          </>
+        )}
+      </div>
     </div>
   );
 }

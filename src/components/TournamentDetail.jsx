@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, MapPin, Euro, X } from 'lucide-react';
+import { useModalClose } from '../hooks/useModalClose';
 import { FaFacebook, FaInstagram } from 'react-icons/fa';
 
 import { INK, SAND } from '../theme';
@@ -12,6 +13,7 @@ import { getMapsUrl, formatDataRange, formatDataBreve } from '../utils';
    to breathe that the compact card doesn't have.
 --------------------------------------------------------- */
 export default function TournamentDetail({ tournament, onClose }) {
+  const { closing, close } = useModalClose(onClose);
   const [posterOk, setPosterOk] = useState(true);
   const t = tournament;
   const style = STUB_STYLE[t.disciplina] || STUB_STYLE['Green Volley'];
@@ -20,12 +22,12 @@ export default function TournamentDetail({ tournament, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center p-4 z-50 modal-backdrop"
-      style={{ backgroundColor: 'rgba(22, 20, 15, 0.83)' }}
-      onClick={onClose}
+      className={`fixed inset-0 flex items-center justify-center p-4 z-50 modal-backdrop ${closing ? 'is-closing' : ''}`}
+      style={{ backgroundColor: 'rgba(20, 19, 18, 0.93)' }}
+      onClick={close}
     >
       <div
-        className="bg-white rounded-xl w-full max-w-xl overflow-y-auto modal-panel"
+        className={`bg-white rounded-xl w-full max-w-xl overflow-y-auto modal-panel ${closing ? 'is-closing' : ''}`}
         style={{ maxHeight: '90vh' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -38,7 +40,7 @@ export default function TournamentDetail({ tournament, onClose }) {
           </h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             className="p-1.5 rounded-full hover:bg-gray-100 shrink-0 "
             style={{ color: INK }}
             aria-label="Chiudi"
@@ -142,4 +144,3 @@ export default function TournamentDetail({ tournament, onClose }) {
     </div>
   );
 }
-// 

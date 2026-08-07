@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Send, Loader2 } from 'lucide-react';
+import { useModalClose } from '../hooks/useModalClose';
 
 import { INK, SUN, CLAY, NOTE_YELLOW, NOTE_WHITE, BOARD_A, BOARD_B } from '../theme';
 import { MAX_MESSAGGIO } from '../services/messages';
@@ -7,6 +8,7 @@ import { MAX_MESSAGGIO } from '../services/messages';
 /* Risposta privata a un annuncio. Non è una chat pubblica:
    apre (o riapre) un thread visibile solo ai due. */
 export default function ReplyModal({ annuncio, onSend, onClose }) {
+  const { closing, close } = useModalClose(onClose);
   const [testo, setTesto] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -21,7 +23,7 @@ export default function ReplyModal({ annuncio, onSend, onClose }) {
     setError('');
     try {
       await onSend(annuncio, clean);
-      onClose();
+      close();
     } catch (err) {
       setError(err?.message || 'Invio non riuscito.');
     } finally {
@@ -31,11 +33,13 @@ export default function ReplyModal({ annuncio, onSend, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center p-4 z-50"
-      style={{ backgroundColor: 'rgba(34,48,31,0.5)' }}
-      onClick={onClose}
+      className={`fixed inset-0 flex items-center justify-center p-4 z-50 modal-backdrop ${closing ? 'is-closing' : ''}`}
+      onClick={close}
     >
-      <div className="bg-white rounded-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`bg-white rounded-2xl w-full max-w-md p-6 modal-panel ${closing ? 'is-closing' : ''}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <h3 className="font-black text-lg mb-1" style={{ color: INK }}>
           Rispondi a {annuncio.authorName || "l'autore"}
         </h3>
@@ -73,7 +77,7 @@ export default function ReplyModal({ annuncio, onSend, onClose }) {
         <div className="flex gap-3">
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             className="flex-1 py-2.5 rounded-lg border-2 font-bold"
             style={{ borderColor: 'rgba(34,48,31,0.25)', color: INK }}
           >

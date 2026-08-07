@@ -43,17 +43,98 @@ async function setRole(email, role) {
   console.log(`✓ ${email} (${user.uid}) → ruolo "${role}"`);
 }
 
+/* Trova l'uid partendo dall'email, guardando prima in Auth e poi
+   in Firestore. Servono entrambi: un profilo può sopravvivere
+   all'account (è la "lapide" che lascia la dashboard admin), e un
+   account può esistere senza profilo se qualcosa è andato storto
+   alla registrazione. */
+async function resolveUser(email) {
+  let authUser = null;
+  try {
+    authUser = await getAuth().getUserByEmail(email);
+  } catch (err) {
+    if (err.code !== 'auth/user-not-found') throw err;
+  }
+
+  const snap = await db.collection('users').where('email', '==', email).get();
+  const profileUid = snap.empty ? null : snap.docs[0].id;
+
+  const uid = authUser?.uid ?? profileUid;
+  if (!uid) throw new Error(`Nessun utente con email ${email}.`);
+
+  return { uid, hasAuth: Boolean(authUser), hasProfile: Boolean(profileUid) };
+}
+
+async function deleteQuery(q, label) {
+  const snap = await q.get();
+  if (!snap.empty) {
+    for (let i = 0; i < snap.docs.length; i += 400) {
+      const batch = db.batch();
+      snap.docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+  }
+  console.log(`  ${snap.size} ${label}`);
+}
+
+async function deleteUser(email) {
+  const { uid, hasAuth, hasProfile } = await resolveUser(email);
+  console.log(`Elimino ${email} (${uid})...`);
+
+  await deleteQuery(db.collection('tornei').where('authorId', '==', uid), 'tornei');
+  await deleteQuery(db.collection('annunci').where('authorId', '==', uid), 'annunci');
+
+  // Firestore non cancella le subcollection a cascata: ogni thread
+  // va svuotato prima di rimuovere il documento che lo contiene.
+  const convs = await db.collection('conversazioni')
+    .where('participants', 'array-contains', uid).get();
+  for (const c of convs.docs) {
+    const msgs = await c.ref.collection('messaggi').get();
+    const batch = db.batch();
+    msgs.forEach((m) => batch.delete(m.ref));
+    batch.delete(c.ref);
+    await batch.commit();
+  }
+  console.log(`  ${convs.size} conversazioni`);
+
+  if (hasProfile) {
+    await db.collection('users').doc(uid).delete();
+    console.log('  profilo rimosso');
+  }
+
+  if (hasAuth) {
+    await getAuth().deleteUser(uid);
+    console.log('  account Auth rimosso');
+  } else {
+    console.log('  (nessun account Auth: era già stato eliminato)');
+  }
+
+  console.log(`✓ ${email} eliminato completamente`);
+}
+
 async function listUsers() {
   const snap = await db.collection('users').get();
   if (snap.empty) return console.log('Nessun profilo utente.');
+
+  // Segnalo i profili senza account Auth: sono lapidi o residui,
+  // e spiegano perché un --delete-user sembrava "non funzionare".
+  const authUids = new Set();
+  let page = await getAuth().listUsers(1000);
+  page.users.forEach((u) => authUids.add(u.uid));
+  while (page.pageToken) {
+    page = await getAuth().listUsers(1000, page.pageToken);
+    page.users.forEach((u) => authUids.add(u.uid));
+  }
+
   snap.forEach((d) => {
     const u = d.data();
-    console.log(`${(u.role ?? '?').padEnd(10)} ${(u.email ?? '').padEnd(32)} ${u.displayName ?? ''}`);
+    const orfano = authUids.has(d.id) ? '' : '  ← senza account Auth';
+    console.log(
+      `${(u.role ?? '?').padEnd(10)} ${(u.email ?? '').padEnd(32)} ${u.displayName ?? ''}${orfano}`
+    );
   });
 }
 
-/* I dati di esempio vengono attribuiti all'admin e nascono
-   già pubblicati: sono contenuto seed, non proposte da moderare. */
 async function seed(adminEmail) {
   const admin = adminEmail ? await getAuth().getUserByEmail(adminEmail) : null;
 
@@ -95,6 +176,8 @@ const flag = (name) => {
 try {
   if (args.includes('--list')) {
     await listUsers();
+  } else if (flag('--delete-user')) {
+    await deleteUser(flag('--delete-user'));
   } else if (flag('--admin')) {
     await setRole(flag('--admin'), 'admin');
   } else if (flag('--organizer')) {
@@ -102,7 +185,9 @@ try {
   } else if (args.includes('--seed')) {
     await seed(flag('--as'));
   } else {
-    console.log('Usa: --admin <email> | --organizer <email> | --seed [--as <email>] | --list');
+    console.log(
+      'Usa: --list | --admin <email> | --organizer <email> | --delete-user <email> | --seed [--as <email>]'
+    );
   }
   process.exit(0);
 } catch (err) {

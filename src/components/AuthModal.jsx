@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useModalClose } from '../hooks/useModalClose';
 
 import { INK, GRASS_DARK, CLAY } from '../theme';
 import { authErrorMessage } from '../services/auth';
@@ -18,6 +19,7 @@ function GoogleIcon() {
 }
 
 export default function AuthModal({ onGoogle, onClose }) {
+  const { closing, close } = useModalClose(onClose);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -28,7 +30,7 @@ export default function AuthModal({ onGoogle, onClose }) {
     try {
       const user = await onGoogle();
       // null = siamo passati al redirect: la pagina si ricaricherà.
-      if (user) onClose();
+      if (user) close();
     } catch (err) {
       setError(authErrorMessage(err?.code));
     } finally {
@@ -38,11 +40,13 @@ export default function AuthModal({ onGoogle, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center p-4 z-50"
-      style={{ backgroundColor: 'rgba(34,48,31,0.5)' }}
-      onClick={onClose}
+      className={`fixed inset-0 flex items-center justify-center p-4 z-50 modal-backdrop ${closing ? 'is-closing' : ''}`}
+      onClick={close}
     >
-      <div className="bg-white rounded-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`bg-white rounded-2xl w-full max-w-sm p-6 modal-panel ${closing ? 'is-closing' : ''}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <h3 className="font-black text-lg mb-1" style={{ color: INK }}>
           Accedi a VolleyFVG
         </h3>
@@ -71,7 +75,7 @@ export default function AuthModal({ onGoogle, onClose }) {
 
         <button
           type="button"
-          onClick={onClose}
+          onClick={close}
           className="w-full mt-4 py-2 text-sm font-semibold underline"
           style={{ color: INK }}
         >

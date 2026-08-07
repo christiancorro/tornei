@@ -1,19 +1,51 @@
 rules_version = '2';
 
+/* ---------------------------------------------------------
+   ATTENZIONE: la versione precedente controllava la collection
+   `admins`, che non esiste più da quando i ruoli stanno in
+   users/{uid}. Con quelle regole ogni upload veniva rifiutato,
+   admin compreso.
+
+   Ora può caricare chiunque sia attivo: proporre un torneo
+   senza poterne allegare la locandina non avrebbe senso. Il
+   filtro vero resta la moderazione: un torneo di un utente
+   normale non va online finché non lo approvi.
+--------------------------------------------------------- */
 service firebase.storage {
   match /b/{bucket}/o {
 
-    function isAdmin() {
+    function role() {
       return request.auth != null
-        && firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        ? firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role
+        : 'guest';
     }
 
-    // Locandine: chiunque le vede, solo gli organizzatori le caricano.
+    function isActive() {
+      return role() in ['user', 'organizer', 'admin'];
+    }
+
+    function isAdmin() {
+      return role() == 'admin';
+    }
+
     match /locandine/{file} {
+      // Pubbliche in lettura: le vede chiunque guardi un torneo.
       allow read: if true;
-      allow write: if isAdmin()
-        && request.resource.size < 5 * 1024 * 1024
+
+      // 2 MB è già generoso: il client comprime a ~400 KB, quindi
+      // un file più grande significa che qualcuno sta scrivendo
+      // direttamente all'API saltando il form.
+      allow create: if isActive()
+        && request.resource.size < 2 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
+
+      // Nessuna sovrascrittura: sostituire una locandina crea un
+      // file nuovo e cancella il vecchio. Così un URL già condiviso
+      // non può cambiare immagine sotto il naso di chi lo apre.
+      allow update: if false;
+
+      allow delete: if isActive();
     }
 
     match /{allPaths=**} {

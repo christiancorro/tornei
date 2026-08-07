@@ -11,6 +11,7 @@ import { useTournaments, usePendingTournaments, useMyTournaments } from './hooks
 import { useAnnunci, useMyAnnunci } from './hooks/useAnnunci';
 import { useUsers } from './hooks/useUsers';
 import { useConversations, useAllConversations } from './hooks/useMessages';
+import { useFeedback } from './components/FeedbackProvider';
 
 import Header from './components/Header';
 import ResultsBar from './components/ResultsBar';
@@ -49,6 +50,7 @@ export default function App() {
   const [nuovoTipo, setNuovoTipo] = useState('cerca_squadra');
   const [selectedDurate, setSelectedDurate] = useState([]);
 
+  const { toast } = useFeedback();
   const { user, profile, authReady, isAdmin, signInGoogle, signOut } = useAuth();
   const uid = profile?.uid ?? null;
 
@@ -65,10 +67,11 @@ export default function App() {
   /* Questi listener partono solo per chi ne ha diritto: passare
      un flag "enabled" evita una query che le regole rifiuterebbero. */
   const { pending, approve, reject } = usePendingTournaments(isAdmin);
-  const { users, counts, changeRole } = useUsers(isAdmin);
+  const { users, counts, changeRole, removeUser, footprint } = useUsers(isAdmin);
   const { mine: mieiTornei } = useMyTournaments(uid);
   const { mine: mieiAnnunci } = useMyAnnunci(uid);
-  const { conversations, unreadTotal, reply } = useConversations(uid);
+  const { conversations, unreadTotal, reply, remove: removeMyConversation } =
+    useConversations(uid);
   const { conversations: tutteConversazioni, remove: removeConversation } =
     useAllConversations(isAdmin);
 
@@ -158,12 +161,12 @@ export default function App() {
       await saveTournament(t, profile);
       setFormState(null);
       if (!isOrganizer(profile) && !t.id) {
-        alert('Proposta inviata! Un amministratore la controllerà a breve.');
+        toast('Proposta inviata! Un amministratore la controllerà a breve.', 'success', 6000);
         setView('account');
       }
     } catch (err) {
       console.error('[salva torneo]', err);
-      alert('Salvataggio non riuscito. Controlla i campi obbligatori e riprova.');
+      toast('Salvataggio non riuscito. Controlla i campi obbligatori.', 'error');
     }
   }
 
@@ -173,7 +176,7 @@ export default function App() {
       setDeleteTarget(null);
     } catch (err) {
       console.error('[elimina torneo]', err);
-      alert('Eliminazione non riuscita.');
+      toast('Eliminazione non riuscita.', 'error');
     }
   }
 
@@ -184,7 +187,7 @@ export default function App() {
       setNuovoTesto('');
     } catch (err) {
       console.error('[pubblica annuncio]', err);
-      alert(err.message || 'Pubblicazione non riuscita.');
+      toast(err.message || 'Pubblicazione non riuscita.', 'error');
     }
   }
 
@@ -193,7 +196,7 @@ export default function App() {
       await removeAnnuncio(id);
     } catch (err) {
       console.error('[elimina annuncio]', err);
-      alert('Eliminazione non riuscita.');
+      toast('Eliminazione non riuscita.', 'error');
     }
   }
 
@@ -318,6 +321,7 @@ export default function App() {
             onEditTorneo={(t) => setFormState(t)}
             onDeleteTorneo={(t) => setDeleteTarget(t)}
             onDeleteAnnuncio={handleEliminaAnnuncio}
+            onDeleteConversation={removeMyConversation}
             onOpenDetail={setDetailTarget}
             onLogout={signOut}
             onDeleted={() => setView('tornei')}
@@ -340,6 +344,8 @@ export default function App() {
             onChangeRole={changeRole}
             onDeleteConversation={removeConversation}
             onDeleteAnnuncio={handleEliminaAnnuncio}
+            onDeleteUser={removeUser}
+            onUserFootprint={footprint}
           />
         </div>
       )}

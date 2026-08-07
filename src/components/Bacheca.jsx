@@ -147,7 +147,7 @@ export function BachecaComposer({ testo, setTesto, tipo, setTipo, onSubmit }) {
       <textarea
         value={testo}
         onChange={(e) => setTesto(e.target.value)}
-        placeholder="Scrivi il tuo annuncio: torneo, ruolo, come contattarti ..."
+        placeholder="Scrivi il tuo annuncio: torneo, ruolo, ..."
         rows={5}
         maxLength={400}
         className="w-full rounded-lg border-1 p-3 text-2sm sm:text-2sm outline-none focus:ring-1 resize-none transition-colors"

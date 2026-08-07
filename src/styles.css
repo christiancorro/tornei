@@ -31,7 +31,11 @@ body {
 }
 
 /* Apertura modali: sfondo in dissolvenza, pannello che sale */
+/* Colore dello sfondo dei modali definito qui una volta sola:
+   quando stava inline in ogni componente si erano già formate
+   due varianti diverse (verde scuro e quasi nero). */
 .modal-backdrop {
+  background-color: rgba(20, 19, 18, 0.93);
   animation: modal-fade-in 0.18s ease-out both;
 }
 
@@ -56,6 +60,36 @@ body {
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+/* Uscita: stessa curva al contrario, un filo più rapida.
+   Chiudere deve sembrare immediato, aprire può respirare. */
+.modal-backdrop.is-closing {
+  animation: modal-fade-out 0.18s ease-in both;
+}
+
+.modal-panel.is-closing {
+  animation: modal-pop-out 0.18s cubic-bezier(0.4, 0, 0.8, 0.4) both;
+}
+
+@keyframes modal-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-pop-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
   }
 }
 
@@ -98,17 +132,6 @@ a:active {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
-}
-
-@keyframes scale-in {
-  from {
-    transform: scale(0);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

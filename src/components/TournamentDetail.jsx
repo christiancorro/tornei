@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar, MapPin, Euro, X } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
+import { useSwipeDown } from '../hooks/useSwipeDown';
 import { FaFacebook, FaInstagram } from 'react-icons/fa';
 
 import { INK, SAND } from '../theme';
@@ -14,6 +15,8 @@ import { getMapsUrl, formatDataRange, formatDataBreve } from '../utils';
 --------------------------------------------------------- */
 export default function TournamentDetail({ tournament, onClose }) {
   const { closing, close } = useModalClose(onClose);
+  // Su mobile si chiude anche trascinando il pannello verso il basso.
+  const { panelRef, panelStyle, backdropStyle, grabbed, dismissing } = useSwipeDown(onClose);
   const [posterOk, setPosterOk] = useState(true);
   const t = tournament;
   const style = STUB_STYLE[t.disciplina] || STUB_STYLE['Green Volley'];
@@ -22,19 +25,27 @@ export default function TournamentDetail({ tournament, onClose }) {
 
   return (
     <div
-      className={`fixed inset-0 flex items-center justify-center p-4 z-50 modal-backdrop ${closing ? 'is-closing' : ''}`}
-      style={{ backgroundColor: 'rgba(20, 19, 18, 0.93)' }}
-      onClick={close}
+      className={`fixed inset-0 flex items-center justify-center p-4 z-50 modal-backdrop ${closing ? 'is-closing' : ''} ${grabbed ? 'is-grabbed' : ''}`}
+      style={backdropStyle}
+      onClick={() => !dismissing && close()}
     >
       <div
-        className={`bg-white rounded-xl w-full max-w-xl overflow-y-auto modal-panel ${closing ? 'is-closing' : ''}`}
-        style={{ maxHeight: '90vh' }}
+        ref={panelRef}
+        className={`bg-white rounded-xl w-full max-w-xl overflow-y-auto modal-panel ${closing ? 'is-closing' : ''} ${grabbed ? 'is-grabbed' : ''}`}
+        style={{ maxHeight: '90vh', ...panelStyle }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className="sticky top-0 bg-white border-b-2 px-4 py-3 flex items-center justify-between gap-3 rounded-t-2xl"
+          className="sticky top-0 bg-white border-b-2 px-4 pt-6 pb-3 sm:pt-3 flex items-center justify-between gap-3 rounded-t-2xl"
           style={{ borderColor: 'rgba(34,48,31,0.1)' }}
         >
+          {/* Maniglia: dice al dito che il pannello si può trascinare. */}
+          <div
+            className="absolute inset-x-0 top-0 flex justify-center pt-2 pb-1 sm:hidden"
+            aria-hidden="true"
+          >
+            <span className="w-10 h-1 rounded-full" style={{ backgroundColor: 'rgba(34,48,31,0.2)' }} />
+          </div>
           <h2 className="font-black text-2xl sm:text-3xl" style={{ color: INK }}>
             {t.nome}
           </h2>

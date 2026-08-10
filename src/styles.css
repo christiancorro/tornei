@@ -143,3 +143,20 @@ a:active {
     transition-duration: 0.01ms !important;
   }
 }
+/* Trascinamento verso il basso (useSwipeDown).
+   Mentre il dito guida il pannello le keyframe devono stare zitte:
+   `modal-pop-in`/`modal-fade-in` hanno fill-mode `both`, quindi
+   continuerebbero a imporre il loro transform anche a animazione
+   finita, coprendo il transform inline del gesto.
+   L'eccezione `:not(.is-closing)` serve alla chiusura classica
+   (X, backdrop, Esc) dopo un trascinamento rientrato. */
+.modal-panel.is-grabbed:not(.is-closing),
+.modal-backdrop.is-grabbed:not(.is-closing) {
+  animation: none;
+}
+
+/* Il pannello è anche l'area scrollabile: il rimbalzo non deve
+   propagarsi alla pagina sotto. */
+.modal-panel {
+  overscroll-behavior: contain;
+}

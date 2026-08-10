@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Calendar, MapPin, Euro, X } from 'lucide-react';
+import { Calendar, MapPin, Euro, Globe, X } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
 import { useSwipeDown } from '../hooks/useSwipeDown';
 import { FaFacebook, FaInstagram } from 'react-icons/fa';
 
 import { INK, SAND } from '../theme';
 import { STUB_STYLE } from '../constants';
-import { getMapsUrl, formatDataRange, formatDataBreve } from '../utils';
+import { getMapsUrl, formatDataRange } from '../utils';
 
 /* ---------------------------------------------------------
    Tournament detail — opened by tapping a card. The poster
@@ -68,73 +68,75 @@ export default function TournamentDetail({ tournament, onClose }) {
                 alt={`Locandina di ${t.nome}`}
                 onError={() => setPosterOk(false)}
                 className="rounded-lg object-contain shadow"
-                style={{ maxHeight: '500px', maxWidth: '100%' }}
+                style={{ maxHeight: '735px', maxWidth: '100%' }}
               />
             </div>
           )}
 
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-sm font-semibold px-2 py-0.5 rounded" style={{ backgroundColor: style.tagBg, color: style.tagText }}>
+            <span className="text-sm sm:text-base font-semibold px-2 py-0.5 rounded" style={{ backgroundColor: style.tagBg, color: style.tagText }}>
               {t.disciplina}
             </span>
             {t.formati.map((f) => (
-              <span key={f} className="text-sm font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+              <span key={f} className="text-sm sm:text-base font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
                 {f}
               </span>
             ))}
           </div>
 
           {t.modalita && (
-            <p className="text-sm" style={{ color: INK, opacity: 0.75 }}>
+            <p className="text-base sm:text-lg" style={{ color: INK, opacity: 0.75 }}>
               {t.modalita}
             </p>
           )}
 
-          <div className="text-sm space-y-2.5" style={{ color: INK }}>
+          <div className="text-base sm:text-lg space-y-2.5" style={{ color: INK }}>
             <div className="flex items-start gap-2.5">
-              <Calendar size={15} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
+              <Calendar size={20} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
               <span className="font-semibold">
-                {formatDataRange(t.data, t.dataFine)}
+                {formatDataRange(t.data, t.dataFine, { giornoEsteso: true })}
                 {t.ora && <span className="font-normal"> · {t.ora}</span>}
               </span>
             </div>
             <div className="flex items-start gap-2.5">
-              <MapPin size={15} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
+              <MapPin size={20} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
               <a href={getMapsUrl(t)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="cursor-pointer hover:underline"
               >
-                {t.luogo}, {t.comune} ({t.provincia})
+                {t.comune}
               </a>
             </div>
             <div className="flex items-start gap-2.5">
-              <Euro size={15} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
+              <Euro size={20} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
               <span>{t.costo}</span>
             </div>
           </div>
 
-          <div className="text-xs pt-3 border-t" style={{ color: INK, opacity: 0.55, borderColor: 'rgba(34,48,31,0.1)' }}>
-            Iscrizioni entro {formatDataBreve(t.iscrizioniEntro)} · {t.organizzatore}
-          </div>
+          {t.organizzatore && (
+            <div className="text-sm pt-3 border-t" style={{ color: INK, opacity: 0.6, borderColor: 'rgba(34,48,31,0.1)' }}>
+              {t.organizzatore}
+            </div>
+          )}
 
           {t.descrizioneOrganizzatore && (
-            <div className="rounded-lg p-3.5 text-sm whitespace-pre-wrap" style={{ backgroundColor: SAND, color: INK }}>
+            <div className="rounded-lg p-3.5 text-base sm:text-lg whitespace-pre-wrap" style={{ backgroundColor: SAND, color: INK }}>
               {t.descrizioneOrganizzatore}
             </div>
           )}
 
-          {(t.instagram || t.facebook) && (
+          {(t.instagram || t.facebook || t.sitoWeb) && (
             <div className="flex items-center gap-2 justify-center flex-wrap pt-1">
               {t.instagram && (
                 <a
                   href={t.instagram}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm font-semibold "
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm sm:text-base font-semibold "
                   style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
                 >
-                  <FaInstagram size={15} /> Instagram
+                  <FaInstagram size={17} /> Instagram
                 </a>
               )}
               {t.facebook && (
@@ -142,10 +144,21 @@ export default function TournamentDetail({ tournament, onClose }) {
                   href={t.facebook}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm font-semibold "
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm sm:text-base font-semibold "
                   style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
                 >
-                  <FaFacebook size={15} /> Facebook
+                  <FaFacebook size={17} /> Facebook
+                </a>
+              )}
+              {t.sitoWeb && (
+                <a
+                  href={t.sitoWeb}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm sm:text-base font-semibold "
+                  style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
+                >
+                  <Globe size={17} /> Sito web
                 </a>
               )}
             </div>

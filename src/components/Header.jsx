@@ -8,13 +8,12 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 
-import { INK, SAND, SUN, SABBIA_DARK, GRASS_DARK, SEA_DARK } from '../theme';
+import { INK, SAND, SUN } from '../theme';
 import {
   DISCIPLINE,
+  DISCIPLINE_COLORS,
   FORMATI,
   DURATE,
-  PROVINCE,
-  PROVINCE_LABELS,
 } from '../constants';
 import { toggleValue } from '../utils';
 import Chip from './ui/Chip';
@@ -41,8 +40,6 @@ export default function Header({
   setSelectedFormats,
   selectedDurate,
   setSelectedDurate,
-  selectedProvinces,
-  setSelectedProvinces,
   dateFrom,
   setDateFrom,
   dateTo,
@@ -237,9 +234,34 @@ export default function Header({
                     onBlur={() => { if (!search) setSearchOpen(false); }}
                     placeholder="Cerca per nome, città, ..."
                     tabIndex={searchOpen ? 0 : -1}
-                    className="flex-1 min-w-0 pr-3 bg-transparent outline-none text-sm font-medium"
+                    className="flex-1 min-w-0 pr-2 bg-transparent outline-none text-sm font-medium"
                     style={{ color: INK }}
                   />
+                  {/* La X è sempre nel DOM e tiene sempre il suo posto: così
+                      compare e sparisce in dissolvenza senza spostare il testo. */}
+                  <button
+                    type="button"
+                    /* Il mousedown toglierebbe il focus al campo e onBlur
+                       richiuderebbe la barra prima ancora del click: lo
+                       blocco e rimetto il cursore dentro dopo aver pulito. */
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setSearch('');
+                      focusSearch();
+                    }}
+                    tabIndex={search ? 0 : -1}
+                    aria-hidden={!search}
+                    className="w-7 h-7 mr-1 flex items-center justify-center shrink-0 rounded-full hover:bg-black/5 transition-opacity duration-200"
+                    style={{
+                      color: INK,
+                      opacity: search ? 0.55 : 0,
+                      pointerEvents: search ? 'auto' : 'none',
+                    }}
+                    aria-label="Cancella la ricerca"
+                    title="Cancella"
+                  >
+                    <X size={15} />
+                  </button>
                 </div>
 
                 <span className="h-5 shrink-0 mr-1 ml-1 sm:mr-2 sm:ml-2" style={{ width: 2, backgroundColor: 'rgba(34,48,31,0.15)' }} />
@@ -249,7 +271,7 @@ export default function Header({
                     key={d}
                     active={selectedDisciplines.includes(d)}
                     onClick={() => setSelectedDisciplines((prev) => toggleValue(prev, d))}
-                    color={d === 'Beach Volley' ? SABBIA_DARK : d === 'Green Volley' ? GRASS_DARK : SEA_DARK}
+                    color={DISCIPLINE_COLORS[d]}
                   >
                     {d}
                   </Chip>
@@ -307,18 +329,6 @@ export default function Header({
               {showMoreFilters && (
                 <div className="border-2 rounded-xl p-4" style={{ borderColor: 'rgba(34,48,31,0.15)' }}>
                   <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
-                    <div>
-                      <div className="text-xs font-bold mb-2" style={{ color: INK, opacity: 0.6 }}>
-                        PROVINCIA
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {PROVINCE.map((p) => (
-                          <Chip key={p} active={selectedProvinces.includes(p)} onClick={() => setSelectedProvinces((prev) => toggleValue(prev, p))}>
-                            {PROVINCE_LABELS[p]}
-                          </Chip>
-                        ))}
-                      </div>
-                    </div>
                     <div className="flex flex-wrap items-end gap-3">
                       <div>
                         <div className="text-xs font-bold mb-2" style={{ color: INK, opacity: 0.6 }}>

@@ -174,7 +174,6 @@ export default function LocandinaField({
                 Trascina l'immagine o tocca per sceglierla
               </p>
               <p className="text-xs" style={{ color: INK, opacity: 0.5 }}>
-                JPG, PNG o WebP · max {MAX_LOCANDINA_MB} MB · viene compressa in automatico
               </p>
             </>
           )}

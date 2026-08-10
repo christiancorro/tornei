@@ -40,8 +40,8 @@ const tourneysRef = collection(db, COL_TORNEI);
 
 const FIELDS = [
   'nome', 'disciplina', 'formati', 'modalita', 'data', 'dataFine', 'ora',
-  'luogo', 'comune', 'provincia', 'costo', 'iscrizioniEntro', 'organizzatore',
-  'descrizioneOrganizzatore', 'instagram', 'facebook', 'locandina', 'locandinaPath',
+  'comune', 'costo', 'organizzatore', 'descrizioneOrganizzatore',
+  'instagram', 'facebook', 'sitoWeb', 'locandina', 'locandinaPath',
 ];
 
 function toFirestore(t) {
@@ -296,11 +296,8 @@ export async function createTestTournament(profile) {
       data: '2026-08-20',
       dataFine: '',
       ora: '09:00',
-      luogo: 'Parco Test',
       comune: 'Udine',
-      provincia: 'UD',
       costo: '15',
-      iscrizioniEntro: '2026-08-15',
       organizzatore: 'ASD Test',
       descrizioneOrganizzatore: 'Test Storage',
       locandina: uploaded.url,

@@ -157,7 +157,7 @@ export default function AccountDashboard({
                     <button type="button" onClick={() => onOpenDetail(t)} className="text-left min-w-0">
                       <h4 className="font-black text-base truncate" style={{ color: INK }}>{t.nome}</h4>
                       <p className="text-xs" style={{ color: INK, opacity: 0.6 }}>
-                        {formatDataLunga(t.data)} · {t.comune} ({t.provincia})
+                        {formatDataLunga(t.data)} · {t.comune}
                       </p>
                     </button>
                     <StatusBadge status={t.status} />

@@ -3,6 +3,14 @@
 
 html {
   overflow-y: scroll;
+  /* Lo spazio della scrollbar resta prenotato anche quando un
+     modale mette `overflow: hidden` sull'html: senza questo la
+     pagina sotto si allargherebbe di ~15px a ogni apertura. */
+  scrollbar-gutter: stable;
+  /* La striscia lasciata libera dalla scrollbar mostra lo sfondo
+     dell'html, non quello dell'app: senza questo colore comparirebbe
+     una banda bianca sul bordo destro a modale aperto. */
+  background-color: #fffbf6;
 }
 
 body {

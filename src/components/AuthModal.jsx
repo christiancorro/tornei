@@ -48,10 +48,10 @@ export default function AuthModal({ onGoogle, onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="font-black text-lg mb-1" style={{ color: INK }}>
-          Accedi a VolleyFVG
+          Accedi a TorneyFVG
         </h3>
         <p className="text-sm text-gray-500 mb-5">
-          Ti serve solo se vuoi proporre un torneo, scrivere in bacheca e rispondere agli annunci. È necessario per evitare spam o strani bot.
+          È necessario solo se vuoi proporre un torneo, scrivere in bacheca e rispondere agli annunci. Serve per evitare spam o strani bot.
         </p>
 
         <button
@@ -69,8 +69,7 @@ export default function AuthModal({ onGoogle, onClose }) {
 
         <p className="text-xs" style={{ color: INK, opacity: 0.55 }}>
           Al primo accesso verrà creato il tuo profilo con il nome e l'email del tuo
-          account Google. Puoi cambiare il nome, o eliminare l'account, dalle
-          impostazioni quando vuoi.
+          account Google. Puoi cambiare il nome, dalle impostazioni quando vuoi.
         </p>
 
         <button

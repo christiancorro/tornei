@@ -1,8 +1,7 @@
-import { MESI, MESI_BREVI, GIORNI_BREVI } from './constants';
+import { MESI, MESI_BREVI, GIORNI_BREVI, GIORNI } from './constants';
 
 export function getMapsUrl(t) {
-  const query = `${t.luogo}, ${t.comune}, ${t.provincia}`;
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.comune)}`;
 }
 
 export function emptyTournament() {
@@ -15,15 +14,13 @@ export function emptyTournament() {
     data: '',
     dataFine: '',
     ora: '',
-    luogo: '',
     comune: '',
-    provincia: 'UD',
     costo: '',
-    iscrizioniEntro: '',
     organizzatore: '',
     descrizioneOrganizzatore: '',
     instagram: '',
     facebook: '',
+    sitoWeb: '',
     locandina: '',
     locandinaPath: '',
   };
@@ -54,20 +51,26 @@ export function timeAgo(date) {
   return past.toLocaleDateString('it-IT');
 }
 
-export function formatDataLunga(iso) {
+/* `giornoEsteso` sceglie fra "Dom" e "Domenica": nelle liste fitte
+   serve la sigla, nella scheda del torneo c'è spazio per il nome
+   intero. Di default resta la sigla, così le chiamate già in giro
+   non cambiano comportamento. */
+export function formatDataLunga(iso, { giornoEsteso = false } = {}) {
   if (!iso) return '—';
+  const nomiGiorni = giornoEsteso ? GIORNI : GIORNI_BREVI;
   const [y, m, d] = iso.split('-').map((n) => parseInt(n, 10));
-  const giorno = GIORNI_BREVI[new Date(y, m - 1, d).getDay()];
+  const giorno = nomiGiorni[new Date(y, m - 1, d).getDay()];
   return `${giorno} ${d} ${MESI[m - 1]}`;
 }
 
-export function formatDataRange(inizio, fine) {
+export function formatDataRange(inizio, fine, { giornoEsteso = false } = {}) {
   if (!inizio) return '—';
-  if (!fine || fine === inizio) return formatDataLunga(inizio);
+  if (!fine || fine === inizio) return formatDataLunga(inizio, { giornoEsteso });
+  const nomiGiorni = giornoEsteso ? GIORNI : GIORNI_BREVI;
   const [y1, m1, d1] = inizio.split('-').map((n) => parseInt(n, 10));
   const [y2, m2, d2] = fine.split('-').map((n) => parseInt(n, 10));
-  const g1 = GIORNI_BREVI[new Date(y1, m1 - 1, d1).getDay()];
-  const g2 = GIORNI_BREVI[new Date(y2, m2 - 1, d2).getDay()];
+  const g1 = nomiGiorni[new Date(y1, m1 - 1, d1).getDay()];
+  const g2 = nomiGiorni[new Date(y2, m2 - 1, d2).getDay()];
   if (y1 === y2 && m1 === m2) {
     return `${g1} ${d1} – ${g2} ${d2} ${MESI[m1 - 1]}`;
   }

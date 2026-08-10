@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { INK } from '../../theme';
 
-export default function Chip({ active, onClick, children, color }) {
+export default function Chip({ active, onClick, children, color, role }) {
   const c = color || INK;
   const [hover, setHover] = useState(false);
   return (
     <button
       type="button"
+      role={role}
+      aria-checked={role === 'radio' ? active : undefined}
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}

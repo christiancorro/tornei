@@ -69,7 +69,7 @@ function PendingCard({ torneo, onApprove, onReject }) {
             {torneo.disciplina} · {torneo.formati?.join(', ')} · {formatDataLunga(torneo.data)}
           </p>
           <p className="text-xs" style={{ color: INK, opacity: 0.6 }}>
-            {torneo.luogo}, {torneo.comune} ({torneo.provincia})
+            {torneo.comune}
           </p>
         </div>
         {torneo.locandina && (

@@ -11,11 +11,18 @@ import {
 export const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 export const MESI_BREVI = ['GEN', 'FEB', 'MAR', 'APR', 'MAG', 'GIU', 'LUG', 'AGO', 'SET', 'OTT', 'NOV', 'DIC'];
 export const GIORNI_BREVI = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+export const GIORNI = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
 
 export const DISCIPLINE = ['Green Volley', 'Beach Volley', 'Pallavolo'];
 export const FORMATI = ['2x2', '3x3', '4x4', '6x6'];
-export const PROVINCE = ['UD', 'PN', 'GO', 'TS'];
-export const PROVINCE_LABELS = { UD: 'Udine', PN: 'Pordenone', GO: 'Gorizia', TS: 'Trieste' };
+
+/* Un colore per disciplina, condiviso dai filtri e dal form:
+   così il chip verde significa "Green Volley" ovunque. */
+export const DISCIPLINE_COLORS = {
+  'Green Volley': GRASS_DARK,
+  'Beach Volley': SABBIA_DARK,
+  'Pallavolo': SEA_DARK,
+};
 
 export const STUB_STYLE = {
   'Green Volley': { bg: `linear-gradient(155deg, ${GRASS}, ${GRASS_DARK})`, tagBg: '#E7F0DE', tagText: GRASS_DARK },

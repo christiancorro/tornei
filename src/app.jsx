@@ -37,7 +37,6 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [selectedDisciplines, setSelectedDisciplines] = useState([]);
   const [selectedFormats, setSelectedFormats] = useState([]);
-  const [selectedProvinces, setSelectedProvinces] = useState([]);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [showMoreFilters, setShowMoreFilters] = useState(false);
@@ -100,16 +99,15 @@ export default function App() {
         })();
         const matchesDisciplina = selectedDisciplines.length === 0 || selectedDisciplines.includes(t.disciplina);
         const matchesFormato = selectedFormats.length === 0 || t.formati.some((f) => selectedFormats.includes(f));
-        const matchesProvincia = selectedProvinces.length === 0 || selectedProvinces.includes(t.provincia);
         const matchesFrom = !dateFrom || t.data >= dateFrom;
         const matchesTo = !dateTo || t.data <= dateTo;
         const durata = !t.dataFine || t.dataFine === t.data ? '1' : '2+';
         const matchesDurata = selectedDurate.length === 0 || selectedDurate.includes(durata);
 
-        return matchesSearch && matchesDisciplina && matchesFormato && matchesProvincia && matchesFrom && matchesTo && matchesDurata;
+        return matchesSearch && matchesDisciplina && matchesFormato && matchesFrom && matchesTo && matchesDurata;
       })
       .sort((a, b) => a.data.localeCompare(b.data));
-  }, [tournaments, search, selectedDisciplines, selectedFormats, selectedProvinces, selectedDurate, dateFrom, dateTo]);
+  }, [tournaments, search, selectedDisciplines, selectedFormats, selectedDurate, dateFrom, dateTo]);
 
   const grouped = useMemo(() => groupByMonth(filtered), [filtered]);
   const sortedAnnunci = useMemo(
@@ -117,7 +115,7 @@ export default function App() {
     [annunci]
   );
 
-  const extraFilterCount = selectedProvinces.length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
+  const extraFilterCount = (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
   const activeFilterCount = selectedDisciplines.length + selectedFormats.length + selectedDurate.length + extraFilterCount;
 
   /* Se l'admin mi declassa mentre sono su una vista riservata,
@@ -127,12 +125,44 @@ export default function App() {
     if (view === 'account' && authReady && !profile) setView('tornei');
   }, [view, isAdmin, profile, authReady]);
 
-  /* Blocca lo scroll del body quando un modale è aperto. */
+  /* Blocca lo scroll della pagina quando un modale è aperto.
+
+     Il lock va su <html>, non su <body>: siccome in styles.css
+     l'html ha già `overflow-y: scroll`, mettere `overflow: hidden`
+     sul body non ferma davvero lo scroll e in più rende il body
+     un contenitore di scorrimento. La barra dei filtri, che è
+     `position: sticky`, si aggancia a quel contenitore e perde il
+     "pin" al viewport: sparisce all'apertura del modale e torna
+     di colpo alla chiusura. Su <html> la posizione di scorrimento
+     resta quella di prima, quindi lo sticky non si muove. */
   useEffect(() => {
     const open = detailTarget || replyTarget || showAuth || formState;
-    document.body.style.overflow = open ? 'hidden' : '';
+    if (!open) return undefined;
+
+    const root = document.documentElement;
+    const prevOverflow = root.style.overflow;
+    const prevOverscroll = root.style.overscrollBehavior;
+    const prevPadding = root.style.paddingRight;
+
+    /* Nascondere l'overflow toglie anche la scrollbar, e la pagina
+       sotto si allarga di ~15px: header e filtri si spostano di
+       colpo. `scrollbar-gutter: stable` (styles.css) lo evita da
+       solo, ma non è supportato ovunque — Safari lo ha solo dalla
+       18.2 — quindi qui misuro la larghezza prima e dopo il lock e
+       compenso solo se serve davvero. Con il gutter attivo la
+       differenza è zero e nessun padding viene aggiunto. */
+    const larghezzaPrima = document.body.clientWidth;
+
+    root.style.overflow = 'hidden';
+    root.style.overscrollBehavior = 'none';
+
+    const scarto = document.body.clientWidth - larghezzaPrima;
+    if (scarto > 0) root.style.paddingRight = `${scarto}px`;
+
     return () => {
-      document.body.style.overflow = '';
+      root.style.overflow = prevOverflow;
+      root.style.overscrollBehavior = prevOverscroll;
+      root.style.paddingRight = prevPadding;
     };
   }, [detailTarget, replyTarget, showAuth, formState]);
 
@@ -140,7 +170,6 @@ export default function App() {
     setSearch('');
     setSelectedDisciplines([]);
     setSelectedFormats([]);
-    setSelectedProvinces([]);
     setDateFrom('');
     setDateTo('');
     setSelectedDurate([]);
@@ -230,8 +259,6 @@ export default function App() {
         setSelectedFormats={setSelectedFormats}
         selectedDurate={selectedDurate}
         setSelectedDurate={setSelectedDurate}
-        selectedProvinces={selectedProvinces}
-        setSelectedProvinces={setSelectedProvinces}
         dateFrom={dateFrom}
         setDateFrom={setDateFrom}
         dateTo={dateTo}

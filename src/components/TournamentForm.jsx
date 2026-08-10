@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
 
 import { INK, SUN } from '../theme';
-import { DISCIPLINE, FORMATI, PROVINCE, PROVINCE_LABELS } from '../constants';
+import { DISCIPLINE, DISCIPLINE_COLORS, FORMATI } from '../constants';
 import { emptyTournament, toggleValue } from '../utils';
 import Chip from './ui/Chip';
 import LocandinaField from './LocandinaField';
@@ -85,13 +85,19 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
             <label className={labelClass} style={labelStyle}>
               Disciplina
             </label>
-            <select className={inputClass} style={inputStyle} value={form.disciplina} onChange={(e) => update('disciplina', e.target.value)}>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Disciplina">
               {DISCIPLINE.map((d) => (
-                <option key={d} value={d}>
+                <Chip
+                  key={d}
+                  role="radio"
+                  active={form.disciplina === d}
+                  onClick={() => update('disciplina', d)}
+                  color={DISCIPLINE_COLORS[d]}
+                >
                   {d}
-                </option>
+                </Chip>
               ))}
-            </select>
+            </div>
           </div>
 
           <div>
@@ -158,20 +164,7 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass} style={labelStyle}>
-                Luogo
-              </label>
-              <input
-                required
-                className={inputClass}
-                style={inputStyle}
-                value={form.luogo}
-                onChange={(e) => update('luogo', e.target.value)}
-                placeholder="Es. Parco del Cormor"
-              />
-            </div>
-            <div>
-              <label className={labelClass} style={labelStyle}>
-                Comune
+                Città
               </label>
               <input
                 required
@@ -181,21 +174,6 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
                 onChange={(e) => update('comune', e.target.value)}
                 placeholder="Es. Udine"
               />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass} style={labelStyle}>
-                Provincia
-              </label>
-              <select className={inputClass} style={inputStyle} value={form.provincia} onChange={(e) => update('provincia', e.target.value)}>
-                {PROVINCE.map((p) => (
-                  <option key={p} value={p}>
-                    {PROVINCE_LABELS[p]} ({p})
-                  </option>
-                ))}
-              </select>
             </div>
             <div>
               <label className={labelClass} style={labelStyle}>
@@ -211,31 +189,17 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass} style={labelStyle}>
-                Iscrizioni entro
-              </label>
-              <input
-                type="date"
-                className={inputClass}
-                style={inputStyle}
-                value={form.iscrizioniEntro}
-                onChange={(e) => update('iscrizioniEntro', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className={labelClass} style={labelStyle}>
-                Organizzatore
-              </label>
-              <input
-                className={inputClass}
-                style={inputStyle}
-                value={form.organizzatore}
-                onChange={(e) => update('organizzatore', e.target.value)}
-                placeholder="Es. ASD X"
-              />
-            </div>
+          <div>
+            <label className={labelClass} style={labelStyle}>
+              Organizzatore
+            </label>
+            <input
+              className={inputClass}
+              style={inputStyle}
+              value={form.organizzatore}
+              onChange={(e) => update('organizzatore', e.target.value)}
+              placeholder="Es. ASD X"
+            />
           </div>
 
           <div>
@@ -252,7 +216,7 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className={labelClass} style={labelStyle}>
                 Instagram (opzionale)
@@ -275,6 +239,18 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
                 value={form.facebook}
                 onChange={(e) => update('facebook', e.target.value)}
                 placeholder="https://facebook.com/..."
+              />
+            </div>
+            <div>
+              <label className={labelClass} style={labelStyle}>
+                Sito web (opzionale)
+              </label>
+              <input
+                className={inputClass}
+                style={inputStyle}
+                value={form.sitoWeb}
+                onChange={(e) => update('sitoWeb', e.target.value)}
+                placeholder="https://..."
               />
             </div>
           </div>

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Calendar, MapPin, Euro, Pencil, Trash2 } from 'lucide-react';
+import { MapPin, Euro, Pencil, Trash2 } from 'lucide-react';
 
 import { CARD_BG, INK } from '../theme';
 import { STUB_STYLE } from '../constants';
-import { formatStubGiorno, formatDataRange } from '../utils';
+import { formatStubGiorno } from '../utils';
 
 /* ---------------------------------------------------------
    Tournament card — styled as a torn event ticket: a date
@@ -37,7 +37,7 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
       }}
     >
       <div
-        className="relative flex flex-col items-center justify-center text-center py-4 sm:py-6 shrink-0 overflow-hidden w-20 sm:w-28 lg:w-32 sm:mr-8"
+        className="relative flex flex-col items-center justify-center text-center py-3 sm:py-4 shrink-0 overflow-hidden w-20 sm:w-28 lg:w-32 sm:mr-8"
         style={{ background: style.bg }}
       >
         <div className="relative text-white px-1" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.35)' }}>
@@ -51,12 +51,12 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
 
       {/* <div className="shrink-0" style={{ width: 0, borderLeft: '2px dashed rgba(34,48,31,0.15)', marginTop: 12, marginBottom: 12 }} /> */}
 
-      <div className="flex-1 p-3.5 min-w-0 flex flex-col">
-        <h3 className="font-black text-2xl sm:text-3xl leading-tight mb-3" style={{ color: INK }}>
+      <div className="flex-1 p-3 sm:p-3.5 min-w-0 flex flex-col">
+        <h3 className="font-black text-2xl sm:text-3xl leading-tight mb-2" style={{ color: INK }}>
           {t.nome}
         </h3>
 
-        <div className="flex items-center gap-1.5 flex-wrap mb-4">
+        <div className="flex items-center gap-1.5 flex-wrap mb-2.5">
           <span
             className="text-sm sm:text-sm font-semibold px-2 py-0.5 rounded"
             style={{ backgroundColor: style.tagBg, color: style.tagText }}
@@ -73,64 +73,58 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
             </span>
           ))}
         </div>
-        {t.modalita && <p className="text-sm sm:text-sm text-gray-500 mb-4">{t.modalita}</p>}
+        {t.modalita && <p className="text-base sm:text-lg text-gray-500 mb-2.5">{t.modalita}</p>}
 
-        <div className="text-sm sm:text-sm text-gray-600 space-y-2 mb-6">
-
-          <div className="flex items-center gap-1.5">
-            <Calendar size={16} className="text-gray-400 shrink-0" />
-            <span>
-              {formatDataRange(t.data, t.dataFine)}
-              {t.ora && <span className="font-normal text-gray-600"> · {t.ora}</span>}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <MapPin size={16} className="text-gray-400 shrink-0" />
+        {/* Riga info: è quella che si legge di sfuggita scorrendo la
+            lista, quindi sta un gradino sotto al titolo e non al
+            livello delle note di servizio. La data non c'è: la dice
+            già il tagliando colorato qui a sinistra. */}
+        <div className="text-base sm:text-lg text-gray-700 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <MapPin size={20} className="text-gray-400 shrink-0" />
             <span className="truncate">
-              {t.luogo}, {t.comune} ({t.provincia})
+              {t.comune}
             </span>
           </div>
-          <div className=" flex items-center gap-1.5">
-            <Euro size={16} className="text-gray-400 shrink-0" />
+          <div className=" flex items-center gap-2">
+            <Euro size={20} className="text-gray-400 shrink-0" />
             <span>{t.costo}</span>
           </div>
         </div>
 
-        <div className="mt-auto pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <div className="text-xs text-gray-400">{t.organizzatore}</div>
+        {/* L'organizzatore vive solo nel dettaglio: qui la riga in fondo
+            resta per i comandi admin, quindi per tutti gli altri la card
+            finisce con le info e non porta con sé una fascia vuota. */}
+        {isAdmin && (
+          <div className="mt-auto pt-2 border-gray-100 flex items-center justify-end gap-1">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500 "
+              aria-label={`Modifica ${t.nome}`}
+            >
+              <Pencil size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteRequest();
+              }}
+              className="p-1.5 rounded-full hover:bg-gray-100 text-rose-600 "
+              aria-label={`Elimina ${t.nome}`}
+            >
+              <Trash2 size={16} />
+            </button>
           </div>
-          {isAdmin && (
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit();
-                }}
-                className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500 "
-                aria-label={`Modifica ${t.nome}`}
-              >
-                <Pencil size={16} />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteRequest();
-                }}
-                className="p-1.5 rounded-full hover:bg-gray-100 text-rose-600 "
-                aria-label={`Elimina ${t.nome}`}
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          )}
-        </div>
+        )}
 
       </div>
       {hasPoster && (
-        <div className="hidden sm:flex w-45 shrink-0 p-2 items-center justify-center sm:mr-6">
+        <div className="hidden sm:flex w-30 shrink-0 py-3 items-center justify-center sm:mr-6">
           <img
             src={t.locandina}
             alt={`Locandina di ${t.nome}`}

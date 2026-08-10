@@ -73,7 +73,9 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
             </span>
           ))}
         </div>
-        {t.modalita && <p className="text-base sm:text-lg text-gray-500 mb-2.5">{t.modalita}</p>}
+        {t.modalita && (
+          <p className="text-base sm:text-lg text-gray-500 mb-2.5 truncate">{t.modalita}</p>
+        )}
 
         {/* Riga info: è quella che si legge di sfuggita scorrendo la
             lista, quindi sta un gradino sotto al titolo e non al
@@ -96,7 +98,7 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
             resta per i comandi admin, quindi per tutti gli altri la card
             finisce con le info e non porta con sé una fascia vuota. */}
         {isAdmin && (
-          <div className="mt-auto pt-2 border-gray-100 flex items-center justify-end gap-1">
+          <div className="mt-auto pt-2 border-t border-gray-100 flex items-center justify-end gap-1">
             <button
               type="button"
               onClick={(e) => {
@@ -124,7 +126,7 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
 
       </div>
       {hasPoster && (
-        <div className="hidden sm:flex w-30 shrink-0 py-3 items-center justify-center sm:mr-6">
+        <div className="hidden sm:flex w-44 shrink-0 py-3 items-center justify-center sm:mr-6">
           <img
             src={t.locandina}
             alt={`Locandina di ${t.nome}`}

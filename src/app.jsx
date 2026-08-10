@@ -110,6 +110,10 @@ export default function App() {
   }, [tournaments, search, selectedDisciplines, selectedFormats, selectedDurate, dateFrom, dateTo]);
 
   const grouped = useMemo(() => groupByMonth(filtered), [filtered]);
+
+  /* Lista su cui scorre il dettaglio: quella che si aveva davanti
+     quando si è aperta la scheda, non sempre i tornei pubblici. */
+  const listaDettaglio = view === 'account' ? mieiTornei : filtered;
   const sortedAnnunci = useMemo(
     () => [...annunci].sort((a, b) => new Date(b.data) - new Date(a.data)),
     [annunci]
@@ -394,7 +398,12 @@ export default function App() {
         />
       )}
       {detailTarget && (
-        <TournamentDetail tournament={detailTarget} onClose={() => setDetailTarget(null)} />
+        <TournamentDetail
+          tournament={detailTarget}
+          lista={listaDettaglio}
+          onNavigate={setDetailTarget}
+          onClose={() => setDetailTarget(null)}
+        />
       )}
       {replyTarget && (
         <ReplyModal

@@ -231,6 +231,11 @@ export default function Header({
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.currentTarget.blur();
+                      }
+                    }}
                     onBlur={() => { if (!search) setSearchOpen(false); }}
                     placeholder="Cerca per nome, città, ..."
                     tabIndex={searchOpen ? 0 : -1}

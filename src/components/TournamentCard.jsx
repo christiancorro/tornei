@@ -18,6 +18,9 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
 
   return (
     <div
+      /* Ancora per la lista sotto: mentre si sfogliano i dettagli la
+         pagina si porta su questa card, così alla chiusura è già lì. */
+      id={`torneo-${t.id}`}
       role="button"
       tabIndex={0}
       onClick={() => onOpenDetail(t)}
@@ -126,7 +129,7 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
 
       </div>
       {hasPoster && (
-        <div className="hidden sm:flex w-44 shrink-0 py-3 items-center justify-center sm:mr-6">
+        <div className="hidden sm:flex w-34 shrink-0 py-3 items-center justify-center sm:mr-6">
           <img
             src={t.locandina}
             alt={`Locandina di ${t.nome}`}

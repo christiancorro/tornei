@@ -129,6 +129,19 @@ export default function App() {
     if (view === 'account' && authReady && !profile) setView('tornei');
   }, [view, isAdmin, profile, authReady]);
 
+  /* La lista sotto segue il dettaglio: a ogni torneo sfogliato di lato
+     si porta sulla card corrispondente, senza animazione perché è
+     coperta e nessuno la vede muoversi. Alla chiusura ci si ritrova
+     già davanti l'ultimo torneo guardato.
+
+     Funziona anche a scorrimento bloccato: `overflow: hidden` ferma il
+     dito, non gli spostamenti fatti da codice. */
+  useEffect(() => {
+    if (!detailTarget) return;
+    const card = document.getElementById(`torneo-${detailTarget.id}`);
+    card?.scrollIntoView({ block: 'center', behavior: 'auto' });
+  }, [detailTarget]);
+
   /* Blocca lo scroll della pagina quando un modale è aperto.
 
      Il lock va su <html>, non su <body>: siccome in styles.css

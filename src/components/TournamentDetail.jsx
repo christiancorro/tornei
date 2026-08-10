@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Calendar, MapPin, Euro, Globe, Share2, X } from 'lucide-react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { Calendar, Info, MapPin, Euro, Globe, Share2, X } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
 import { useSwipeDown } from '../hooks/useSwipeDown';
 import { useFeedback } from './FeedbackProvider';
@@ -34,7 +34,7 @@ export default function TournamentDetail({ tournament, onClose, lista = [], onNa
   }, [onNavigate]);
 
   // Su mobile si chiude trascinando in basso e si sfoglia di lato.
-  const { trackRef, trackStyle, backdropStyle, grabbed, dismissing, scorri } = useSwipeDown(onClose, {
+  const { trackRef, backdropRef, trackStyle, backdropStyle, grabbed, dismissing, scorri } = useSwipeDown(onClose, {
     scrollRef,
     onNext: () => vaiAl(prossimo),
     onPrev: () => vaiAl(precedente),
@@ -59,6 +59,7 @@ export default function TournamentDetail({ tournament, onClose, lista = [], onNa
 
   return (
     <div
+      ref={backdropRef}
       className={`fixed inset-0 z-50 overflow-hidden modal-backdrop ${closing ? 'is-closing' : ''} ${grabbed ? 'is-grabbed' : ''}`}
       style={backdropStyle}
       onClick={() => !dismissing && close()}
@@ -94,15 +95,74 @@ export default function TournamentDetail({ tournament, onClose, lista = [], onNa
 /* Una singola scheda. Sta in un componente suo perché ne vivono tre
    alla volta e ognuna si tiene i suoi stati — per esempio la locandina
    rotta, che altrimenti si porterebbe dietro anche sulle altre. */
-function Scheda({ t, attivo, scrollRef, closing, grabbed, onClose }) {
+const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, onClose }) {
   const [posterOk, setPosterOk] = useState(true);
+  const [fileLocandina, setFileLocandina] = useState(null);
   const { toast } = useFeedback();
   const style = STUB_STYLE[t.disciplina] || STUB_STYLE['Green Volley'];
   const showPoster = Boolean(t.locandina) && posterOk;
 
-  /* Dove c'è il menù di sistema (praticamente ogni telefono) si apre
-     quello, così il torneo finisce dove l'utente vuole. Altrove —
-     desktop, browser vecchi — resta la copia negli appunti. */
+  /* La locandina si scarica appena la scheda è in primo piano, non al
+     click: Safari concede navigator.share() solo mentre il tocco è
+     "fresco", e un await di mezzo glielo fa scadere. Se il download
+     non riesce (tipicamente CORS) resta null e si condivide il testo. */
+  useEffect(() => {
+    if (!attivo || !t.locandina) {
+      setFileLocandina(null);
+      return undefined;
+    }
+
+    let vivo = true;
+    const stop = new AbortController();
+
+    (async () => {
+      try {
+        const risposta = await fetch(t.locandina, { mode: 'cors', signal: stop.signal });
+        if (!risposta.ok) return;
+        const blob = await risposta.blob();
+        if (!vivo || !blob.type.startsWith('image/')) return;
+        const estensione = blob.type.split('/')[1]?.split('+')[0] || 'jpg';
+        const nome = `${t.nome.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'locandina'}.${estensione}`;
+        setFileLocandina(new File([blob], nome, { type: blob.type }));
+      } catch (err) {
+        if (err?.name !== 'AbortError') {
+          console.warn('[condividi torneo] locandina non scaricabile', err);
+        }
+      }
+    })();
+
+    return () => {
+      vivo = false;
+      stop.abort();
+    };
+  }, [attivo, t.locandina, t.nome]);
+
+  /* Tre tentativi in scaletta, dal più bello al più sicuro:
+     1. il menù di sistema (telefoni, e comunque solo in https);
+     2. gli appunti via Clipboard API — anche questa vuole https;
+     3. la vecchia execCommand('copy'), che funziona pure su http.
+     Il passaggio 3 esiste perché in sviluppo il sito gira quasi
+     sempre su http://<ip-locale>, dove navigator.share e
+     navigator.clipboard non esistono proprio. */
+  function copiaAllaVecchia(contenuto) {
+    const area = document.createElement('textarea');
+    area.value = contenuto;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.top = '-1000px';
+    document.body.appendChild(area);
+    area.select();
+    area.setSelectionRange(0, contenuto.length); // iOS ignora select() da solo
+    let fatto = false;
+    try {
+      fatto = document.execCommand('copy');
+    } catch (err) {
+      fatto = false;
+    }
+    document.body.removeChild(area);
+    return fatto;
+  }
+
   async function condividi(e) {
     e.stopPropagation();
 
@@ -113,19 +173,39 @@ function Scheda({ t, attivo, scrollRef, closing, grabbed, onClose }) {
     ].filter(Boolean);
     const testo = righe.join('\n');
     const url = window.location.href;
+    const contenuto = `${testo}\n${url}`;
+
+    if (navigator.share) {
+      /* Non tutti i sistemi accettano i file: canShare() lo dice prima
+         di provarci, così non si perde anche la condivisione del testo. */
+      const conLocandina = fileLocandina && navigator.canShare?.({ files: [fileLocandina] });
+      const dati = { title: t.nome, text: testo, url };
+      if (conLocandina) dati.files = [fileLocandina];
+
+      try {
+        await navigator.share(dati);
+        return;
+      } catch (err) {
+        // Annullare la condivisione non è un errore: non dico niente.
+        if (err?.name === 'AbortError') return;
+        console.warn('[condividi torneo] menù di sistema non riuscito', err);
+      }
+    }
 
     try {
-      if (navigator.share) {
-        await navigator.share({ title: t.nome, text: testo, url });
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(contenuto);
+        toast('Torneo copiato negli appunti.', 'success');
         return;
       }
-      await navigator.clipboard.writeText(`${testo}\n${url}`);
-      toast('Torneo copiato negli appunti.', 'success');
     } catch (err) {
-      // Annullare la condivisione non è un errore: non dico niente.
-      if (err?.name === 'AbortError') return;
-      console.error('[condividi torneo]', err);
-      toast('Condivisione non riuscita.', 'error');
+      console.warn('[condividi torneo] appunti non disponibili', err);
+    }
+
+    if (copiaAllaVecchia(contenuto)) {
+      toast('Torneo copiato negli appunti.', 'success');
+    } else {
+      toast('Non riesco a condividere da qui: copia il link dalla barra degli indirizzi.', 'error', 6000);
     }
   }
 
@@ -154,17 +234,6 @@ function Scheda({ t, attivo, scrollRef, closing, grabbed, onClose }) {
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
-            onClick={condividi}
-            tabIndex={attivo ? 0 : -1}
-            className="p-1.5 rounded-full hover:bg-gray-100 "
-            style={{ color: INK }}
-            aria-label="Condividi"
-            title="Condividi"
-          >
-            <Share2 size={19} />
-          </button>
-          <button
-            type="button"
             onClick={onClose}
             tabIndex={attivo ? 0 : -1}
             className="p-1.5 rounded-full hover:bg-gray-100 "
@@ -184,7 +253,7 @@ function Scheda({ t, attivo, scrollRef, closing, grabbed, onClose }) {
               alt={`Locandina di ${t.nome}`}
               onError={() => setPosterOk(false)}
               className="rounded-lg object-contain shadow"
-              style={{ maxHeight: '500px', maxWidth: '100%' }}
+              style={{ maxHeight: '750px', maxWidth: '100%' }}
             />
           </div>
         )}
@@ -232,14 +301,9 @@ function Scheda({ t, attivo, scrollRef, closing, grabbed, onClose }) {
         </div>
 
         {t.descrizioneOrganizzatore && (
-          <div className="rounded-lg p-3.5 text-base sm:text-lg whitespace-pre-wrap" style={{ backgroundColor: SAND, color: INK }}>
-            {t.descrizioneOrganizzatore}
-          </div>
-        )}
-
-        {t.organizzatore && (
-          <div className="text-sm pt-3 border-t" style={{ color: INK, opacity: 0.6, borderColor: 'rgba(34,48,31,0.1)' }}>
-            Organizzatore: {t.organizzatore}
+          <div className="rounded-lg p-3.5 flex items-start gap-2.5 text-base sm:text-lg" style={{ backgroundColor: SAND, color: INK }}>
+            <Info size={20} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
+            <span className="whitespace-pre-wrap">{t.descrizioneOrganizzatore}</span>
           </div>
         )}
 
@@ -283,7 +347,30 @@ function Scheda({ t, attivo, scrollRef, closing, grabbed, onClose }) {
             )}
           </div>
         )}
+
+        {/* Riga di chiusura: la firma di chi organizza da una parte, la
+            condivisione dall'altra. C'è sempre, anche senza organizzatore,
+            perché il pulsante deve restare raggiungibile. */}
+        <div
+          className="flex items-center justify-between gap-3 pt-3 border-t"
+          style={{ borderColor: 'rgba(34,48,31,0.1)' }}
+        >
+          <span className="text-sm min-w-0 truncate" style={{ color: INK, opacity: 0.6 }}>
+            {t.organizzatore}
+          </span>
+          <button
+            type="button"
+            onClick={condividi}
+            tabIndex={attivo ? 0 : -1}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-gray-100 text-sm font-semibold shrink-0 "
+            style={{ color: INK, opacity: 0.7 }}
+            aria-label="Condividi"
+            title="Condividi"
+          >
+            <Share2 size={17} /> Condividi
+          </button>
+        </div>
       </div>
     </div>
   );
-}
+});

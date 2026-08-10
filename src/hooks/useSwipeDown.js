@@ -10,19 +10,34 @@ import { useCallback, useEffect, useRef, useState } from 'react';
      abbastanza (o abbastanza in fretta), esce dal fondo.
      Vale solo con il contenuto già in cima, altrimenti il
      dito serve a scorrere.
-   - In orizzontale: non si muove un pannello solo ma una
-     pista di tre schede — precedente, attuale, prossima —
-     larga tre schermate e ferma sulla scheda di mezzo. Il
-     dito la trascina, quindi durante il gesto si vede già
-     la scheda che sta arrivando invece del solo sfondo.
-     Trascinando a sinistra si va avanti (le prossime stanno
-     a destra), trascinando a destra si torna indietro.
+   - In orizzontale: si muove una pista di tre schede —
+     precedente, attuale, prossima — larga tre schermate e
+     ferma su quella di mezzo. Trascinando a sinistra si va
+     avanti, a destra si torna indietro.
+
+   Due scelte tengono il gesto fluido:
+
+   1. Mentre il dito è giù non si passa da React. Ogni
+      touchmove scriverebbe uno stato e farebbe ridisegnare
+      tre schede intere: a 60fps non ce la fa. Qui il
+      trasformo va dritto sul nodo, una volta per frame
+      (requestAnimationFrame), e lo stato React si aggiorna
+      solo quando il dito si stacca. La transizione CSS che
+      riparte da lì interpola dal valore già dipinto, quindi
+      il passaggio non si vede.
+   2. Il cambio di scheda avviene appena il dito si stacca,
+      non a fine animazione: il contenuto slitta di una
+      posizione e la pista viene riposizionata di una
+      schermata, così a schermo non cambia nulla. Non c'è
+      mai un momento "bloccato": un nuovo tocco riparte dal
+      punto esatto in cui si trova la pista, letto dalla
+      matrice CSS, e si può fermare o invertire a metà.
 
    La chiusura "classica" (X, backdrop, Esc) resta a
    useModalClose: qui dentro non c'entra.
 
    Uso:
-     const { trackRef, trackStyle, backdropStyle, grabbed, scorri } =
+     const { trackRef, backdropRef, trackStyle, backdropStyle, grabbed, scorri } =
        useSwipeDown(onClose, { scrollRef, onNext, onPrev, canNext, canPrev });
 --------------------------------------------------------- */
 
@@ -32,9 +47,9 @@ const USCITA = 220;      // durata dell'uscita, in ms
 const RIENTRO = 260;     // durata del rientro quando il gesto non basta
 const ATTIVAZIONE = 8;   // px di tolleranza prima di decidere la direzione
 
-const SOGLIA_X = 70;     // px oltre i quali si cambia scheda
-const VELOCITA_X = 0.4;  // px/ms: anche una sfogliata veloce cambia
-const SCORRIMENTO = 240; // durata dello scorrimento laterale
+const SOGLIA_X = 55;     // px oltre i quali si cambia scheda
+const VELOCITA_X = 0.28; // px/ms: basta una sfogliata svelta
+const SCORRIMENTO = 190; // durata dell'assestamento laterale
 
 export function useSwipeDown(
   onDismiss,
@@ -50,6 +65,7 @@ export function useSwipeDown(
   } = {},
 ) {
   const trackRef = useRef(null);
+  const backdropRef = useRef(null);
   const gesto = useRef(null);
   const dismissRef = useRef(onDismiss);
   const prevRef = useRef(onPrev);
@@ -57,7 +73,10 @@ export function useSwipeDown(
   // In un ref e non nelle dipendenze: i listener si registrano una
   // volta sola e devono leggere il valore aggiornato a metà gesto.
   const puo = useRef({ prev: canPrev, next: canNext });
-  const bloccato = useRef(false); // animazione in corso: ignoro altri tocchi
+  const uscendo = useRef(false); // chiusura partita: ignoro il resto
+  const timerSlitta = useRef(null);
+  const attesa = useRef(null); // ultimo punto da dipingere
+  const frame = useRef(0);
 
   const [offset, setOffset] = useState(0);
   const [offsetX, setOffsetX] = useState(0);
@@ -82,56 +101,111 @@ export function useSwipeDown(
     puo.current = { prev: canPrev, next: canNext };
   }, [canPrev, canNext]);
 
-  const chiudiTrascinando = useCallback(() => {
-    bloccato.current = true;
+  useEffect(() => () => {
+    clearTimeout(timerSlitta.current);
+    if (frame.current) cancelAnimationFrame(frame.current);
+  }, []);
+
+  /* Un solo disegno per frame, anche se i touchmove sono di più
+     (su certi schermi arrivano a 120 al secondo). */
+  const dipingi = useCallback(() => {
+    frame.current = 0;
+    const punto = attesa.current;
+    const el = trackRef.current;
+    if (!punto || !el) return;
+
+    const progresso = Math.min(1, punto.y / (window.innerHeight * 0.5));
+    el.style.transition = 'none';
+    el.style.transform =
+      `translate3d(calc(-100vw + ${punto.x}px), ${punto.y}px, 0) scale(${1 - progresso * 0.04})`;
+
+    const sfondo = backdropRef.current;
+    if (sfondo) {
+      sfondo.style.transition = 'none';
+      sfondo.style.backgroundColor = `rgba(${backdropColor}, ${backdropAlpha * (1 - progresso)})`;
+    }
+  }, [backdropColor, backdropAlpha]);
+
+  const muovi = useCallback((x, y) => {
+    attesa.current = { x, y };
+    if (!frame.current) frame.current = requestAnimationFrame(dipingi);
+  }, [dipingi]);
+
+  const fermaDisegno = useCallback(() => {
+    if (frame.current) cancelAnimationFrame(frame.current);
+    frame.current = 0;
+    attesa.current = null;
+  }, []);
+
+  /* Dove si trova *davvero* la pista in questo istante, animazione in
+     corso compresa: lo stato React direbbe solo dove sta andando. */
+  const offsetVero = useCallback(() => {
+    const el = trackRef.current;
+    if (!el) return 0;
+    const tr = getComputedStyle(el).transform;
+    if (!tr || tr === 'none') return 0;
+    try {
+      return new DOMMatrixReadOnly(tr).m41 + window.innerWidth;
+    } catch (err) {
+      return 0;
+    }
+  }, []);
+
+  const chiudiTrascinando = useCallback((daY) => {
+    uscendo.current = true;
     setDismissing(true);
     setDragging(false);
     setOffset(window.innerHeight);
     setTimeout(() => dismissRef.current?.(), USCITA);
   }, []);
 
-  /* La pista finisce di scorrere di una schermata intera, poi il
-     contenuto slitta di una posizione e la pista torna a zero con la
-     transizione spenta: la scheda arrivata è già al centro, quindi
-     il "riavvolgimento" non si vede. */
-  const scorri = useCallback((direzione) => {
-    if (bloccato.current) return;
+  /* Cambio scheda: prima il contenuto, poi la pista viene rimessa dove
+     l'occhio la vede già (di qui il +/- una schermata), infine scorre
+     fino a zero. È una transizione sola e la si può interrompere. */
+  const cambia = useCallback((direzione, partenza = 0) => {
     const vai = direzione > 0 ? nextRef.current : prevRef.current;
     if (!vai) return;
 
-    bloccato.current = true;
+    const larghezza = window.innerWidth;
     setGrabbed(true);
     setDragging(false);
-    setSlittando(true);
-    setOffsetX(-direzione * window.innerWidth);
+    setSenzaTransizione(true);
+    setOffsetX(partenza + direzione * larghezza);
+    vai();
 
-    setTimeout(() => {
-      setSenzaTransizione(true);
-      setOffsetX(0);
-      // La scheda nuova parte dall'inizio, non da dove era rimasta l'altra.
-      if (scrollRef?.current) scrollRef.current.scrollTop = 0;
-      vai();
-
-      // Due frame: uno perché il salto a zero venga dipinto, l'altro
-      // perché la transizione riaccesa non lo animi all'indietro.
+    // Due frame: uno perché il riposizionamento venga dipinto, l'altro
+    // perché la transizione riaccesa abbia da dove partire.
+    requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setSenzaTransizione(false);
-          setSlittando(false);
-          bloccato.current = false;
-        });
+        if (scrollRef?.current) scrollRef.current.scrollTop = 0;
+        setSenzaTransizione(false);
+        setSlittando(true);
+        setOffsetX(0);
+        clearTimeout(timerSlitta.current);
+        timerSlitta.current = setTimeout(() => setSlittando(false), SCORRIMENTO);
       });
-    }, SCORRIMENTO);
+    });
   }, [scrollRef]);
+
+  const scorri = useCallback((direzione) => cambia(direzione, 0), [cambia]);
 
   useEffect(() => {
     const el = trackRef.current;
     if (!el || !enabled) return undefined;
 
     function onStart(e) {
-      if (bloccato.current || e.touches.length !== 1) return;
+      if (uscendo.current || e.touches.length !== 1) return;
       const t = e.touches[0];
+      // Se la pista sta ancora scorrendo la fermo qui, sotto il dito.
+      const base = offsetVero();
+      setDragging(true);
+      setSlittando(false);
+      setOffsetX(base);
+
       gesto.current = {
+        base,
+        x: base,
+        y: 0,
         x0: t.clientX,
         y0: t.clientY,
         xPrec: t.clientX,
@@ -146,7 +220,7 @@ export function useSwipeDown(
 
     function onMove(e) {
       const g = gesto.current;
-      if (!g || bloccato.current) return;
+      if (!g || uscendo.current) return;
       const t = e.touches[0];
       const dy = t.clientY - g.y0;
       const dx = t.clientX - g.x0;
@@ -171,7 +245,6 @@ export function useSwipeDown(
 
         g.attivo = true;
         setGrabbed(true);
-        setDragging(true);
       }
 
       // Con listener non passivo posso davvero fermare lo scroll sottostante.
@@ -192,16 +265,33 @@ export function useSwipeDown(
         // precedente. Se da quella parte non c'è niente la pista cede
         // appena: si capisce che il gesto è arrivato e che è finita.
         const libero = dx < 0 ? puo.current.next : puo.current.prev;
-        setOffsetX(libero ? dx : dx / 4);
+        g.x = g.base + (libero ? dx : dx / 4);
+        g.y = 0;
       } else {
-        setOffset(Math.max(0, dy - ATTIVAZIONE));
+        g.x = g.base;
+        g.y = Math.max(0, dy - ATTIVAZIONE);
       }
+
+      muovi(g.x, g.y);
     }
 
     function onEnd() {
       const g = gesto.current;
       gesto.current = null;
-      if (!g || !g.attivo || bloccato.current) return;
+      if (!g || uscendo.current) return;
+      fermaDisegno();
+
+      if (!g.attivo) {
+        // Tocco senza trascinamento: se avevo fermato uno scorrimento
+        // a metà, lo lascio arrivare a destinazione.
+        setDragging(false);
+        setOffsetX(0);
+        return;
+      }
+
+      /* Da qui in poi torna a comandare React. Le transizioni CSS
+         partono dal valore già dipinto, quindi non c'è nessun salto
+         tra la posizione del dito e quella dello stato. */
       setDragging(false);
 
       if (g.asse === 'x') {
@@ -209,13 +299,18 @@ export function useSwipeDown(
         const direzione = percorso < 0 ? 1 : -1; // sinistra = avanti
         const libero = direzione > 0 ? puo.current.next : puo.current.prev;
         const deciso = Math.abs(percorso) > SOGLIA_X || Math.abs(g.vx) > VELOCITA_X;
-        if (libero && deciso) scorri(direzione);
-        else setOffsetX(0); // rientro morbido
+        if (libero && deciso) cambia(direzione, g.x);
+        else {
+          setSlittando(true);
+          setOffsetX(0); // rientro morbido
+          clearTimeout(timerSlitta.current);
+          timerSlitta.current = setTimeout(() => setSlittando(false), SCORRIMENTO);
+        }
         return;
       }
 
       const percorso = g.yPrec - g.y0;
-      if (percorso > SOGLIA || g.vy > VELOCITA) chiudiTrascinando();
+      if (percorso > SOGLIA || g.vy > VELOCITA) chiudiTrascinando(g.y);
       else setOffset(0);
     }
 
@@ -229,7 +324,7 @@ export function useSwipeDown(
       el.removeEventListener('touchend', onEnd);
       el.removeEventListener('touchcancel', onEnd);
     };
-  }, [enabled, chiudiTrascinando, scorri, scrollRef]);
+  }, [enabled, chiudiTrascinando, cambia, offsetVero, muovi, fermaDisegno, scrollRef]);
 
   // Quanto è "andato via" il pannello, da 0 a 1: serve a sbiadire lo sfondo.
   const altezza = typeof window === 'undefined' ? 800 : window.innerHeight;
@@ -244,7 +339,7 @@ export function useSwipeDown(
     transition:
       dragging || senzaTransizione
         ? 'none'
-        : `transform ${durata}ms cubic-bezier(0.2, 0.8, 0.3, 1)`,
+        : `transform ${durata}ms cubic-bezier(0.22, 0.9, 0.28, 1)`,
     willChange: 'transform',
     touchAction: 'pan-y',
     overscrollBehavior: 'contain',
@@ -257,7 +352,16 @@ export function useSwipeDown(
     transition: dragging ? 'none' : `background-color ${dismissing ? USCITA : RIENTRO}ms ease-out`,
   };
 
-  return { trackRef, trackStyle, backdropStyle, grabbed, dragging, dismissing, scorri };
+  return {
+    trackRef,
+    backdropRef,
+    trackStyle,
+    backdropStyle,
+    grabbed,
+    dragging,
+    dismissing,
+    scorri,
+  };
 }
 
 export default useSwipeDown;

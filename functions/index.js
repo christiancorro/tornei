@@ -62,10 +62,16 @@ exports.torneoOg = functions
       ].filter(Boolean);
       const descrizione = descRighe.join(' · ');
 
-      // Host preso dalla richiesta: funziona sia sul dominio custom sia
-      // sul .web.app di default, senza doverlo hard-codare.
-      const host = `${req.protocol}://${req.get('host')}`;
-      const urlCanonico = `${host}/?torneo=${encodeURIComponent(id)}`;
+      /* Host: quando la function è chiamata via rewrite di Firebase
+         Hosting, il proxy mette il dominio originale (es. tuo-app.web.
+         app o dominio custom) in X-Forwarded-Host, mentre req.get('host')
+         resta l'URL interno di Cloud Functions. Se leggo solo 'host'
+         finisco a scrivere og:url = europe-west1-*.cloudfunctions.net
+         /?torneo=... — brutto e sbagliato. Preferisco X-Forwarded-*
+         quando presenti, fallback all'host reale per test diretti. */
+      const host = req.get('x-forwarded-host') || req.get('host');
+      const proto = req.get('x-forwarded-proto') || req.protocol;
+      const urlCanonico = `${proto}://${host}/?torneo=${encodeURIComponent(id)}`;
 
       const html = paginaOg({
         titolo,
@@ -128,4 +134,4 @@ function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, (c) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
   ));
-}
+} 

@@ -28,7 +28,8 @@
     "rewrites": [
       {
         "source": "/torneo/**",
-        "function": "torneoOg"
+        "function": "torneoOg",
+        "region": "europe-west1"
       },
       {
         "source": "**",

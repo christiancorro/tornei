@@ -1,11 +1,41 @@
 <!doctype html>
-<html lang="en">
+<html lang="it">
 
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>torneivolleyfvg</title>
+  <title>Tornei Volley FVG</title>
+  <meta name="description"
+    content="Trova tornei di beach volley, green volley e pallavolo in Friuli-Venezia Giulia e dintorni." />
+
+  <!--
+    Open Graph di default per la homepage.
+    Quando qualcuno condivide un torneo specifico su Telegram/WhatsApp/
+    Facebook, il link va a /torneo/<id>, servito dalla Cloud Function
+    `torneoOg` che sovrascrive questi meta con i dati del torneo (con
+    la sua locandina). Questi qui coprono la homepage e i link "puliti"
+    (senza /torneo/<id>).
+
+    L'immagine `/og-image.png` va messa in `public/og-image.png` — così
+    Vite la copia verbatim in dist/. Dimensione consigliata: 1200×630.
+    Se non la hai ancora, ne basta una temporanea (logo su sfondo) o
+    puoi togliere le due righe con og:image / twitter:image.
+  -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Tornei Volley FVG" />
+  <meta property="og:title" content="Tornei Volley FVG" />
+  <meta property="og:description"
+    content="Trova tornei di beach volley, green volley e volley in Friuli-Venezia Giulia." />
+  <meta property="og:locale" content="it_IT" />
+  <meta property="og:image" content="/og-image.png" />
+  <meta property="og:image:alt" content="Tornei Volley FVG" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Tornei Volley FVG" />
+  <meta name="twitter:description"
+    content="Trova tornei di beach volley, green volley e volley in Friuli-Venezia Giulia." />
+  <meta name="twitter:image" content="/og-image.png" />
 </head>
 
 <body>

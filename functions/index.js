@@ -7,13 +7,17 @@
    titolo, descrizione, locandina — niente anteprima.
 
    Cosa fa: alla richiesta di /torneo/<id> legge il torneo da
-   Firestore e restituisce una pagina con i meta Open Graph (title,
-   description, image, url). Per gli utenti umani fa un redirect
-   302 a /?torneo=<id>, dove la SPA li porta dritti sul dettaglio.
+   Firestore e restituisce SEMPRE una pagina con i meta Open Graph
+   (title, description, image, url). Nella stessa pagina c'è un
+   `<script>` che fa `window.location.replace('/?torneo=<id>')`:
+   i browser reali eseguono JS e vengono reindirizzati alla SPA in
+   pochi ms; i crawler (Telegram/Facebook/opengraph.xyz/...) non
+   eseguono JS e leggono i meta.
 
-   Il crawler viene distinto per user-agent: sono quelli noti dei
-   servizi di preview. Un browser normale non li matcha e viene
-   rimandato all'app.
+   In precedenza distinguevo crawler da browser via user-agent, ma
+   servizi come opengraph.xyz mandano UA neutri, cadevano nel "non
+   riconosciuto", ricevevano il 302, seguivano fino alla SPA e
+   leggevano i suoi meta di default. Ora invece funziona per tutti.
 --------------------------------------------------------- */
 /* firebase-functions v5: la vecchia API .region().https.onRequest(...)
    vive sotto /v1. Se importi il pacchetto liscio, `.region()` non esiste
@@ -24,11 +28,6 @@ const admin = require('firebase-admin');
 
 admin.initializeApp();
 
-// Espressione regolare volutamente generosa: se non riconosco lo
-// user-agent tratto la richiesta come umana e rimando all'app (nel
-// peggiore dei casi si perde l'anteprima, mai l'accesso alla pagina).
-const CRAWLER_RE = /bot|crawl|spider|slurp|facebookexternalhit|facebot|twitterbot|linkedinbot|telegrambot|whatsapp|pinterest|discordbot|slackbot|preview|embed|link.?preview|meta-external|vkshare|redditbot|iframely|skype/i;
-
 exports.torneoOg = functions
   .region('europe-west1') // stessa regione del progetto (regolare al bisogno)
   .https.onRequest(async (req, res) => {
@@ -36,16 +35,6 @@ exports.torneoOg = functions
     const id = (req.path || '').replace(/^\/torneo\/?/, '').replace(/\/+$/, '');
     if (!id) {
       res.status(404).send('Torneo non specificato.');
-      return;
-    }
-
-    const ua = req.get('user-agent') || '';
-    const isCrawler = CRAWLER_RE.test(ua);
-
-    // Utente umano: bounce diretto alla SPA. Niente HTML intermedio,
-    // così il tasto Indietro salta la pagina di preview.
-    if (!isCrawler) {
-      res.redirect(302, `/?torneo=${encodeURIComponent(id)}`);
       return;
     }
 
@@ -109,6 +98,14 @@ function formatoData(inizio, fine) {
 }
 
 function paginaOg({ titolo, descrizione, immagine, url }) {
+  /* Redirect JS + meta-refresh: i crawler (Telegram, Facebook,
+     opengraph.xyz, ecc.) non eseguono JS e ignorano il meta refresh
+     istantaneo, quindi si fermano sui meta OG. I browser reali
+     eseguono `location.replace` in pochi ms e finiscono sulla SPA
+     senza lasciare la pagina intermedia nella cronologia
+     (replace, non assign). Il fallback <a> è per browser con JS
+     disabilitato — comunque un click e sono sull'app. */
+  const urlJson = JSON.stringify(url);
   return `<!doctype html>
 <html lang="it">
 <head>
@@ -127,9 +124,12 @@ ${immagine ? `<meta property="og:image" content="${escapeHtml(immagine)}">
 <meta name="twitter:image" content="${escapeHtml(immagine)}">` : '<meta name="twitter:card" content="summary">'}
 <meta name="twitter:title" content="${escapeHtml(titolo)}">
 <meta name="twitter:description" content="${escapeHtml(descrizione)}">
+<meta http-equiv="refresh" content="0; url=${escapeHtml(url)}">
+<script>window.location.replace(${urlJson});</script>
+<style>body{font-family:system-ui,sans-serif;color:#666;padding:2rem;text-align:center}</style>
 </head>
 <body>
-<p>Apertura del torneo in corso… <a href="${escapeHtml(url)}">Vai alla pagina</a>.</p>
+<p>Apertura del torneo… <a href="${escapeHtml(url)}">Vai alla pagina</a></p>
 </body>
 </html>`;
 }

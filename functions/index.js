@@ -15,7 +15,11 @@
    servizi di preview. Un browser normale non li matcha e viene
    rimandato all'app.
 --------------------------------------------------------- */
-const functions = require('firebase-functions');
+/* firebase-functions v5: la vecchia API .region().https.onRequest(...)
+   vive sotto /v1. Se importi il pacchetto liscio, `.region()` non esiste
+   più al top level e il deploy fallisce con "codebase could not be
+   analyzed successfully". */
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 
 admin.initializeApp();
@@ -62,16 +66,20 @@ exports.torneoOg = functions
       ].filter(Boolean);
       const descrizione = descRighe.join(' · ');
 
-      /* Host: quando la function è chiamata via rewrite di Firebase
-         Hosting, il proxy mette il dominio originale (es. tuo-app.web.
-         app o dominio custom) in X-Forwarded-Host, mentre req.get('host')
-         resta l'URL interno di Cloud Functions. Se leggo solo 'host'
-         finisco a scrivere og:url = europe-west1-*.cloudfunctions.net
-         /?torneo=... — brutto e sbagliato. Preferisco X-Forwarded-*
-         quando presenti, fallback all'host reale per test diretti. */
-      const host = req.get('x-forwarded-host') || req.get('host');
-      const proto = req.get('x-forwarded-proto') || req.protocol;
-      const urlCanonico = `${proto}://${host}/?torneo=${encodeURIComponent(id)}`;
+      /* URL canonico del sito. Firebase Hosting, quando fa da proxy
+         alla function, NON passa in modo affidabile il dominio originale
+         nei headers (X-Forwarded-Host spesso non c'è, e req.get('host')
+         restituisce l'URL interno di Cloud Functions). Preferisco quindi
+         costruirlo dal project ID: `https://<PROJECT_ID>.web.app` è
+         sempre valido. Se hai un dominio custom (o preferisci il suffisso
+         .firebaseapp.com), impostalo via variabile d'ambiente:
+           firebase functions:config:set site.url="https://tuodominio.it"
+         oppure via .env di firebase-functions. */
+      const projectId = process.env.GCLOUD_PROJECT
+        || (process.env.FIREBASE_CONFIG && JSON.parse(process.env.FIREBASE_CONFIG).projectId);
+      const siteUrl = process.env.SITE_URL
+        || (projectId ? `https://${projectId}.web.app` : `${req.protocol}://${req.get('host')}`);
+      const urlCanonico = `${siteUrl}/?torneo=${encodeURIComponent(id)}`;
 
       const html = paginaOg({
         titolo,
@@ -134,4 +142,4 @@ function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, (c) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
   ));
-} 
+}

@@ -40,7 +40,7 @@ export default function ResultsBar({ viewMode, onCycleViewMode, canAdd, isOrgani
                            al suo grigio 0.6 invece di restare pieno. */
                         <p className="text-sm shrink-0 fade-in">
                             <span style={{ color: INK, opacity: 0.6 }}>
-                                {count} {count === 1 ? 'torneo trovato' : 'tornei trovati'}
+                                {count} {count === 1 ? 'torneo' : 'tornei'}
                             </span>
                         </p>
                     )}

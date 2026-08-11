@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 
 import './styles.css';
 import { SAND, INK } from './theme';
@@ -134,6 +134,95 @@ export default function App() {
      si sfogliava di lato nel dettaglio, la pagina sotto si portava
      sulla card corrispondente. Ora la lista resta ferma dove l'utente
      l'aveva lasciata. */
+
+  /* ---------------------------------------------------------
+     Deep link della card detail: ?torneo=<id>
+     - Se apro un torneo, l'URL si aggiorna (per condividerlo).
+     - Se atterro su un URL con ?torneo=<id>, la card si apre da
+       sola non appena i tornei sono caricati, e la lista sotto
+       si porta centrata sulla card corrispondente.
+     - Il tasto Indietro del browser chiude la card (grazie al
+       popstate).
+
+     Il tid da applicare al mount lo leggo qui, una volta sola,
+     con lazy initializer di useState: se lo lasciassi leggere
+     agli effect, quello di sync URL girerebbe prima con
+     detailTarget=null e cancellerebbe il parametro dalla barra
+     degli indirizzi prima ancora di poterlo applicare.
+  --------------------------------------------------------- */
+  const [tidDaAprire, setTidDaAprire] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    return new URLSearchParams(window.location.search).get('torneo');
+  });
+
+  // Aggiorna l'URL quando cambia detailTarget. Finché c'è un deep
+  // link ancora da applicare (tidDaAprire), non tocca niente: il
+  // parametro nella barra degli indirizzi deve restare lì per essere
+  // consumato dall'effect sotto.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (tidDaAprire) return;
+    const url = new URL(window.location.href);
+    const attualeParam = url.searchParams.get('torneo');
+    if (detailTarget) {
+      if (attualeParam === detailTarget.id) return;
+      url.searchParams.set('torneo', detailTarget.id);
+      // pushState solo alla prima apertura (quando non c'era ancora
+      // un torneo nell'URL): così il tasto Indietro chiude la card.
+      // Sui cambi successivi (swipe da una card all'altra) uso
+      // replaceState, così la cronologia non si riempie.
+      if (attualeParam) {
+        window.history.replaceState({ torneo: detailTarget.id }, '', url);
+      } else {
+        window.history.pushState({ torneo: detailTarget.id }, '', url);
+      }
+    } else if (attualeParam) {
+      url.searchParams.delete('torneo');
+      const nuovoUrl = url.pathname + (url.search || '') + url.hash;
+      window.history.replaceState(null, '', nuovoUrl);
+    }
+  }, [detailTarget, tidDaAprire]);
+
+  // Applica il deep link appena i tornei sono in memoria. Se il torneo
+  // non esiste più, il parametro verrà pulito dall'effect sopra al
+  // prossimo giro (tidDaAprire torna a null, detailTarget resta null).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (loadingTornei || !tidDaAprire) return;
+    const trovato = tournaments.find((t) => t.id === tidDaAprire);
+    if (trovato) {
+      setDetailTarget(trovato);
+      /* Scroll alla card corrispondente in lista. Due RAF: uno perché
+         React renderizzi la lista, l'altro per essere sicuri che
+         l'elemento sia a layout finale. Se la card non esiste nel DOM
+         (torneo filtrato via, vista non-lista) è un no-op silenzioso. */
+      const tid = tidDaAprire;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const card = document.getElementById(`torneo-${tid}`);
+          card?.scrollIntoView({ block: 'center', behavior: 'auto' });
+        });
+      });
+    }
+    setTidDaAprire(null); // consumato: da qui in poi l'URL riflette detailTarget
+  }, [loadingTornei, tournaments, tidDaAprire]);
+
+  // Tasto Indietro del browser: sincronizza la card con l'URL corrente.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    function onPop() {
+      const params = new URLSearchParams(window.location.search);
+      const tid = params.get('torneo');
+      if (!tid) {
+        setDetailTarget(null);
+        return;
+      }
+      const trovato = tournaments.find((t) => t.id === tid);
+      setDetailTarget(trovato || null);
+    }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [tournaments]);
 
   /* Blocca lo scroll della pagina quando un modale è aperto.
 

@@ -171,18 +171,42 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
   async function condividi(e) {
     e.stopPropagation();
 
+    /* URL specifico di questo torneo, costruito qui e non letto da
+       window.location: se un altro effetto non ha ancora sincronizzato
+       la barra degli indirizzi, il link condiviso è comunque quello
+       giusto. Chi lo apre atterra dritto sulla card grazie al deep
+       link gestito in app.jsx. */
+    const url = (() => {
+      const u = new URL(window.location.href);
+      u.searchParams.set('torneo', t.id);
+      return u.toString();
+    })();
+
+    /* Testo di condivisione più ricco: disciplina + formati, data
+       estesa con ora, luogo, quota, organizzatore. Ogni riga è opzionale
+       e cade se il campo è vuoto — così non si leggono "Quota: " senza
+       importo o righe vuote. */
+    const formatiRiga = t.formati?.length ? ` · ${t.formati.join(', ')}` : '';
+    const dataRiga = formatDataRange(t.data, t.dataFine, { giornoEsteso: true })
+      + (t.ora ? ` · ${t.ora}` : '');
     const righe = [
       t.nome,
-      formatDataRange(t.data, t.dataFine, { giornoEsteso: true }) + (t.ora ? ` · ${t.ora}` : ''),
-      t.comune,
+      t.disciplina ? `${t.disciplina}${formatiRiga}` : null,
+      t.modalita || null,
+      dataRiga,
+      t.comune ? `📍 ${t.comune}` : null,
+      t.costo ? `💶 ${t.costo}` : null,
+      t.organizzatore ? `Organizza: ${t.organizzatore}` : null,
     ].filter(Boolean);
     const testo = righe.join('\n');
-    const url = window.location.href;
-    const contenuto = `${testo}\n${url}`;
+    // Nel fallback appunti serve un pacchetto autonomo con anche il link.
+    const contenuto = `${testo}\n\n${url}`;
 
     if (navigator.share) {
       /* Non tutti i sistemi accettano i file: canShare() lo dice prima
-         di provarci, così non si perde anche la condivisione del testo. */
+         di provarci, così non si perde anche la condivisione del testo.
+         Passo sempre `url` come campo separato: WhatsApp, Telegram e
+         Messaggi lo riconoscono come link e generano l'anteprima. */
       const conLocandina = fileLocandina && navigator.canShare?.({ files: [fileLocandina] });
       const dati = { title: t.nome, text: testo, url };
       if (conLocandina) dati.files = [fileLocandina];

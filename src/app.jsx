@@ -14,6 +14,7 @@ import { useConversations, useAllConversations } from './hooks/useMessages';
 import { useFeedback } from './components/FeedbackProvider';
 
 import Header from './components/Header';
+import Spinner from './components/ui/Spinner';
 import ResultsBar from './components/ResultsBar';
 import TournamentList from './components/TournamentList';
 import MapView from './components/MapView';
@@ -295,6 +296,7 @@ export default function App() {
           isOrganizer={isOrganizer(profile)}
           onAdd={() => requireLogin(() => setFormState('new'))}
           count={filtered.length}
+          loading={loadingTornei}
         />
       )}
 
@@ -307,8 +309,11 @@ export default function App() {
       )}
 
       {view === 'tornei' && loadingTornei && (
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center text-sm" style={{ color: INK, opacity: 0.6 }}>
-          Caricamento tornei...
+        <div
+          className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex justify-center"
+          style={{ color: INK, opacity: 0.6 }}
+        >
+          <Spinner size={25} thickness={2.5} label="Caricamento tornei" />
         </div>
       )}
 

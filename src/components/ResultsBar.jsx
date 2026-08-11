@@ -15,7 +15,7 @@ const VIEW_MODE_ICONS = {
    Results bar — shared by lista, mappa and calendario.
    Left to right: view switch, add (admin only), result count.
 --------------------------------------------------------- */
-export default function ResultsBar({ viewMode, onCycleViewMode, canAdd, isOrganizer, onAdd, count }) {
+export default function ResultsBar({ viewMode, onCycleViewMode, canAdd, isOrganizer, onAdd, count, loading = false }) {
     // The button always shows the mode you'd switch to next:
     // lista → mappa → calendario → lista.
     const nextMode = nextViewMode(viewMode);
@@ -23,16 +23,27 @@ export default function ResultsBar({ viewMode, onCycleViewMode, canAdd, isOrgani
     const [hover, setHover] = useState(false);
 
     return (
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-6 mt-4">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-6 mt-4 ">
             <div className="flex items-center justify-between gap-3 mb-2 mt-2 min-h-10">
 
                 <div className="flex items-center gap-4">
-                    <p
-                        className="text-sm shrink-0"
-                        style={{ color: INK, opacity: 0.6 }}
-                    >
-                        {count} {count === 1 ? 'torneo trovato' : 'tornei trovati'}
-                    </p>
+                    {/* Durante il caricamento il conteggio non è ancora
+                        vero (sarebbe 0 solo perché la lista deve
+                        ancora arrivare): mostrarlo darebbe l'idea di
+                        "nessun torneo" mentre invece si sta ancora
+                        caricando. Meglio non dire niente finché non
+                        c'è un numero reale da mostrare. */}
+                    {!loading && (
+                        /* Fade-in sul <p> esterno (opacity 0 → 1 con
+                           fill-mode both) + colore/opacità sul <span>
+                           interno: così a fine animazione il testo torna
+                           al suo grigio 0.6 invece di restare pieno. */
+                        <p className="text-sm shrink-0 fade-in">
+                            <span style={{ color: INK, opacity: 0.6 }}>
+                                {count} {count === 1 ? 'torneo' : 'tornei'}
+                            </span>
+                        </p>
+                    )}
 
 
                 </div>
@@ -51,10 +62,9 @@ export default function ResultsBar({ viewMode, onCycleViewMode, canAdd, isOrgani
                 <button
                     type="button"
                     onClick={onCycleViewMode}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-regular whitespace-nowrap shrink-0"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-regular whitespace-nowrap shrink-0 "
                     style={{
                         color: INK,
-                        border: '1px solid rgba(21,22,21,0.25)',
                     }}
                 >
                     <NextModeIcon size={18} />

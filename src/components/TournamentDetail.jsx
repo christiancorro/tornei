@@ -8,6 +8,7 @@ import { FaFacebook, FaInstagram } from 'react-icons/fa';
 import { INK, SAND } from '../theme';
 import { STUB_STYLE } from '../constants';
 import { getMapsUrl, formatDataRange } from '../utils';
+import LazyImage from './ui/LazyImage';
 
 /* ---------------------------------------------------------
    Tournament detail — opened by tapping a card. The poster
@@ -211,164 +212,187 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
 
   return (
     <div
-      ref={attivo ? scrollRef : null}
-      className={`bg-white rounded-xl w-full max-w-xl overflow-y-auto ${attivo ? 'modal-panel' : ''} ${attivo && closing ? 'is-closing' : ''} ${grabbed ? 'is-grabbed' : ''}`}
+      /* Wrapper esterno: tiene border-radius + overflow:hidden per
+         ritagliare gli angoli. Se lo scroll stesse qui, la scrollbar
+         (che occupa il bordo destro) romperebbe gli angoli su desktop:
+         il div interno sotto è quello scrollabile, così la scrollbar
+         resta dentro il ritaglio arrotondato. */
+      className={`bg-white rounded-2xl w-full max-w-xl overflow-hidden ${attivo ? 'modal-panel' : ''} ${attivo && closing ? 'is-closing' : ''} ${grabbed ? 'is-grabbed' : ''}`}
       style={{ maxHeight: '90vh' }}
       onClick={(e) => e.stopPropagation()}
       aria-hidden={!attivo}
     >
       <div
-        className="sticky top-0 bg-white border-b-2 px-4 pt-6 pb-3 sm:pt-3 flex items-center justify-between gap-3 rounded-t-2xl"
-        style={{ borderColor: 'rgba(34,48,31,0.1)' }}
+        ref={attivo ? scrollRef : null}
+        className="overflow-y-auto"
+        style={{ maxHeight: '90vh' }}
       >
-        {/* Maniglia: dice al dito che il pannello si può trascinare. */}
         <div
-          className="absolute inset-x-0 top-0 flex justify-center pt-2 pb-1 sm:hidden"
-          aria-hidden="true"
-        >
-          <span className="w-10 h-1 rounded-full" style={{ backgroundColor: 'rgba(34,48,31,0.2)' }} />
-        </div>
-        <h2 className="font-black text-2xl sm:text-3xl" style={{ color: INK }}>
-          {t.nome}
-        </h2>
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            tabIndex={attivo ? 0 : -1}
-            className="p-1.5 rounded-full hover:bg-gray-100 "
-            style={{ color: INK }}
-            aria-label="Chiudi"
-          >
-            <X size={20} />
-          </button>
-        </div>
-      </div>
-
-      <div className="p-4 space-y-3">
-        {showPoster && (
-          <div className="w-full flex justify-center mb-4">
-            <img
-              src={t.locandina}
-              alt={`Locandina di ${t.nome}`}
-              onError={() => setPosterOk(false)}
-              className="rounded-lg object-contain shadow"
-              style={{ maxHeight: '750px', maxWidth: '100%' }}
-            />
-          </div>
-        )}
-
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-sm sm:text-base font-semibold px-2 py-0.5 rounded" style={{ backgroundColor: style.tagBg, color: style.tagText }}>
-            {t.disciplina}
-          </span>
-          {t.formati.map((f) => (
-            <span key={f} className="text-sm sm:text-base font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
-              {f}
-            </span>
-          ))}
-        </div>
-
-        {t.modalita && (
-          <p className="text-base sm:text-lg" style={{ color: INK, opacity: 0.75 }}>
-            {t.modalita}
-          </p>
-        )}
-
-        <div className="text-base sm:text-lg space-y-2.5" style={{ color: INK }}>
-          <div className="flex items-start gap-2.5">
-            <Calendar size={20} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
-            <span className="font-semibold">
-              {formatDataRange(t.data, t.dataFine, { giornoEsteso: true })}
-              {t.ora && <span className="font-normal"> · {t.ora}</span>}
-            </span>
-          </div>
-          <div className="flex items-start gap-2.5">
-            <MapPin size={20} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
-            <a href={getMapsUrl(t)}
-              target="_blank"
-              rel="noopener noreferrer"
-              tabIndex={attivo ? 0 : -1}
-              className="cursor-pointer hover:underline"
-            >
-              {t.comune}
-            </a>
-          </div>
-          <div className="flex items-start gap-2.5">
-            <Euro size={20} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
-            <span>{t.costo}</span>
-          </div>
-        </div>
-
-        {t.descrizioneOrganizzatore && (
-          <div className="rounded-lg p-3.5 flex items-start gap-2.5 text-base sm:text-lg" style={{ backgroundColor: SAND, color: INK }}>
-            <Info size={20} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
-            <span className="whitespace-pre-wrap">{t.descrizioneOrganizzatore}</span>
-          </div>
-        )}
-
-        {(t.instagram || t.facebook || t.sitoWeb) && (
-          <div className="flex items-center gap-2 justify-center flex-wrap pt-1">
-            {t.instagram && (
-              <a
-                href={t.instagram}
-                target="_blank"
-                rel="noopener noreferrer"
-                tabIndex={attivo ? 0 : -1}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm sm:text-base font-semibold "
-                style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
-              >
-                <FaInstagram size={17} /> Instagram
-              </a>
-            )}
-            {t.facebook && (
-              <a
-                href={t.facebook}
-                target="_blank"
-                rel="noopener noreferrer"
-                tabIndex={attivo ? 0 : -1}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm sm:text-base font-semibold "
-                style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
-              >
-                <FaFacebook size={17} /> Facebook
-              </a>
-            )}
-            {t.sitoWeb && (
-              <a
-                href={t.sitoWeb}
-                target="_blank"
-                rel="noopener noreferrer"
-                tabIndex={attivo ? 0 : -1}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm sm:text-base font-semibold "
-                style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
-              >
-                <Globe size={17} /> Sito web
-              </a>
-            )}
-          </div>
-        )}
-
-        {/* Riga di chiusura: la firma di chi organizza da una parte, la
-            condivisione dall'altra. C'è sempre, anche senza organizzatore,
-            perché il pulsante deve restare raggiungibile. */}
-        <div
-          className="flex items-center justify-between gap-3 pt-3 border-t"
+          /* z-10: l'header è sticky ma senza z-index i fratelli sotto
+             (la locandina, il cui wrapper LazyImage è position:relative)
+             gli passano sopra durante lo scroll, coprendo titolo e
+             pulsante di chiusura. */
+          className="sticky top-0 z-10 bg-white border-b-2 px-5 sm:px-6 pt-6 pb-3 sm:pt-4 flex items-center justify-between gap-3"
           style={{ borderColor: 'rgba(34,48,31,0.1)' }}
         >
-          <span className="text-sm min-w-0 truncate" style={{ color: INK, opacity: 0.6 }}>
-            {t.organizzatore}
-          </span>
-          <button
-            type="button"
-            onClick={condividi}
-            tabIndex={attivo ? 0 : -1}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-gray-100 text-sm font-semibold shrink-0 "
-            style={{ color: INK, opacity: 0.7 }}
-            aria-label="Condividi"
-            title="Condividi"
+          {/* Maniglia: dice al dito che il pannello si può trascinare. */}
+          <div
+            className="absolute inset-x-0 top-0 flex justify-center pt-2 pb-1 sm:hidden"
+            aria-hidden="true"
           >
-            <Share2 size={17} /> Condividi
-          </button>
+            <span className="w-10 h-1 rounded-full" style={{ backgroundColor: 'rgba(34,48,31,0.2)' }} />
+          </div>
+          <h2 className="font-black text-2xl sm:text-3xl" style={{ color: INK }}>
+            {t.nome}
+          </h2>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              tabIndex={attivo ? 0 : -1}
+              className="p-1.5 rounded-full hover:bg-gray-100 "
+              style={{ color: INK }}
+              aria-label="Chiudi"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-5 sm:p-6 space-y-3">
+          {showPoster && (
+            <div className="w-full flex justify-center mb-4">
+              <LazyImage
+                src={t.locandina}
+                alt={`Locandina di ${t.nome}`}
+                /* La scheda attiva è quella che l'utente sta guardando
+                   adesso: la sua locandina la vogliamo subito, non a
+                   pigrizia. Le due vicine (pre-caricate per lo swipe)
+                   possono aspettare finché non è il loro turno. */
+                eager={attivo}
+                className="rounded-lg shadow"
+                placeholderColor={style.bg}
+                /* maxHeight sull'img, non sul wrapper: sul wrapper +
+                   overflow:hidden l'immagine sarebbe stata tagliata a
+                   750px. Sull'img cappa l'altezza mantenendo il rapporto. */
+                imgStyle={{ maxHeight: '750px', maxWidth: '100%' }}
+                onUnavailable={() => setPosterOk(false)}
+              />
+            </div>
+          )}
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-sm sm:text-base font-semibold px-2 py-0.5 rounded" style={{ backgroundColor: style.tagBg, color: style.tagText }}>
+              {t.disciplina}
+            </span>
+            {t.formati.map((f) => (
+              <span key={f} className="text-sm sm:text-base font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+                {f}
+              </span>
+            ))}
+          </div>
+
+          {t.modalita && (
+            <p className="text-base sm:text-lg" style={{ color: INK, opacity: 0.75 }}>
+              {t.modalita}
+            </p>
+          )}
+
+          <div className="text-base sm:text-lg space-y-2.5" style={{ color: INK }}>
+            <div className="flex items-start gap-2.5">
+              <Calendar size={20} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
+              <span className="font-semibold">
+                {formatDataRange(t.data, t.dataFine, { giornoEsteso: true })}
+                {t.ora && <span className="font-normal"> · {t.ora}</span>}
+              </span>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <MapPin size={20} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
+              <a href={getMapsUrl(t)}
+                target="_blank"
+                rel="noopener noreferrer"
+                tabIndex={attivo ? 0 : -1}
+                className="cursor-pointer hover:underline"
+              >
+                {t.comune}
+              </a>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <Euro size={20} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
+              <span>{t.costo}</span>
+            </div>
+          </div>
+
+          {t.descrizioneOrganizzatore && (
+            <div className="rounded-lg p-3.5 flex items-start gap-2.5 text-base sm:text-lg" style={{ backgroundColor: SAND, color: INK }}>
+              <Info size={20} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
+              <span className="whitespace-pre-wrap">{t.descrizioneOrganizzatore}</span>
+            </div>
+          )}
+
+          {(t.instagram || t.facebook || t.sitoWeb) && (
+            <div className="flex items-center gap-2 justify-center flex-wrap pt-1">
+              {t.instagram && (
+                <a
+                  href={t.instagram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  tabIndex={attivo ? 0 : -1}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm sm:text-base font-semibold "
+                  style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
+                >
+                  <FaInstagram size={17} /> Instagram
+                </a>
+              )}
+              {t.facebook && (
+                <a
+                  href={t.facebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  tabIndex={attivo ? 0 : -1}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm sm:text-base font-semibold "
+                  style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
+                >
+                  <FaFacebook size={17} /> Facebook
+                </a>
+              )}
+              {t.sitoWeb && (
+                <a
+                  href={t.sitoWeb}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  tabIndex={attivo ? 0 : -1}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm sm:text-base font-semibold "
+                  style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
+                >
+                  <Globe size={17} /> Sito web
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* Riga di chiusura: la firma di chi organizza da una parte, la
+            condivisione dall'altra. C'è sempre, anche senza organizzatore,
+            perché il pulsante deve restare raggiungibile. */}
+          <div
+            className="flex items-center justify-between gap-3 pt-3 border-t"
+            style={{ borderColor: 'rgba(34,48,31,0.1)' }}
+          >
+            <span className="text-sm min-w-0 truncate" style={{ color: INK, opacity: 0.6 }}>
+              {t.organizzatore}
+            </span>
+            <button
+              type="button"
+              onClick={condividi}
+              tabIndex={attivo ? 0 : -1}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-gray-100 text-sm font-semibold shrink-0 "
+              style={{ color: INK, opacity: 0.7 }}
+              aria-label="Condividi"
+              title="Condividi"
+            >
+              <Share2 size={17} /> Condividi
+            </button>
+          </div>
         </div>
       </div>
     </div>

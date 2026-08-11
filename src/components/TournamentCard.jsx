@@ -4,16 +4,26 @@ import { MapPin, Euro, Pencil, Trash2 } from 'lucide-react';
 import { CARD_BG, INK } from '../theme';
 import { STUB_STYLE } from '../constants';
 import { formatStubGiorno } from '../utils';
+import LazyImage from './ui/LazyImage';
 
 /* ---------------------------------------------------------
    Tournament card — styled as a torn event ticket: a date
    stub on the left, perforation, details on the right.
+
+   La card si disegna subito con tutte le info testuali; la
+   locandina è asincrona (LazyImage riserva lo spazio con uno
+   skeleton e la fa entrare in dissolvenza quando è pronta),
+   così scorrendo la lista non ci sono salti né attese
+   percepite.
 --------------------------------------------------------- */
-export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDetail }) {
-  const [imgOk, setImgOk] = useState(true);
+export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDetail, eagerImage = false }) {
+  const [posterMissing, setPosterMissing] = useState(false);
   const style = STUB_STYLE[t.disciplina] || STUB_STYLE['Green Volley'];
   const stub = formatStubGiorno(t.data, t.dataFine);
-  const hasPoster = Boolean(t.locandina) && imgOk;
+  // Lo slot poster esiste finché c'è una locandina da tentare: se
+  // non c'è o è rotta il chiamante di LazyImage (onUnavailable) ce
+  // lo dice e nascondiamo del tutto la colonna.
+  const hasPoster = Boolean(t.locandina) && !posterMissing;
   const stubSize = stub.giorno.length <= 2 ? 'text-3xl' : stub.giorno.length <= 5 ? 'text-[1.8rem]' : 'text-base';
 
   return (
@@ -45,7 +55,7 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
       >
         <div className="relative text-white px-1" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.35)' }}>
           {stub.giornoSett && <div className="text-xm font-semibold" style={{ opacity: 1 }}>{stub.giornoSett}</div>}
-          <div className={`font-display text-4xl sm:text-4xl leading-none ${stubSize}`}>{stub.giorno}</div>
+          <div className={`font-display text-3xl sm:text-4xl leading-none ${stubSize}`}>{stub.giorno}</div>
           {stub.mese && <div className="text-xm font-semibold tracking-widest">{stub.mese}</div>}
         </div>
         {/* <span className="absolute rounded-full bg-white" style={{ width: 18, height: 18, right: -9, top: -9 }} /> */}
@@ -76,23 +86,23 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
             </span>
           ))}
         </div>
-        {t.modalita && (
+        {/* {t.modalita && (
           <p className="text-base sm:text-lg text-gray-500 mb-2.5 truncate">{t.modalita}</p>
-        )}
+        )} */}
 
         {/* Riga info: è quella che si legge di sfuggita scorrendo la
             lista, quindi sta un gradino sotto al titolo e non al
             livello delle note di servizio. La data non c'è: la dice
             già il tagliando colorato qui a sinistra. */}
-        <div className="text-base sm:text-lg text-gray-700 space-y-1.5">
+        <div className="text-base sm:text-lg text-gray-700">
           <div className="flex items-center gap-2">
-            <MapPin size={20} className="text-gray-400 shrink-0" />
+            <MapPin size={18} className="text-gray-400 shrink-0" />
             <span className="truncate">
               {t.comune}
             </span>
           </div>
           <div className=" flex items-center gap-2">
-            <Euro size={20} className="text-gray-400 shrink-0" />
+            <Euro size={18} className="text-gray-400 shrink-0" />
             <span>{t.costo}</span>
           </div>
         </div>
@@ -129,12 +139,19 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
 
       </div>
       {hasPoster && (
-        <div className="hidden sm:flex w-34 shrink-0 py-3 items-center justify-center sm:mr-6">
-          <img
+        <div className="hidden sm:flex w-22 shrink-0 py-3 items-center justify-center sm:mr-6 rounded-lg">
+          <LazyImage
             src={t.locandina}
             alt={`Locandina di ${t.nome}`}
-            onError={() => setImgOk(false)}
-            className="w-full rounded-lg object-cover shadow"
+            /* Niente aspectRatio: la locandina mantiene la sua forma
+               originale (verticale, quadrata, orizzontale). Rinuncio
+               a riservare lo spazio prima del download in cambio di
+               non tagliare mai l'immagine — il fade-in copre lo
+               swap quando arriva. */
+            eager={eagerImage}
+            className="w-full rounded-lg shadow "
+            placeholderColor={style.bg}
+            onUnavailable={() => setPosterMissing(true)}
           />
         </div>
       )}

@@ -32,6 +32,10 @@ export default function TournamentList({
                   onEdit={() => onEdit(t)}
                   onDeleteRequest={() => onDeleteRequest(t)}
                   onOpenDetail={onOpenDetail}
+                  /* Le prime del primo gruppo sono sopra la piega: forzarle
+                     "eager" fa partire il download subito invece di aspettare
+                     che il lazy-loading del browser le scopra visibili. */
+                  eagerImage={i < 3}
                 />
               ))}
             </div>

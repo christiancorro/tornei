@@ -194,9 +194,8 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
       t.disciplina ? `${t.disciplina}${formatiRiga}` : null,
       t.modalita || null,
       dataRiga,
-      t.comune ? `📍 ${t.comune}` : null,
-      t.costo ? `💶 ${t.costo}` : null,
-      t.organizzatore ? `Organizza: ${t.organizzatore}` : null,
+      t.comune ? `${t.comune}` : null,
+      t.costo ? `€ ${t.costo}` : null,
     ].filter(Boolean);
     const testo = righe.join('\n');
     // Nel fallback appunti serve un pacchetto autonomo con anche il link.

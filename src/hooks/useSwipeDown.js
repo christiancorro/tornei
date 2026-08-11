@@ -15,6 +15,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
      ferma su quella di mezzo. Trascinando a sinistra si va
      avanti, a destra si torna indietro.
 
+   Stile "preview app iOS/Android": la sola card che sta
+   uscendo si rimpicciolisce mentre si allontana; quella che
+   entra resta a dimensione piena. Per farlo la scala non
+   sta sul track (che scalerebbe tutte e tre insieme) ma
+   sullo slot uscente, e cambia identità quando cambia scheda
+   (mentre il dito è giù è il centrale, dopo il cambio è il
+   laterale in cui è finita la vecchia scheda).
+
    Due scelte tengono il gesto fluido:
 
    1. Mentre il dito è giù non si passa da React. Ogni
@@ -22,22 +30,18 @@ import { useCallback, useEffect, useRef, useState } from 'react';
       tre schede intere: a 60fps non ce la fa. Qui il
       trasformo va dritto sul nodo, una volta per frame
       (requestAnimationFrame), e lo stato React si aggiorna
-      solo quando il dito si stacca. La transizione CSS che
-      riparte da lì interpola dal valore già dipinto, quindi
-      il passaggio non si vede.
-   2. Il cambio di scheda avviene appena il dito si stacca,
-      non a fine animazione: il contenuto slitta di una
-      posizione e la pista viene riposizionata di una
-      schermata, così a schermo non cambia nulla. Non c'è
-      mai un momento "bloccato": un nuovo tocco riparte dal
-      punto esatto in cui si trova la pista, letto dalla
-      matrice CSS, e si può fermare o invertire a metà.
+      solo quando il dito si stacca.
+   2. Il cambio di scheda avviene appena il dito si stacca:
+      la pista viene riposizionata di una schermata e la
+      scheda uscente compare al lato "giusto" con la stessa
+      scala che aveva sotto il dito — nessun salto visivo.
 
    La chiusura "classica" (X, backdrop, Esc) resta a
    useModalClose: qui dentro non c'entra.
 
    Uso:
-     const { trackRef, backdropRef, trackStyle, backdropStyle, grabbed, scorri } =
+     const { trackRef, backdropRef, trackStyle, backdropStyle,
+             panelStyle, grabbed, scorri } =
        useSwipeDown(onClose, { scrollRef, onNext, onPrev, canNext, canPrev });
 --------------------------------------------------------- */
 
@@ -49,7 +53,15 @@ const ATTIVAZIONE = 8;   // px di tolleranza prima di decidere la direzione
 
 const SOGLIA_X = 55;     // px oltre i quali si cambia scheda
 const VELOCITA_X = 0.28; // px/ms: basta una sfogliata svelta
-const SCORRIMENTO = 190; // durata dell'assestamento laterale
+const SCORRIMENTO = 320; // durata dell'assestamento laterale (più morbida)
+/* Curva "soft-out": parte decisa, rallenta a lungo. Su iOS è
+   quella che dà la sensazione di "scivolamento" sotto al dito
+   anche dopo il rilascio. */
+const EASING_SLIDE = 'cubic-bezier(0.22, 1, 0.36, 1)';
+/* Riduzione di scala massima applicata alla card uscente:
+   ~5% dà chiaramente l'idea di profondità (come nel selettore
+   app) senza sembrare che si sia rotto qualcosa. */
+const SCALA_MAX = 0.05;
 
 export function useSwipeDown(
   onDismiss,
@@ -84,6 +96,11 @@ export function useSwipeDown(
   const [dismissing, setDismissing] = useState(false);
   const [slittando, setSlittando] = useState(false);
   const [senzaTransizione, setSenzaTransizione] = useState(false);
+  /* Direzione dell'ultimo cambio scheda (+1 = next, -1 = prev, 0 = idle).
+     Serve a sapere in che slot laterale è finita la scheda "uscente"
+     dopo il rimescolamento dei dati, così solo lei continua ad avere
+     la scala ridotta durante l'assestamento. */
+  const [direzioneSlittamento, setDirezioneSlittamento] = useState(0);
   // Una volta toccato il pannello, le animazioni CSS restano spente:
   // se le riaccendessi a fine gesto, `modal-pop-in` ripartirebbe da capo.
   const [grabbed, setGrabbed] = useState(false);
@@ -107,22 +124,37 @@ export function useSwipeDown(
   }, []);
 
   /* Un solo disegno per frame, anche se i touchmove sono di più
-     (su certi schermi arrivano a 120 al secondo). */
+     (su certi schermi arrivano a 120 al secondo). Qui separiamo
+     due scale:
+     - verticale (dismiss): sta sul track. Solo il centrale è in
+       vista, quindi scalare tutto va bene.
+     - orizzontale (sfoglio): sta sullo slot centrale. Le due
+       schede vicine, che stanno per entrare, restano a scala 1. */
   const dipingi = useCallback(() => {
     frame.current = 0;
     const punto = attesa.current;
     const el = trackRef.current;
     if (!punto || !el) return;
 
-    const progresso = Math.min(1, punto.y / (window.innerHeight * 0.5));
+    const larghezza = window.innerWidth;
+    const progressoY = Math.min(1, punto.y / (window.innerHeight * 0.5));
+    const progressoX = Math.min(1, Math.abs(punto.x) / (larghezza * 0.5));
+
     el.style.transition = 'none';
     el.style.transform =
-      `translate3d(calc(-100vw + ${punto.x}px), ${punto.y}px, 0) scale(${1 - progresso * 0.04})`;
+      `translate3d(calc(-100vw + ${punto.x}px), ${punto.y}px, 0) scale(${1 - progressoY * SCALA_MAX})`;
+
+    // Slot centrale (l'uscente durante il drag orizzontale).
+    const centrale = el.children[1];
+    if (centrale) {
+      centrale.style.transition = 'none';
+      centrale.style.transform = `scale(${1 - progressoX * SCALA_MAX})`;
+    }
 
     const sfondo = backdropRef.current;
     if (sfondo) {
       sfondo.style.transition = 'none';
-      sfondo.style.backgroundColor = `rgba(${backdropColor}, ${backdropAlpha * (1 - progresso)})`;
+      sfondo.style.backgroundColor = `rgba(${backdropColor}, ${backdropAlpha * (1 - progressoY)})`;
     }
   }, [backdropColor, backdropAlpha]);
 
@@ -161,7 +193,11 @@ export function useSwipeDown(
 
   /* Cambio scheda: prima il contenuto, poi la pista viene rimessa dove
      l'occhio la vede già (di qui il +/- una schermata), infine scorre
-     fino a zero. È una transizione sola e la si può interrompere. */
+     fino a zero. È una transizione sola e la si può interrompere.
+
+     `direzioneSlittamento` va scritto qui: da questo momento in poi
+     lo slot "uscente" non è più il centrale ma quello laterale in
+     cui è finita la vecchia scheda dopo il rimescolamento. */
   const cambia = useCallback((direzione, partenza = 0) => {
     const vai = direzione > 0 ? nextRef.current : prevRef.current;
     if (!vai) return;
@@ -171,21 +207,24 @@ export function useSwipeDown(
     setDragging(false);
     setSenzaTransizione(true);
     setOffsetX(partenza + direzione * larghezza);
+    setDirezioneSlittamento(direzione);
     vai();
 
     // Due frame: uno perché il riposizionamento venga dipinto, l'altro
     // perché la transizione riaccesa abbia da dove partire.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        if (scrollRef?.current) scrollRef.current.scrollTop = 0;
         setSenzaTransizione(false);
         setSlittando(true);
         setOffsetX(0);
         clearTimeout(timerSlitta.current);
-        timerSlitta.current = setTimeout(() => setSlittando(false), SCORRIMENTO);
+        timerSlitta.current = setTimeout(() => {
+          setSlittando(false);
+          setDirezioneSlittamento(0);
+        }, SCORRIMENTO);
       });
     });
-  }, [scrollRef]);
+  }, []);
 
   const scorri = useCallback((direzione) => cambia(direzione, 0), [cambia]);
 
@@ -200,6 +239,9 @@ export function useSwipeDown(
       const base = offsetVero();
       setDragging(true);
       setSlittando(false);
+      // Nuovo tocco: dimentico lo slittamento vecchio, il centrale
+      // torna a essere l'unico "uscente" possibile.
+      setDirezioneSlittamento(0);
       setOffsetX(base);
 
       gesto.current = {
@@ -328,27 +370,74 @@ export function useSwipeDown(
 
   // Quanto è "andato via" il pannello, da 0 a 1: serve a sbiadire lo sfondo.
   const altezza = typeof window === 'undefined' ? 800 : window.innerHeight;
-  const progresso = Math.min(1, offset / (altezza * 0.5));
+  const progressoY = Math.min(1, offset / (altezza * 0.5));
 
   const durata = dismissing ? USCITA : slittando ? SCORRIMENTO : RIENTRO;
 
   /* La pista è larga tre schermate e sta ferma sulla seconda: da qui
-     il -100vw fisso, a cui il dito somma il suo spostamento. */
+     il -100vw fisso, a cui il dito somma il suo spostamento. La scala
+     orizzontale non sta più qui — ora vive sul singolo slot. */
   const trackStyle = {
-    transform: `translate3d(calc(-100vw + ${offsetX}px), ${offset}px, 0) scale(${1 - progresso * 0.04})`,
+    transform: `translate3d(calc(-100vw + ${offsetX}px), ${offset}px, 0) scale(${1 - progressoY * SCALA_MAX})`,
     transition:
       dragging || senzaTransizione
         ? 'none'
-        : `transform ${durata}ms cubic-bezier(0.22, 0.9, 0.28, 1)`,
+        : `transform ${durata}ms ${EASING_SLIDE}`,
     willChange: 'transform',
     touchAction: 'pan-y',
     overscrollBehavior: 'contain',
   };
 
+  /* Stile del singolo slot (0=precedente, 1=attuale, 2=prossimo).
+     Regola: solo la card "uscente" scala; le altre restano a piena
+     dimensione, così l'entrante non "cresce" mentre arriva al centro.
+     - Durante il drag l'uscente è il centrale (relativo 0).
+     - Dopo cambia() l'uscente è il laterale in cui è finita la
+       vecchia scheda: -1 se stiamo andando avanti, +1 se indietro. */
+  const panelStyle = useCallback((slotIndex) => {
+    const relativo = slotIndex - 1; // -1, 0, +1
+
+    let uscenteRelativo = null;
+    if (dragging) {
+      uscenteRelativo = 0;
+    } else if (direzioneSlittamento !== 0) {
+      uscenteRelativo = direzioneSlittamento > 0 ? -1 : 1;
+    }
+
+    const transitionValue =
+      dragging || senzaTransizione
+        ? 'none'
+        : `transform ${SCORRIMENTO}ms ${EASING_SLIDE}`;
+
+    if (relativo === uscenteRelativo) {
+      /* Scala calcolata dalla distanza dello slot dal centro dello
+         schermo: allontanarsi = rimpicciolire (fino a SCALA_MAX). Al
+         momento dello snap post-cambia questo valore coincide con
+         quello dipinto durante il drag, quindi non c'è salto. */
+      const larghezza = typeof window === 'undefined' ? 1200 : window.innerWidth;
+      const posizione = relativo * larghezza + offsetX;
+      const distanza = Math.abs(posizione);
+      const progresso = Math.min(1, distanza / (larghezza * 0.5));
+      return {
+        transform: `scale(${1 - progresso * SCALA_MAX})`,
+        transition: transitionValue,
+        willChange: 'transform',
+      };
+    }
+
+    /* Non uscente: scala esplicita a 1 così, se il DOM node aveva un
+       transform precedente (dipingi durante drag), la transizione la
+       riporta morbidamente a piena dimensione. */
+    return {
+      transform: 'scale(1)',
+      transition: transitionValue,
+    };
+  }, [dragging, direzioneSlittamento, offsetX, senzaTransizione]);
+
   // Lo sfondo si schiarisce cambiando alpha, non opacity: `opacity` sul
   // contenitore sbiadirebbe anche il pannello, che invece deve restare pieno.
   const backdropStyle = {
-    backgroundColor: `rgba(${backdropColor}, ${backdropAlpha * (1 - progresso)})`,
+    backgroundColor: `rgba(${backdropColor}, ${backdropAlpha * (1 - progressoY)})`,
     transition: dragging ? 'none' : `background-color ${dismissing ? USCITA : RIENTRO}ms ease-out`,
   };
 
@@ -356,6 +445,7 @@ export function useSwipeDown(
     trackRef,
     backdropRef,
     trackStyle,
+    panelStyle,
     backdropStyle,
     grabbed,
     dragging,

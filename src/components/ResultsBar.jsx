@@ -23,7 +23,7 @@ export default function ResultsBar({ viewMode, onCycleViewMode, canAdd, isOrgani
     const [hover, setHover] = useState(false);
 
     return (
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-6 mt-4 ">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-6 mt-4">
             <div className="flex items-center justify-between gap-3 mb-2 mt-2 min-h-10">
 
                 <div className="flex items-center gap-4">
@@ -40,7 +40,7 @@ export default function ResultsBar({ viewMode, onCycleViewMode, canAdd, isOrgani
                            al suo grigio 0.6 invece di restare pieno. */
                         <p className="text-sm shrink-0 fade-in">
                             <span style={{ color: INK, opacity: 0.6 }}>
-                                {count} {count === 1 ? 'torneo' : 'tornei'}
+                                {count} {count === 1 ? 'torneo trovato' : 'tornei trovati'}
                             </span>
                         </p>
                     )}
@@ -62,10 +62,16 @@ export default function ResultsBar({ viewMode, onCycleViewMode, canAdd, isOrgani
                 <button
                     type="button"
                     onClick={onCycleViewMode}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-regular whitespace-nowrap shrink-0 "
-                    style={{
-                        color: INK,
-                    }}
+                    /* Stesso comportamento del bottone "Accedi": bordo
+                       trasparente + opacità 60% a riposo, bordo pieno
+                       (colore INK) + opacità 100% sull'hover. La
+                       transizione è su tutto (all) così bordo e opacità
+                       cambiano insieme. */
+                    className="flex items-center gap-1.5 cursor-pointer shrink-0
+                        rounded-full border-2 border-transparent transition-all
+                        px-4 py-1.5 text-sm font-regular whitespace-nowrap
+                        opacity-60 hover:opacity-100 hover:border-[#282828]"
+                    style={{ color: INK }}
                 >
                     <NextModeIcon size={18} />
                     {VIEW_MODE_LABELS[nextMode]}

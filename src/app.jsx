@@ -130,18 +130,10 @@ export default function App() {
     if (view === 'account' && authReady && !profile) setView('tornei');
   }, [view, isAdmin, profile, authReady]);
 
-  /* La lista sotto segue il dettaglio: a ogni torneo sfogliato di lato
-     si porta sulla card corrispondente, senza animazione perché è
-     coperta e nessuno la vede muoversi. Alla chiusura ci si ritrova
-     già davanti l'ultimo torneo guardato.
-
-     Funziona anche a scorrimento bloccato: `overflow: hidden` ferma il
-     dito, non gli spostamenti fatti da codice. */
-  useEffect(() => {
-    if (!detailTarget) return;
-    const card = document.getElementById(`torneo-${detailTarget.id}`);
-    card?.scrollIntoView({ block: 'center', behavior: 'auto' });
-  }, [detailTarget]);
+  /* Scroll automatico della lista disattivato: prima, ogni volta che
+     si sfogliava di lato nel dettaglio, la pagina sotto si portava
+     sulla card corrispondente. Ora la lista resta ferma dove l'utente
+     l'aveva lasciata. */
 
   /* Blocca lo scroll della pagina quando un modale è aperto.
 
@@ -313,7 +305,7 @@ export default function App() {
           className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex justify-center"
           style={{ color: INK, opacity: 0.6 }}
         >
-          <Spinner size={25} thickness={2.5} label="Caricamento tornei" />
+          <Spinner size={36} thickness={3} label="Caricamento tornei" />
         </div>
       )}
 

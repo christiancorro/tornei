@@ -35,7 +35,7 @@ export default function TournamentDetail({ tournament, onClose, lista = [], onNa
   }, [onNavigate]);
 
   // Su mobile si chiude trascinando in basso e si sfoglia di lato.
-  const { trackRef, backdropRef, trackStyle, backdropStyle, grabbed, dismissing, scorri } = useSwipeDown(onClose, {
+  const { trackRef, backdropRef, trackStyle, backdropStyle, panelStyle, grabbed, dismissing, scorri } = useSwipeDown(onClose, {
     scrollRef,
     onNext: () => vaiAl(prossimo),
     onPrev: () => vaiAl(precedente),
@@ -74,7 +74,11 @@ export default function TournamentDetail({ tournament, onClose, lista = [], onNa
           <div
             key={scheda ? scheda.id : `vuoto-${i}`}
             className="shrink-0 h-full flex items-center justify-center p-4"
-            style={{ width: '100vw' }}
+            /* panelStyle(i) mette la scala solo sulla card uscente:
+               la centrale sotto il dito, o il laterale dove è finita
+               la scheda dopo un cambio. Le altre restano a piena
+               dimensione, così l'entrante non "cresce" mentre arriva. */
+            style={{ width: '100vw', ...panelStyle(i) }}
           >
             {scheda && (
               <Scheda
@@ -332,14 +336,21 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
 
           {(t.instagram || t.facebook || t.sitoWeb) && (
             <div className="flex items-center gap-2 justify-center flex-wrap pt-1">
+              {/* Stesso pattern degli altri bottoni (Accedi, selettore
+                vista, Condividi): bordo trasparente + opacità 60% a
+                riposo, bordo pieno (INK) + opacità 100% sull'hover.
+                Prima i link avevano un bordo grigio fisso sempre visibile. */}
               {t.instagram && (
                 <a
                   href={t.instagram}
                   target="_blank"
                   rel="noopener noreferrer"
                   tabIndex={attivo ? 0 : -1}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm sm:text-base font-semibold "
-                  style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
+                  className="inline-flex items-center gap-1.5 cursor-pointer shrink-0
+                  rounded-full border-2 border-transparent transition-all
+                  px-4 py-2 text-sm sm:text-base font-semibold whitespace-nowrap
+                  opacity-60 hover:opacity-100 hover:border-[#282828]"
+                  style={{ color: INK }}
                 >
                   <FaInstagram size={17} /> Instagram
                 </a>
@@ -350,8 +361,11 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
                   target="_blank"
                   rel="noopener noreferrer"
                   tabIndex={attivo ? 0 : -1}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm sm:text-base font-semibold "
-                  style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
+                  className="inline-flex items-center gap-1.5 cursor-pointer shrink-0
+                  rounded-full border-2 border-transparent transition-all
+                  px-4 py-2 text-sm sm:text-base font-semibold whitespace-nowrap
+                  opacity-60 hover:opacity-100 hover:border-[#282828]"
+                  style={{ color: INK }}
                 >
                   <FaFacebook size={17} /> Facebook
                 </a>
@@ -362,8 +376,11 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
                   target="_blank"
                   rel="noopener noreferrer"
                   tabIndex={attivo ? 0 : -1}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-sm sm:text-base font-semibold "
-                  style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
+                  className="inline-flex items-center gap-1.5 cursor-pointer shrink-0
+                  rounded-full border-2 border-transparent transition-all
+                  px-4 py-2 text-sm sm:text-base font-semibold whitespace-nowrap
+                  opacity-60 hover:opacity-100 hover:border-[#282828]"
+                  style={{ color: INK }}
                 >
                   <Globe size={17} /> Sito web
                 </a>
@@ -385,8 +402,15 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
               type="button"
               onClick={condividi}
               tabIndex={attivo ? 0 : -1}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-gray-100 text-sm font-semibold shrink-0 "
-              style={{ color: INK, opacity: 0.7 }}
+              /* Stesso comportamento del bottone "Accedi" nell'header
+                 e del selettore vista nella ResultsBar: bordo trasparente
+                 + opacità 60% a riposo, bordo pieno (INK) + opacità 100%
+                 sull'hover. Sostituisce il precedente hover:bg-gray-100. */
+              className="inline-flex items-center gap-1.5 cursor-pointer shrink-0
+              rounded-full border-2 border-transparent transition-all
+              px-4 py-1.5 text-sm font-semibold whitespace-nowrap
+              opacity-60 hover:opacity-100 hover:border-[#282828]"
+              style={{ color: INK }}
               aria-label="Condividi"
               title="Condividi"
             >

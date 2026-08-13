@@ -294,14 +294,28 @@ export default function App() {
   /* La chiusura del form (setFormState(null)) la fa il form stesso
      dopo l'animazione "Salvato!" — qui restituiamo solo il risultato
      del salvataggio, rilanciando l'errore così il form può tornare
-     in stato "idle" se qualcosa va male. */
+     in stato "idle" se qualcosa va male.
+
+     Al termine di un CREATE cambiamo anche vista, così l'utente
+     atterra dove può vedere l'esito:
+     • organizzatore → lista tornei (il suo torneo è già pubblicato e
+       comparirà tra gli altri quando l'onSnapshot lo restituirà);
+     • utente comune → account, dov'è la sezione "I miei tornei" con
+       la card in stato "in attesa".
+     Il cambio parte durante lo stato 'saved' del pulsante: il modale
+     copre ancora la nuova vista, così il feedback resta visibile fino
+     alla chiusura, e appena il modale sparisce la lista è già lì. */
   async function handleSave(t) {
     const isNew = !t.id;
     try {
       await saveTournament(t, profile);
-      if (!isOrganizer(profile) && isNew) {
-        toast('Proposta inviata! Un amministratore la controllerà a breve.', 'success', 6000);
-        setView('account');
+      if (isNew) {
+        if (isOrganizer(profile)) {
+          setView('tornei');
+        } else {
+          toast('Proposta inviata! Un amministratore la controllerà a breve.', 'success', 6000);
+          setView('account');
+        }
       }
     } catch (err) {
       console.error('[salva torneo]', err);
@@ -310,13 +324,16 @@ export default function App() {
     }
   }
 
+  /* La chiusura del modale la fa DeleteConfirm dopo l'animazione
+     "Eliminato" (via useActionState). Qui ci limitiamo a rilanciare
+     l'errore così il pulsante può tornare in idle e l'utente ritentare. */
   async function handleDeleteConfirm() {
     try {
       await removeTournament(deleteTarget);
-      setDeleteTarget(null);
     } catch (err) {
       console.error('[elimina torneo]', err);
       toast('Eliminazione non riuscita.', 'error');
+      throw err;
     }
   }
 

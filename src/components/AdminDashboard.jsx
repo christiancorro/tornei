@@ -10,6 +10,7 @@ import {
   ROLE_LABELS, ROLE_DESCRIPTIONS,
 } from '../roles';
 import { formatDataLunga, timeAgo } from '../utils';
+import { useActionState } from '../hooks/useActionState';
 import MessagesPanel from './MessagesPanel';
 import { useFeedback } from './FeedbackProvider';
 
@@ -45,20 +46,27 @@ function Tab({ active, onClick, children, badge }) {
   );
 }
 
-/* --- Coda di moderazione --- */
+/* --- Coda di moderazione ---
+   Ogni riga ha due pulsanti indipendenti: Approva e Rifiuta.
+   Usiamo due hook di stato separati, così premere Approva
+   non fa "diventare tutto disabilitato": è la stessa card ma
+   sono azioni distinte, e la conferma "Approvato" resta sul
+   pulsante giusto. `busy` combinato disabilita l'altro per
+   evitare che partano entrambe in parallelo. */
 function PendingCard({ torneo, onApprove, onReject }) {
   const { toast } = useFeedback();
   const [motivo, setMotivo] = useState('');
   const [showReject, setShowReject] = useState(false);
-  const [busy, setBusy] = useState(false);
 
-  async function run(fn) {
-    setBusy(true);
-    try { await fn(); } catch (err) {
-      console.error(err);
-      toast('Operazione non riuscita.', 'error');
-    } finally { setBusy(false); }
-  }
+  const approva = useActionState({
+    savedMs: 800,
+    onError: () => toast('Approvazione non riuscita.', 'error'),
+  });
+  const rifiuta = useActionState({
+    savedMs: 800,
+    onError: () => toast('Rifiuto non riuscito.', 'error'),
+  });
+  const busy = approva.busy || rifiuta.busy;
 
   return (
     <div className="rounded-xl border-2 p-4 mb-3" style={{ backgroundColor: CARD_BG, borderColor: 'rgba(34,48,31,0.15)' }}>
@@ -74,7 +82,7 @@ function PendingCard({ torneo, onApprove, onReject }) {
         </div>
         {torneo.locandina && (
           <a href={torneo.locandina} target="_blank" rel="noreferrer" className="shrink-0" title="Vedi locandina">
-            <img src={torneo.locandina} alt="" className="w-14 h-14 rounded-lg object-cover" />
+            <img src={torneo.locandinaThumb || torneo.locandina} alt="" className="w-14 h-14 rounded-lg object-cover" />
           </a>
         )}
       </div>
@@ -95,8 +103,9 @@ function PendingCard({ torneo, onApprove, onReject }) {
           value={motivo}
           maxLength={300}
           onChange={(e) => setMotivo(e.target.value)}
+          disabled={busy}
           placeholder="Motivo del rifiuto (visibile all'autore)"
-          className="w-full mb-3 px-3 py-2 rounded-lg border-2 text-sm outline-none"
+          className="w-full mb-3 px-3 py-2 rounded-lg border-2 text-sm outline-none disabled:opacity-60"
           style={{ borderColor: 'rgba(34,48,31,0.25)', color: INK }}
         />
       )}
@@ -105,20 +114,41 @@ function PendingCard({ torneo, onApprove, onReject }) {
         <button
           type="button"
           disabled={busy}
-          onClick={() => run(() => onApprove(torneo))}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold"
-          style={{ backgroundColor: GRASS_DARK, color: '#fff', opacity: busy ? 0.6 : 1 }}
+          onClick={() => approva.run(() => onApprove(torneo))}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold
+                     transition-all duration-200 active:scale-[0.98] disabled:cursor-default"
+          style={{
+            backgroundColor: GRASS_DARK,
+            color: '#fff',
+            opacity: busy && !approva.busy ? 0.4 : 1,
+          }}
         >
-          <Check size={16} /> Approva e rendi organizzatore
+          {approva.saving && <Loader2 size={16} className="animate-spin" />}
+          {approva.saved && <Check size={16} />}
+          {approva.idle && <Check size={16} />}
+          {approva.saving ? 'Approvazione...'
+            : approva.saved ? 'Approvato'
+            : 'Approva e rendi organizzatore'}
         </button>
         <button
           type="button"
           disabled={busy}
-          onClick={() => (showReject ? run(() => onReject(torneo, motivo)) : setShowReject(true))}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold"
-          style={{ border: `2px solid ${CLAY}`, color: CLAY, opacity: busy ? 0.6 : 1 }}
+          onClick={() => (showReject ? rifiuta.run(() => onReject(torneo, motivo)) : setShowReject(true))}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold
+                     transition-all duration-200 active:scale-[0.98] disabled:cursor-default"
+          style={{
+            border: `2px solid ${rifiuta.saved ? GRASS_DARK : CLAY}`,
+            color: rifiuta.saved ? GRASS_DARK : CLAY,
+            opacity: busy && !rifiuta.busy ? 0.4 : 1,
+          }}
         >
-          <X size={16} /> {showReject ? 'Conferma rifiuto' : 'Rifiuta'}
+          {rifiuta.saving && <Loader2 size={16} className="animate-spin" />}
+          {rifiuta.saved && <Check size={16} />}
+          {rifiuta.idle && <X size={16} />}
+          {rifiuta.saving ? 'Rifiuto...'
+            : rifiuta.saved ? 'Rifiutato'
+            : showReject ? 'Conferma rifiuto'
+            : 'Rifiuta'}
         </button>
       </div>
     </div>
@@ -128,12 +158,26 @@ function PendingCard({ torneo, onApprove, onReject }) {
 /* --- Riga utente --- */
 function UserRow({ utente, isMe, onChangeRole, onDelete, onFootprint }) {
   const { confirm, toast } = useFeedback();
-  const [busy, setBusy] = useState(false);
   const [confermaElimina, setConfermaElimina] = useState(false);
   const [footprint, setFootprint] = useState(null);
 
+  // Cambio ruolo: quattro pulsanti (user/organizer/admin/blocked) ma
+  // solo uno alla volta è "in corso": teniamo un unico stato con il
+  // ruolo attualmente in salvataggio, così il feedback sta sul chip giusto.
+  const [ruoloInCorso, setRuoloInCorso] = useState(null);
+  const cambioRuolo = useActionState({
+    savedMs: 600,
+    onError: () => toast('Cambio ruolo non riuscito.', 'error'),
+    onDone: () => setRuoloInCorso(null),
+  });
+  const elimina = useActionState({
+    savedMs: 700,
+    onError: () => toast('Eliminazione non riuscita.', 'error'),
+    onDone: () => setConfermaElimina(false),
+  });
+
   async function change(role) {
-    if (role === utente.role) return;
+    if (role === utente.role || cambioRuolo.busy) return;
     if (role === ROLE_ADMIN) {
       const ok = await confirm({
         title: 'Rendere questa persona amministratore?',
@@ -142,11 +186,8 @@ function UserRow({ utente, isMe, onChangeRole, onDelete, onFootprint }) {
       });
       if (!ok) return;
     }
-    setBusy(true);
-    try { await onChangeRole(utente.uid, role); } catch (err) {
-      console.error(err);
-      toast('Cambio ruolo non riuscito.', 'error');
-    } finally { setBusy(false); }
+    setRuoloInCorso(role);
+    cambioRuolo.run(() => onChangeRole(utente.uid, role));
   }
 
   async function apriElimina() {
@@ -154,16 +195,14 @@ function UserRow({ utente, isMe, onChangeRole, onDelete, onFootprint }) {
     setFootprint(await onFootprint(utente.uid).catch(() => null));
   }
 
-  async function elimina() {
-    setBusy(true);
-    try {
+  function eliminaOra() {
+    elimina.run(async () => {
       await onDelete(utente.uid);
-      setConfermaElimina(false);
+      // Il toast di successo lo mantengo (feedback secondario, non
+      // sostituisce quello sul pulsante): utile perché la riga sparirà
+      // dalla lista subito dopo il refresh dei dati.
       toast('Utente eliminato.', 'success');
-    } catch (err) {
-      console.error(err);
-      toast('Eliminazione non riuscita.', 'error');
-    } finally { setBusy(false); }
+    });
   }
 
   return (
@@ -205,59 +244,122 @@ function UserRow({ utente, isMe, onChangeRole, onDelete, onFootprint }) {
             <button
               type="button"
               onClick={() => setConfermaElimina(false)}
-              disabled={busy}
-              className="px-3 py-1.5 rounded-full text-xs font-bold"
+              disabled={elimina.busy}
+              className="px-3 py-1.5 rounded-full text-xs font-bold disabled:opacity-40"
               style={{ border: '1px solid rgba(34,48,31,0.25)', color: INK }}
             >
               Annulla
             </button>
             <button
               type="button"
-              onClick={elimina}
-              disabled={busy}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
-              style={{ backgroundColor: CLAY, color: '#fff', opacity: busy ? 0.6 : 1 }}
+              onClick={eliminaOra}
+              disabled={elimina.busy}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold
+                         transition-all duration-200 active:scale-[0.98]"
+              style={{
+                backgroundColor: elimina.saved ? GRASS_DARK : CLAY,
+                color: '#fff',
+              }}
             >
-              {busy ? <Loader2 size={13} className="animate-spin" /> : <UserX size={13} />}
-              {busy ? 'Eliminazione...' : 'Conferma eliminazione'}
+              {elimina.saving && <Loader2 size={13} className="animate-spin" />}
+              {elimina.saved && <Check size={13} />}
+              {elimina.idle && <UserX size={13} />}
+              {elimina.saving ? 'Eliminazione...'
+                : elimina.saved ? 'Eliminato'
+                : 'Conferma eliminazione'}
             </button>
           </div>
         </div>
       ) : (
         <div className="flex flex-wrap gap-1.5">
-          {[ROLE_USER, ROLE_ORGANIZER, ROLE_ADMIN, ROLE_BLOCKED].map((r) => (
-            <button
-              key={r}
-              type="button"
-              disabled={busy || r === utente.role}
-              onClick={() => change(r)}
-              title={ROLE_DESCRIPTIONS[r]}
-              className="px-2.5 py-1 rounded-full text-xs font-semibold"
-              style={{
-                border: `1px solid ${ROLE_COLOR[r]}`,
-                backgroundColor: r === utente.role ? ROLE_COLOR[r] : 'transparent',
-                color: r === utente.role ? '#fff' : ROLE_COLOR[r],
-                opacity: busy ? 0.5 : 1,
-              }}
-            >
-              {ROLE_LABELS[r]}
-            </button>
-          ))}
+          {[ROLE_USER, ROLE_ORGANIZER, ROLE_ADMIN, ROLE_BLOCKED].map((r) => {
+            const inCorso = cambioRuolo.saving && ruoloInCorso === r;
+            const appenaFatto = cambioRuolo.saved && ruoloInCorso === r;
+            const attivo = r === utente.role;
+            return (
+              <button
+                key={r}
+                type="button"
+                disabled={cambioRuolo.busy || attivo}
+                onClick={() => change(r)}
+                title={ROLE_DESCRIPTIONS[r]}
+                className="px-2.5 py-1 rounded-full text-xs font-semibold
+                           transition-all duration-200 active:scale-[0.98]
+                           flex items-center gap-1"
+                style={{
+                  border: `1px solid ${ROLE_COLOR[r]}`,
+                  backgroundColor: attivo || appenaFatto ? ROLE_COLOR[r] : 'transparent',
+                  color: attivo || appenaFatto ? '#fff' : ROLE_COLOR[r],
+                  opacity: cambioRuolo.busy && !inCorso && !appenaFatto ? 0.4 : 1,
+                }}
+              >
+                {inCorso && <Loader2 size={11} className="animate-spin" />}
+                {appenaFatto && <Check size={11} />}
+                {ROLE_LABELS[r]}
+              </button>
+            );
+          })}
 
           <span className="w-px h-6 mx-1" style={{ backgroundColor: 'rgba(34,48,31,0.15)' }} />
 
           <button
             type="button"
             onClick={apriElimina}
-            disabled={busy}
+            disabled={cambioRuolo.busy}
             title="Elimina utente e tutti i suoi contenuti"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold"
-            style={{ border: `1px solid ${CLAY}`, color: CLAY, opacity: busy ? 0.5 : 1 }}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold disabled:opacity-40"
+            style={{ border: `1px solid ${CLAY}`, color: CLAY }}
           >
             <UserX size={13} /> Elimina
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/* --- Riga annuncio in bacheca (moderazione) ---
+   Estratto in un component perché serve stato locale per il
+   feedback di eliminazione. Prima era inline dentro AdminDashboard. */
+function AdminAnnuncioRow({ annuncio, onDelete }) {
+  const { toast } = useFeedback();
+  const elimina = useActionState({
+    savedMs: 600,
+    onError: () => toast('Eliminazione non riuscita.', 'error'),
+  });
+
+  return (
+    <div
+      className="rounded-xl border-2 p-3 mb-2"
+      style={{ backgroundColor: CARD_BG, borderColor: 'rgba(34,48,31,0.15)' }}
+    >
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <span className="text-xs font-bold" style={{ color: INK, opacity: 0.7 }}>
+          {annuncio.authorName || 'utente'} · {annuncio.tipo === 'cerca_squadra' ? 'Cerco squadra' : 'Cercasi giocatori'}
+        </span>
+        <span className="text-xs shrink-0" style={{ color: INK, opacity: 0.45 }}>
+          {timeAgo(annuncio.data)}
+        </span>
+      </div>
+      <p className="text-sm whitespace-pre-wrap mb-2" style={{ color: INK }}>{annuncio.testo}</p>
+      <button
+        type="button"
+        onClick={() => elimina.run(() => onDelete(annuncio.id))}
+        disabled={elimina.busy}
+        className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold
+                   transition-all duration-200 active:scale-[0.98]"
+        style={{
+          border: `1px solid ${elimina.saved ? GRASS_DARK : CLAY}`,
+          color: elimina.saved ? GRASS_DARK : CLAY,
+        }}
+      >
+        {elimina.saving && <Loader2 size={13} className="animate-spin" />}
+        {elimina.saved && <Check size={13} />}
+        {elimina.idle && <Trash2 size={13} />}
+        {elimina.saving ? 'Eliminazione...'
+          : elimina.saved ? 'Eliminato'
+          : 'Elimina'}
+      </button>
     </div>
   );
 }
@@ -355,29 +457,7 @@ export default function AdminDashboard({
           </p>
         ) : (
           annunci.map((a) => (
-            <div
-              key={a.id}
-              className="rounded-xl border-2 p-3 mb-2"
-              style={{ backgroundColor: CARD_BG, borderColor: 'rgba(34,48,31,0.15)' }}
-            >
-              <div className="flex items-center justify-between gap-2 mb-1.5">
-                <span className="text-xs font-bold" style={{ color: INK, opacity: 0.7 }}>
-                  {a.authorName || 'utente'} · {a.tipo === 'cerca_squadra' ? 'Cerco squadra' : 'Cercasi giocatori'}
-                </span>
-                <span className="text-xs shrink-0" style={{ color: INK, opacity: 0.45 }}>
-                  {timeAgo(a.data)}
-                </span>
-              </div>
-              <p className="text-sm whitespace-pre-wrap mb-2" style={{ color: INK }}>{a.testo}</p>
-              <button
-                type="button"
-                onClick={() => onDeleteAnnuncio(a.id)}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
-                style={{ border: `1px solid ${CLAY}`, color: CLAY }}
-              >
-                <Trash2 size={13} /> Elimina
-              </button>
-            </div>
+            <AdminAnnuncioRow key={a.id} annuncio={a} onDelete={onDeleteAnnuncio} />
           ))
         )
       )}

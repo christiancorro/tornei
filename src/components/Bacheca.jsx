@@ -119,14 +119,15 @@ export function BachecaComposer({ testo, setTesto, tipo, setTipo, onSubmit }) {
   const accent = tipo === 'cerca_squadra' ? BOARD_A : BOARD_B;
   // La textarea usa la stessa carta dei bigliettini appesi.
   const noteBg = tipo === 'cerca_squadra' ? NOTE_YELLOW : NOTE_WHITE;
-  const [pressed, setPressed] = useState(false);
 
-  const handleSubmit = () => {
+  // Niente stato di attesa qui: la pubblicazione è istantanea e la
+  // conferma è visiva (la nota appare in bacheca con la sua
+  // animazione di caduta). Un "sto salvando..." di 300 ms sarebbe
+  // rumore.
+  function handleSubmit() {
     if (!testo.trim()) return;
-    setPressed(true);
-    setTimeout(() => setPressed(false), 420);
     onSubmit();
-  };
+  }
 
   return (
     <div className="rounded-lg  border-2 p-4 sm:p-5 mb-8 transition-colors"
@@ -162,10 +163,15 @@ export function BachecaComposer({ testo, setTesto, tipo, setTipo, onSubmit }) {
           type="button"
           onClick={handleSubmit}
           disabled={!testo.trim()}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold text-sm disabled:opacity-40 transition-transform active:scale-95"
-          style={{ backgroundColor: INK, color: SAND, cursor: testo.trim() ? 'pointer' : 'not-allowed' }}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold text-sm
+                     disabled:opacity-40 transition-transform active:scale-95"
+          style={{
+            backgroundColor: INK,
+            color: SAND,
+            cursor: testo.trim() ? 'pointer' : 'not-allowed',
+          }}
         >
-          <Pin size={18} className={pressed ? 'bacheca-send-icon--active' : undefined} />
+          <Pin size={18} />
           Attacca l'annuncio
         </button>
       </div>

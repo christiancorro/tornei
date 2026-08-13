@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Check, Loader2 } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
+import { useActionState } from '../hooks/useActionState';
 
 import { INK, SUN, GRASS_DARK } from '../theme';
 import { DISCIPLINE, DISCIPLINE_COLORS, FORMATI } from '../constants';
@@ -24,17 +25,20 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
   const { closing, close } = useModalClose(onCancel);
   const [form, setForm] = useState(initial || emptyTournament());
   const [errore, setErrore] = useState('');
-  // Stato del pulsante Salva: 'idle' → 'saving' → 'saved' → chiusura.
-  // Su errore torna in 'idle' e il toast lo mostra il chiamante.
-  const [saveState, setSaveState] = useState('idle');
   const isEdit = Boolean(initial);
-  const busy = saveState !== 'idle';
+  // Stato del pulsante Salva: idle → saving → saved → chiusura del
+  // modale. Su errore torna in idle e il toast lo mostra il chiamante
+  // (app.jsx handleSave rilancia dopo aver mostrato il toast).
+  const { state: saveState, run, busy } = useActionState({
+    savedMs: 700,
+    onDone: close,
+  });
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault();
     if (busy) return;
     // `required` non funziona su un input file nascosto, quindi il
@@ -44,20 +48,7 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
       return;
     }
     setErrore('');
-    setSaveState('saving');
-    try {
-      await onSave(form);
-      setSaveState('saved');
-      // Lascio respirare l'animazione di conferma prima di far partire
-      // quella di chiusura: 700ms sono percepiti come "azione compiuta"
-      // senza far aspettare inutilmente. useModalClose aggiunge poi la
-      // sua transizione di uscita.
-      setTimeout(() => close(), 700);
-    } catch {
-      // Il chiamante ha già mostrato il toast di errore: qui basta
-      // riportare il pulsante allo stato interagibile.
-      setSaveState('idle');
-    }
+    run(() => onSave(form));
   }
 
   // Il modale non deve chiudersi mentre stiamo salvando: né dal backdrop,

@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, Send, MessageCircle, Trash2 } from 'lucide-react';
+import { ChevronLeft, Send, MessageCircle, Trash2, Check, Loader2 } from 'lucide-react';
 
 import { INK, SAND, SUN, CARD_BG, GRASS_DARK, CLAY } from '../theme';
 import { timeAgo } from '../utils';
 import { otherParticipant, MAX_MESSAGGIO } from '../services/messages';
 import { useMessages } from '../hooks/useMessages';
+import { useActionState } from '../hooks/useActionState';
 import { useFeedback } from './FeedbackProvider';
 
 function Thread({ conv, profile, onBack, readOnly, onDelete }) {
@@ -14,26 +15,26 @@ function Thread({ conv, profile, onBack, readOnly, onDelete }) {
   // il destinatario non deve credere che l'abbia letto lui.
   const { messages, loading, send } = useMessages(conv.id, readOnly ? null : profile.uid);
   const [testo, setTesto] = useState('');
-  const [busy, setBusy] = useState(false);
   const endRef = useRef(null);
+
+  // Invio messaggio: feedback in tre stati sul pulsante, poi
+  // reset del testo. Il "saved" lo lascio corto (400 ms) perché
+  // qui la conferma è anche visiva — il nuovo messaggio compare
+  // subito nell'elenco sopra.
+  const invia = useActionState({
+    savedMs: 400,
+    onDone: () => setTesto(''),
+    onError: () => toast('Messaggio non inviato.', 'error'),
+  });
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
-  async function handleSend() {
+  function handleSend() {
     const clean = testo.trim();
-    if (!clean || busy) return;
-    setBusy(true);
-    try {
-      await send(other.uid, clean);
-      setTesto('');
-    } catch (err) {
-      console.error(err);
-      toast('Messaggio non inviato.', 'error');
-    } finally {
-      setBusy(false);
-    }
+    if (!clean || invia.busy) return;
+    invia.run(() => send(other.uid, clean));
   }
 
   return (
@@ -59,7 +60,7 @@ function Thread({ conv, profile, onBack, readOnly, onDelete }) {
               // Il documento della conversazione è uno solo e condiviso:
               // cancellarlo la fa sparire anche all'altra persona. Meglio
               // dirlo, invece di lasciar credere che sia un archivio privato.
-              const ok = await confirm({
+              await confirm({
                 title: readOnly
                   ? 'Eliminare questa conversazione?'
                   : `Eliminare la conversazione con ${other.name}?`,
@@ -67,11 +68,19 @@ function Thread({ conv, profile, onBack, readOnly, onDelete }) {
                   ? 'Verranno rimossi anche tutti i messaggi.'
                   : `Sparirà anche a ${other.name} e non è recuperabile.`,
                 confirmLabel: 'Elimina',
+                savingLabel: 'Eliminazione...',
+                savedLabel: 'Eliminata',
+                // Con onConfirm il dialog aspetta il return prima di
+                // chiudersi: il pulsante mostra spinner → check e solo
+                // dopo si torna alla lista. Se buttassi via `await`
+                // qui, `onBack()` verrebbe chiamato subito e la
+                // transizione di conferma non si vedrebbe.
+                onConfirm: async () => {
+                  await onDelete(conv.id);
+                },
               });
-              if (ok) {
-                onDelete(conv.id);
-                onBack();
-              }
+              // A dialog chiuso torniamo alla lista.
+              onBack();
             }}
             className="shrink-0 p-1.5 rounded-full"
             style={{ color: CLAY }}
@@ -129,19 +138,26 @@ function Thread({ conv, profile, onBack, readOnly, onDelete }) {
           }}
           rows={1}
           maxLength={MAX_MESSAGGIO}
+          disabled={invia.busy}
           placeholder="Scrivi un messaggio..."
-          className="flex-1 px-3 py-2 rounded-lg border-2 text-sm outline-none resize-none"
+          className="flex-1 px-3 py-2 rounded-lg border-2 text-sm outline-none resize-none disabled:opacity-70"
           style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
         />
         <button
           type="button"
           onClick={handleSend}
-          disabled={!testo.trim() || busy}
-          className="p-2.5 rounded-full shrink-0"
-          style={{ backgroundColor: INK, color: SAND, opacity: testo.trim() && !busy ? 1 : 0.4 }}
+          disabled={!testo.trim() || invia.busy}
+          className="p-2.5 rounded-full shrink-0 transition-all duration-200 active:scale-95"
+          style={{
+            backgroundColor: invia.saved ? GRASS_DARK : INK,
+            color: SAND,
+            opacity: testo.trim() && !invia.busy ? 1 : 0.4,
+          }}
           aria-label="Invia"
         >
-          <Send size={16} />
+          {invia.saving ? <Loader2 size={16} className="animate-spin" />
+            : invia.saved ? <Check size={16} />
+            : <Send size={16} />}
         </button>
       </div>
       )}
@@ -231,18 +247,23 @@ export default function MessagesPanel({
         {onDeleteConversation && (
           <button
             type="button"
-            onClick={async () => {
-              const ok = await confirm({
-                title: readOnly
-                  ? 'Eliminare questa conversazione?'
-                  : `Eliminare la conversazione con ${other.name}?`,
-                message: readOnly
-                  ? 'Verranno rimossi anche tutti i messaggi.'
-                  : `Sparirà anche a ${other.name} e non è recuperabile.`,
-                confirmLabel: 'Elimina',
-              });
-              if (ok) onDeleteConversation(c.id);
-            }}
+            onClick={() => confirm({
+              title: readOnly
+                ? 'Eliminare questa conversazione?'
+                : `Eliminare la conversazione con ${other.name}?`,
+              message: readOnly
+                ? 'Verranno rimossi anche tutti i messaggi.'
+                : `Sparirà anche a ${other.name} e non è recuperabile.`,
+              confirmLabel: 'Elimina',
+              savingLabel: 'Eliminazione...',
+              savedLabel: 'Eliminata',
+              // Il dialog aspetta il return dell'eliminazione, mostra
+              // spinner → check sul pulsante, poi si chiude. La riga
+              // sparisce quando `conversations` si aggiorna sotto.
+              onConfirm: async () => {
+                await onDeleteConversation(c.id);
+              },
+            })}
             className="shrink-0 p-1.5 rounded-full"
             style={{ color: CLAY }}
             aria-label="Elimina conversazione"

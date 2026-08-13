@@ -75,16 +75,19 @@ export default function AccountDashboard({
 }) {
   const [tab, setTab] = useState('tornei');
 
-  // Contatore che viene bumped ogni volta che si ri-clicca il tab
-  // Messaggi mentre siamo già dentro. MessagesPanel osserva questo
-  // segnale e, al cambio, chiude la conversazione aperta tornando
-  // alla lista dei thread: comportamento standard delle app di
-  // messaggistica ("torna a tutti").
+  // Contatore che sale ogni volta che si ri-clicca il tab Messaggi
+  // mentre siamo già dentro. Serve a due cose insieme:
+  // • forza il rimount del wrapper view-swap (entra in `key`) → si
+  //   rigioca l'animazione di transizione come alla prima apertura;
+  // • siccome MessagesPanel viene rimontato, il suo stato interno
+  //   (openId) riparte da null, quindi la conversazione aperta si
+  //   chiude e si torna alla lista — comportamento standard delle
+  //   app di messaggistica ("torna a tutti").
   const [messaggiResetSignal, setMessaggiResetSignal] = useState(0);
 
   function apriMessaggi() {
     if (tab === 'messaggi') {
-      // Già lì: significa "porta indietro alla lista".
+      // Già lì: significa "porta indietro alla lista" + replay animazione.
       setMessaggiResetSignal((n) => n + 1);
     } else {
       setTab('messaggi');
@@ -138,10 +141,13 @@ export default function AccountDashboard({
         </Tab>
       </div>
 
-      {/* key={tab} rimonta il blocco a ogni cambio: senza, React
-          riusa gli stessi nodi e l'animazione non riparte mai.
-          Stesso meccanismo del cambio vista in app.jsx. */}
-      <div key={tab} className="view-swap">
+      {/* key rimonta il blocco a ogni cambio, così `view-swap-in`
+          si rigioca: senza, React riusa gli stessi nodi e
+          l'animazione non riparte mai. Il segnale di reset
+          Messaggi entra qui dentro così che ri-cliccare il tab
+          quando siamo già lì rimonta ugualmente il wrapper
+          (MessagesPanel torna alla lista + animazione replay). */}
+      <div key={`${tab}-${messaggiResetSignal}`} className="view-swap">
         {tab === 'tornei' && (
           <>
             {attivo && (
@@ -267,7 +273,6 @@ export default function AccountDashboard({
             onDeleteConversation={onDeleteConversation}
             pendingOpenConv={pendingOpenConv}
             onConvOpened={onConvOpened}
-            resetSignal={messaggiResetSignal}
           />
         )}
 

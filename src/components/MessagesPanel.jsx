@@ -170,7 +170,7 @@ function Thread({ conv, profile, onBack, readOnly, onDelete }) {
         )}
       </div>
 
-      <div className="p-3 space-y-2 overflow-y-auto" style={{ maxHeight: '50vh' }}>
+      <div className="p-3 space-y-2 overflow-y-auto" style={{ maxHeight: '75vh' }}>
         {/* L'annuncio va sopra tutto, anche prima dello spinner di
             loading: dà subito contesto anche mentre i messaggi
             arrivano. Allineato dalla parte del suo autore: a destra
@@ -248,23 +248,129 @@ function Thread({ conv, profile, onBack, readOnly, onDelete }) {
   );
 }
 
+/* Riga singola nella lista conversazioni.
+   • L'intera riga (padding compreso) è cliccabile per aprire il
+     thread — prima era cliccabile solo il <button> interno con
+     avatar+testo e i click sulla fascia di padding p-3 finivano nel
+     vuoto. Uso `role="button"` sul div esterno + `onKeyDown` per
+     Enter/Space così resta accessibile; il cestino ferma la
+     propagazione così un click su di lui non apre anche il thread.
+   • Hover: cambia solo il bordo (più scuro), il fondo resta uguale.
+     Uso `useState` perché il borderColor è inline e dipende anche da
+     `unread`, quindi non basta un `hover:` di Tailwind. */
+function ConversationRow({ conv, profile, readOnly, onDelete, onOpen, confirm }) {
+  const [hover, setHover] = useState(false);
+  const other = otherParticipant(conv, profile.uid);
+  const unread = readOnly ? 0 : (conv.unread?.[profile.uid] ?? 0);
+  const label = readOnly
+    ? Object.values(conv.names ?? {}).filter(Boolean).join('  ↔  ') || 'Conversazione'
+    : other.name;
+
+  function handleDeleteClick(e) {
+    // Se non fermassimo la propagazione, il click passerebbe al div
+    // esterno e aprirebbe anche il thread — l'utente vedrebbe la
+    // conversazione aprirsi mentre si conferma la sua eliminazione.
+    e.stopPropagation();
+    confirm({
+      title: readOnly
+        ? 'Eliminare questa conversazione?'
+        : `Eliminare la conversazione con ${other.name}?`,
+      message: readOnly
+        ? 'Verranno rimossi anche tutti i messaggi.'
+        : `Sparirà anche a ${other.name} e non è recuperabile.`,
+      confirmLabel: 'Elimina',
+      savingLabel: 'Eliminazione...',
+      savedLabel: 'Eliminata',
+      onConfirm: async () => {
+        await onDelete(conv.id);
+      },
+    });
+  }
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      className="w-full rounded-xl border-2 p-3 mb-2 flex items-center gap-3 transition-colors duration-150 cursor-pointer"
+      style={{
+        backgroundColor: CARD_BG,
+        // Bordo: SUN se ci sono non letti (segnale forte); altrimenti
+        // scurisce leggermente sul hover.
+        borderColor: unread > 0
+          ? SUN
+          : hover
+            ? 'rgba(34,48,31,0.45)'
+            : 'rgba(34,48,31,0.15)',
+      }}
+    >
+      <div
+        className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm shrink-0"
+        style={{ backgroundColor: SAND, color: GRASS_DARK }}
+      >
+        {readOnly ? <MessageCircle size={16} /> : (other.name || '?').charAt(0).toUpperCase()}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-bold text-sm truncate" style={{ color: INK }}>{label}</p>
+          {conv.lastAt?.toDate && (
+            <span className="text-xs shrink-0" style={{ color: INK, opacity: 0.45 }}>
+              {timeAgo(conv.lastAt.toDate())}
+            </span>
+          )}
+        </div>
+        <p className="text-xs truncate" style={{ color: INK, opacity: 0.6 }}>{conv.lastMessage}</p>
+      </div>
+
+      {unread > 0 && (
+        <span className="text-xs font-black px-2 py-0.5 rounded-full shrink-0" style={{ backgroundColor: SUN, color: INK }}>
+          {unread}
+        </span>
+      )}
+
+      {onDelete && (
+        <button
+          type="button"
+          onClick={handleDeleteClick}
+          className="shrink-0 p-1.5 rounded-full hover:bg-black/5 transition-colors"
+          style={{ color: CLAY }}
+          aria-label="Elimina conversazione"
+          title="Elimina conversazione"
+        >
+          <Trash2 size={16} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* pendingOpenConv: convId che il parent vuole aprire (per esempio
    dopo aver risposto a un annuncio). Al cambio di valore aprire il
    thread e chiamare onConvOpened così il parent azzera il pending —
    se non lo azzera, riaprire manualmente qualcosa lo farebbe
    riscattare.
 
-   resetSignal: numero che il parent bumped per dirci "chiudi la
-   conversazione aperta e torna alla lista". Serve per gestire il
-   click ripetuto sul tab Messaggi quando si è già dentro un thread:
-   il parent (AccountDashboard) sa che il tab è già attivo e ci
-   segnala il reset. Salto il primo render con una ref, altrimenti
-   al mount ci troveremmo la lista anche quando pendingOpenConv
-   avrebbe voluto aprire un thread. */
+   Nota: il reset (chiudi conversazione al re-click del tab Messaggi)
+   NON si gestisce più con un prop segnale ma bumping la `key` del
+   wrapper in AccountDashboard: quando il wrapper si rimonta,
+   MessagesPanel riparte fresh con openId=null. Un tempo c'era qui un
+   useEffect con una ref "primoRender" per intercettare il segnale,
+   ma la ref persiste nel fiber e in React StrictMode dev veniva
+   invalidata dal doppio effect di verifica — la conseguenza era che
+   subito dopo aver aperto una conversazione tramite pendingOpenConv,
+   l'effect di reset la chiudeva. Meglio non usare ref booleane per
+   "salta il primo mount" in generale. */
 export default function MessagesPanel({
   conversations, profile, readOnly = false, onDeleteConversation, emptyLabel,
   pendingOpenConv, onConvOpened,
-  resetSignal,
 }) {
   const { confirm } = useFeedback();
   const [openId, setOpenId] = useState(null);
@@ -279,113 +385,45 @@ export default function MessagesPanel({
     onConvOpened?.();
   }, [pendingOpenConv, onConvOpened]);
 
-  const primoRender = useRef(true);
-  useEffect(() => {
-    if (primoRender.current) { primoRender.current = false; return; }
-    setOpenId(null);
-  }, [resetSignal]);
-
-  if (open) {
-    return (
-      <Thread
-        conv={open}
-        profile={profile}
-        readOnly={readOnly}
-        onDelete={onDeleteConversation}
-        onBack={() => setOpenId(null)}
-      />
-    );
-  }
-
-  if (conversations.length === 0) {
-    return (
-      <div className="text-center py-14">
-        <MessageCircle size={40} className="mx-auto mb-3" style={{ color: INK, opacity: 0.25 }} />
-        <h3 className="font-black text-lg mb-1" style={{ color: INK }}>Nessun messaggio</h3>
-        <p className="text-sm" style={{ color: INK, opacity: 0.6 }}>
-          {emptyLabel ?? 'Rispondi a un annuncio in bacheca per iniziare una conversazione.'}
-        </p>
-      </div>
-    );
-  }
-
-  return conversations.map((c) => {
-    const other = otherParticipant(c, profile.uid);
-    const unread = readOnly ? 0 : (c.unread?.[profile.uid] ?? 0);
-    const label = readOnly
-      ? Object.values(c.names ?? {}).filter(Boolean).join('  ↔  ') || 'Conversazione'
-      : other.name;
-    return (
-      /* Riga = contenitore, non bottone: dentro c'è il cestino, e un
-         <button> annidato in un altro <button> è HTML non valido (il
-         click interno risalirebbe comunque al genitore). */
-      <div
-        key={c.id}
-        className="w-full rounded-xl border-2 p-3 mb-2 flex items-center gap-3"
-        style={{
-          backgroundColor: CARD_BG,
-          borderColor: unread > 0 ? SUN : 'rgba(34,48,31,0.15)',
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setOpenId(c.id)}
-          className="flex-1 min-w-0 text-left flex items-center gap-3"
-        >
-          <div
-            className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm shrink-0"
-            style={{ backgroundColor: SAND, color: GRASS_DARK }}
-          >
-            {readOnly ? <MessageCircle size={16} /> : (other.name || '?').charAt(0).toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-2">
-              <p className="font-bold text-sm truncate" style={{ color: INK }}>{label}</p>
-              {c.lastAt?.toDate && (
-                <span className="text-xs shrink-0" style={{ color: INK, opacity: 0.45 }}>
-                  {timeAgo(c.lastAt.toDate())}
-                </span>
-              )}
-            </div>
-            <p className="text-xs truncate" style={{ color: INK, opacity: 0.6 }}>{c.lastMessage}</p>
-          </div>
-        </button>
-
-        {unread > 0 && (
-          <span className="text-xs font-black px-2 py-0.5 rounded-full shrink-0" style={{ backgroundColor: SUN, color: INK }}>
-            {unread}
-          </span>
-        )}
-
-        {onDeleteConversation && (
-          <button
-            type="button"
-            onClick={() => confirm({
-              title: readOnly
-                ? 'Eliminare questa conversazione?'
-                : `Eliminare la conversazione con ${other.name}?`,
-              message: readOnly
-                ? 'Verranno rimossi anche tutti i messaggi.'
-                : `Sparirà anche a ${other.name} e non è recuperabile.`,
-              confirmLabel: 'Elimina',
-              savingLabel: 'Eliminazione...',
-              savedLabel: 'Eliminata',
-              // Il dialog aspetta il return dell'eliminazione, mostra
-              // spinner → check sul pulsante, poi si chiude. La riga
-              // sparisce quando `conversations` si aggiorna sotto.
-              onConfirm: async () => {
-                await onDeleteConversation(c.id);
-              },
-            })}
-            className="shrink-0 p-1.5 rounded-full"
-            style={{ color: CLAY }}
-            aria-label="Elimina conversazione"
-            title="Elimina conversazione"
-          >
-            <Trash2 size={16} />
-          </button>
-        )}
-      </div>
-    );
-  });
+  /* Wrapper con `key` che cambia fra la lista e il thread: fa
+     ripartire l'animazione `view-swap-in` (fade + slide di 6px in
+     220ms, definita in styles.css) sia quando apro una
+     conversazione sia quando torno indietro. Non è una vera
+     cross-fade — il vecchio contenuto esce di colpo — ma l'entrata
+     morbida del nuovo copre lo swap. */
+  return (
+    <div key={openId || '__list__'} className="view-swap">
+      {open ? (
+        <Thread
+          conv={open}
+          profile={profile}
+          readOnly={readOnly}
+          onDelete={onDeleteConversation}
+          onBack={() => setOpenId(null)}
+        />
+      ) : conversations.length === 0 ? (
+        <div className="text-center py-14">
+          <MessageCircle size={40} className="mx-auto mb-3" style={{ color: INK, opacity: 0.25 }} />
+          <h3 className="font-black text-lg mb-1" style={{ color: INK }}>Nessun messaggio</h3>
+          <p className="text-sm" style={{ color: INK, opacity: 0.6 }}>
+            {emptyLabel ?? 'Rispondi a un annuncio in bacheca per iniziare una conversazione.'}
+          </p>
+        </div>
+      ) : (
+        <div>
+          {conversations.map((c) => (
+            <ConversationRow
+              key={c.id}
+              conv={c}
+              profile={profile}
+              readOnly={readOnly}
+              onDelete={onDeleteConversation}
+              onOpen={() => setOpenId(c.id)}
+              confirm={confirm}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

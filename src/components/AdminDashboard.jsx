@@ -22,15 +22,26 @@ const ROLE_COLOR = {
 };
 
 function Tab({ active, onClick, children, badge }) {
+  // Hover con useState perché il bordo è inline e dipende anche
+  // dallo stato `active`: un `hover:` di Tailwind non basterebbe
+  // senza `!important`, e la logica si aggroviglia. Stesso pattern
+  // del Tab in AccountDashboard.
+  const [hover, setHover] = useState(false);
   return (
     <button
       type="button"
       onClick={onClick}
-      className="px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      className="px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition-colors"
       style={{
         backgroundColor: active ? INK : 'transparent',
         color: active ? SAND : INK,
-        border: active ? 'none' : '1px solid rgba(34,48,31,0.25)',
+        // Attivo: nessun bordo (l'INK di sfondo lo rende inutile).
+        // Inattivo: bordo grigio chiaro a riposo, più scuro in hover.
+        border: active
+          ? 'none'
+          : `1px solid ${hover ? 'rgba(34,48,31,0.6)' : 'rgba(34,48,31,0.25)'}`,
       }}
     >
       {children}
@@ -128,7 +139,7 @@ function PendingCard({ torneo, onApprove, onReject }) {
           {approva.idle && <Check size={16} />}
           {approva.saving ? 'Approvazione...'
             : approva.saved ? 'Approvato'
-            : 'Approva e rendi organizzatore'}
+              : 'Approva e rendi organizzatore'}
         </button>
         <button
           type="button"
@@ -147,8 +158,8 @@ function PendingCard({ torneo, onApprove, onReject }) {
           {rifiuta.idle && <X size={16} />}
           {rifiuta.saving ? 'Rifiuto...'
             : rifiuta.saved ? 'Rifiutato'
-            : showReject ? 'Conferma rifiuto'
-            : 'Rifiuta'}
+              : showReject ? 'Conferma rifiuto'
+                : 'Rifiuta'}
         </button>
       </div>
     </div>
@@ -266,7 +277,7 @@ function UserRow({ utente, isMe, onChangeRole, onDelete, onFootprint }) {
               {elimina.idle && <UserX size={13} />}
               {elimina.saving ? 'Eliminazione...'
                 : elimina.saved ? 'Eliminato'
-                : 'Conferma eliminazione'}
+                  : 'Conferma eliminazione'}
             </button>
           </div>
         </div>
@@ -358,7 +369,7 @@ function AdminAnnuncioRow({ annuncio, onDelete }) {
         {elimina.idle && <Trash2 size={13} />}
         {elimina.saving ? 'Eliminazione...'
           : elimina.saved ? 'Eliminato'
-          : 'Elimina'}
+            : 'Elimina'}
       </button>
     </div>
   );
@@ -409,65 +420,65 @@ export default function AdminDashboard({
           come nel cambio vista in app.jsx. */}
       <div key={tab} className="view-swap">
         {tab === 'coda' && (
-        pending.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="text-5xl mb-3">✅</div>
-            <h3 className="font-black text-lg mb-1" style={{ color: INK }}>Nessun torneo in attesa</h3>
-            <p className="text-sm" style={{ color: INK, opacity: 0.6 }}>
-              Le nuove proposte compaiono qui.
-            </p>
-          </div>
-        ) : (
-          pending.map((t) => (
-            <PendingCard key={t.id} torneo={t} onApprove={onApprove} onReject={onReject} />
-          ))
-        )
-      )}
+          pending.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="text-5xl mb-3">✅</div>
+              <h3 className="font-black text-lg mb-1" style={{ color: INK }}>Nessun torneo in attesa</h3>
+              <p className="text-sm" style={{ color: INK, opacity: 0.6 }}>
+                Le nuove proposte compaiono qui.
+              </p>
+            </div>
+          ) : (
+            pending.map((t) => (
+              <PendingCard key={t.id} torneo={t} onApprove={onApprove} onReject={onReject} />
+            ))
+          )
+        )}
 
         {tab === 'utenti' && (
-        <>
-          <div className="relative mb-3">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: INK, opacity: 0.4 }} />
-            <input
-              type="text"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Cerca per nome o email"
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border-2 text-sm outline-none"
-              style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK, backgroundColor: CARD_BG }}
-            />
-          </div>
-          {filteredUsers.map((u) => (
-            <UserRow
-              key={u.uid}
-              utente={u}
-              isMe={u.uid === myUid}
-              onChangeRole={onChangeRole}
-              onDelete={onDeleteUser}
-              onFootprint={onUserFootprint}
-            />
-          ))}
-        </>
-      )}
+          <>
+            <div className="relative mb-3">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: INK, opacity: 0.4 }} />
+              <input
+                type="text"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Cerca per nome o email"
+                className="w-full pl-9 pr-3 py-2.5 rounded-lg border-2 text-sm outline-none"
+                style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK, backgroundColor: CARD_BG }}
+              />
+            </div>
+            {filteredUsers.map((u) => (
+              <UserRow
+                key={u.uid}
+                utente={u}
+                isMe={u.uid === myUid}
+                onChangeRole={onChangeRole}
+                onDelete={onDeleteUser}
+                onFootprint={onUserFootprint}
+              />
+            ))}
+          </>
+        )}
 
         {tab === 'bacheca' && (
-        annunci.length === 0 ? (
-          <p className="text-sm text-center py-12" style={{ color: INK, opacity: 0.6 }}>
-            La bacheca è vuota.
-          </p>
-        ) : (
-          annunci.map((a) => (
-            <AdminAnnuncioRow key={a.id} annuncio={a} onDelete={onDeleteAnnuncio} />
-          ))
-        )
-      )}
+          annunci.length === 0 ? (
+            <p className="text-sm text-center py-12" style={{ color: INK, opacity: 0.6 }}>
+              La bacheca è vuota.
+            </p>
+          ) : (
+            annunci.map((a) => (
+              <AdminAnnuncioRow key={a.id} annuncio={a} onDelete={onDeleteAnnuncio} />
+            ))
+          )
+        )}
 
         {tab === 'messaggi' && (
-        <>
-          <p className="text-xs rounded-lg px-3 py-2 mb-3" style={{ backgroundColor: '#FFF4DE', color: '#8A5A00' }}>
-            Vedi tutte le conversazioni private dell'app, in sola lettura. Gli utenti
-            sono avvisati che un amministratore può leggerle.
-          </p>
+          <>
+            <p className="text-xs rounded-lg px-3 py-2 mb-3" style={{ backgroundColor: '#FFF4DE', color: '#8A5A00' }}>
+              Vedi tutte le conversazioni private dell'app, in sola lettura. Gli utenti
+              sono avvisati che un amministratore può leggerle.
+            </p>
             <MessagesPanel
               conversations={conversations}
               profile={profile}

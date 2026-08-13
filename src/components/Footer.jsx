@@ -4,7 +4,7 @@ import { INK } from '../theme';
 export default function Footer() {
   return (
     <div className="text-center text-xs pb-8 px-4 space-y-2" style={{ color: INK, opacity: 0.6 }}>
-      <p>
+      {/* <p>
         TorneiFVG nasce da un progetto personale di Christian Corrò per aiutare giocatori e organizzatori a trovare e condividere tornei di volley in Friuli Venezia Giulia e dintorni.
       </p>
       <p>
@@ -21,7 +21,7 @@ export default function Footer() {
         }}
       >
         Supporta torneiFVG ❤️
-      </a>
+      </a> */}
     </div>
   );
 }

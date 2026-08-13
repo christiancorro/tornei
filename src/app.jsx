@@ -8,6 +8,7 @@ import { canPostAnnuncio, canProposeTournament, canDeleteAnnuncio, isOrganizer }
 
 import { useAuth } from './hooks/useAuth';
 import { useTournaments, usePendingTournaments, useMyTournaments } from './hooks/useTournaments';
+import { useLocandinePrefetch } from './hooks/useLocandinePrefetch';
 import { useAnnunci, useMyAnnunci } from './hooks/useAnnunci';
 import { useUsers } from './hooks/useUsers';
 import { useConversations, useAllConversations } from './hooks/useMessages';
@@ -61,6 +62,12 @@ export default function App() {
     save: saveTournament,
     remove: removeTournament,
   } = useTournaments();
+
+  /* Prefetch di tutte le locandine subito dopo il caricamento della
+     lista, in background e a priorità bassa. Quando l'utente scrolla
+     o apre il dettaglio, le immagini sono già in cache: niente
+     skeleton, niente fade. */
+  useLocandinePrefetch(tournaments);
 
   const { annunci, publish: publishAnnuncio, remove: removeAnnuncio } = useAnnunci();
 

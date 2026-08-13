@@ -91,7 +91,10 @@ service cloud.firestore {
         && isIsoDate(d.data)
         && (!('dataFine' in d) || d.dataFine == '' || isIsoDate(d.dataFine))
         && (!('iscrizioniEntro' in d) || d.iscrizioniEntro == '' || isIsoDate(d.iscrizioniEntro))
-        && d.provincia in ['UD', 'PN', 'GO', 'TS']
+        // `provincia` era obbligatoria, ma il form dell'app non la
+        // raccoglie: bloccava ogni creazione con permission-denied.
+        // Ora è opzionale, ma se presente deve stare tra quelle previste.
+        && (!('provincia' in d) || d.provincia in ['UD', 'PN', 'GO', 'TS'])
         && (!('comune' in d) || d.comune.size() <= 80)
         && (!('descrizioneOrganizzatore' in d) || d.descrizioneOrganizzatore.size() <= 1500);
     }

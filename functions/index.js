@@ -28,6 +28,15 @@ const admin = require('firebase-admin');
 
 admin.initializeApp();
 
+/* Regex "browser reale": Mozilla/5.0 + almeno uno tra Chrome/Firefox/
+   Safari/Edge, MA senza 'bot'/'crawl'/'spider'/'preview' (Facebook,
+   Twitter, Slack, ecc. mettono "Mozilla" nell'UA per compatibilità
+   ma includono anche il loro nome bot). Se matcha → è un umano e
+   lo mando alla SPA con 302. Se NON matcha → serviamo OG HTML puro,
+   niente redirect, così il crawler legge i meta senza andare oltre. */
+const REAL_BROWSER_RE = /Mozilla\/5\.0.*(Chrome|Firefox|Safari|Edge)/i;
+const CRAWLER_TAG_RE = /bot|crawl|spider|slurp|preview|embed|meta-external|link.?preview|scraper|fetcher|monitor|check|whatsapp|telegram|facebook|twitter|linkedin|discord|slack|iframely|opengraph/i;
+
 exports.torneoOg = functions
   .region('europe-west1') // stessa regione del progetto (regolare al bisogno)
   .https.onRequest(async (req, res) => {
@@ -37,6 +46,9 @@ exports.torneoOg = functions
       res.status(404).send('Torneo non specificato.');
       return;
     }
+
+    const ua = req.get('user-agent') || '';
+    const isRealBrowser = REAL_BROWSER_RE.test(ua) && !CRAWLER_TAG_RE.test(ua);
 
     try {
       const snap = await admin.firestore().collection('tornei').doc(id).get();
@@ -70,6 +82,16 @@ exports.torneoOg = functions
         || (projectId ? `https://${projectId}.web.app` : `${req.protocol}://${req.get('host')}`);
       const urlCanonico = `${siteUrl}/?torneo=${encodeURIComponent(id)}`;
 
+      // Se è un browser reale, redirect immediato alla SPA — evita
+      // qualsiasi pagina intermedia e mantiene la cronologia pulita.
+      if (isRealBrowser) {
+        res.redirect(302, urlCanonico);
+        return;
+      }
+
+      // Altrimenti (crawler, servizi di preview, UA sconosciuti) servi
+      // l'HTML con i meta OG e basta: nessun redirect, così anche gli
+      // scraper che eseguono JavaScript si fermano sui meta corretti.
       const html = paginaOg({
         titolo,
         descrizione,
@@ -78,9 +100,11 @@ exports.torneoOg = functions
       });
 
       // Cache lato CDN: i crawler ripassano più volte, non ha senso
-      // rifare il fetch a Firestore ogni volta. 5 minuti sono un
-      // compromesso tra freschezza e costo.
+      // rifare il fetch a Firestore ogni volta. Vary sull'user-agent
+      // perché due UA diversi possono avere risposte diverse
+      // (browser → 302, crawler → HTML).
       res.set('Cache-Control', 'public, max-age=300, s-maxage=300');
+      res.set('Vary', 'User-Agent');
       res.status(200).send(html);
     } catch (err) {
       console.error('[torneoOg] errore:', err);
@@ -98,14 +122,12 @@ function formatoData(inizio, fine) {
 }
 
 function paginaOg({ titolo, descrizione, immagine, url }) {
-  /* Redirect JS + meta-refresh: i crawler (Telegram, Facebook,
-     opengraph.xyz, ecc.) non eseguono JS e ignorano il meta refresh
-     istantaneo, quindi si fermano sui meta OG. I browser reali
-     eseguono `location.replace` in pochi ms e finiscono sulla SPA
-     senza lasciare la pagina intermedia nella cronologia
-     (replace, non assign). Il fallback <a> è per browser con JS
-     disabilitato — comunque un click e sono sull'app. */
-  const urlJson = JSON.stringify(url);
+  /* Solo meta OG — nessun redirect (né meta refresh né JS): i browser
+     reali vengono già 302-reindirizzati prima ancora di arrivare qui,
+     quindi questa pagina la vedono solo i crawler. Crawler che leggono
+     l'HTML statico → OK, meta corretti. Crawler headless che eseguono
+     JS → OK lo stesso, non hanno redirect da eseguire e restano sui
+     meta corretti. */
   return `<!doctype html>
 <html lang="it">
 <head>
@@ -124,12 +146,9 @@ ${immagine ? `<meta property="og:image" content="${escapeHtml(immagine)}">
 <meta name="twitter:image" content="${escapeHtml(immagine)}">` : '<meta name="twitter:card" content="summary">'}
 <meta name="twitter:title" content="${escapeHtml(titolo)}">
 <meta name="twitter:description" content="${escapeHtml(descrizione)}">
-<meta http-equiv="refresh" content="0; url=${escapeHtml(url)}">
-<script>window.location.replace(${urlJson});</script>
-<style>body{font-family:system-ui,sans-serif;color:#666;padding:2rem;text-align:center}</style>
 </head>
 <body>
-<p>Apertura del torneo… <a href="${escapeHtml(url)}">Vai alla pagina</a></p>
+<p><a href="${escapeHtml(url)}">${escapeHtml(titolo)}</a></p>
 </body>
 </html>`;
 }

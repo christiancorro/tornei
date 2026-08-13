@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pin, X, CircleUserRound, MessageCircle } from 'lucide-react';
+import { Pin, X, CircleUserRound, MessageCircle, Check, Plus } from 'lucide-react';
 
 import {
   INK,
@@ -11,8 +11,10 @@ import {
   PIN_COLOR,
   NOTE_YELLOW,
   NOTE_WHITE,
+  GRASS_DARK,
 } from '../theme';
 import { formatDataBreve, timeAgo } from '../utils';
+import { useActionState } from '../hooks/useActionState';
 import Chip from './ui/Chip';
 
 /* ---------------------------------------------------------
@@ -97,6 +99,40 @@ const BACHECA_MOTION_CSS = `
   animation: bacheca-button-press 420ms ease-out;
 }
 
+.bacheca-composer-shell {
+  overflow: hidden;
+  transform-origin: top center;
+}
+
+.bacheca-composer-shell--closed {
+  cursor: pointer;
+}
+
+.bacheca-composer-header {
+  min-height: 36px;
+}
+
+.bacheca-composer-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 320ms cubic-bezier(0.2, 0.9, 0.2, 1),
+    opacity 220ms ease;
+  pointer-events: none;
+}
+
+.bacheca-composer-body > div {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.bacheca-composer-shell--open .bacheca-composer-body {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  pointer-events: auto;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bacheca-note--in,
   .bacheca-note--in .bacheca-pin,
@@ -104,6 +140,11 @@ const BACHECA_MOTION_CSS = `
   .bacheca-send-icon--active {
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  .bacheca-composer-body,
+  .bacheca-composer-shell {
+    transition-duration: 1ms !important;
   }
 }
 `;
@@ -115,65 +156,160 @@ const EXIT_MS = 300;
    Bacheca — a real notice board, simplified: a cork panel,
    pinned paper notes, one free-text field to post.
 --------------------------------------------------------- */
-export function BachecaComposer({ testo, setTesto, tipo, setTipo, onSubmit }) {
+export function BachecaComposer({
+  testo,
+  setTesto,
+  tipo,
+  setTipo,
+  onSubmit,
+  open,
+  onOpen,
+  onCancel,
+}) {
   const accent = tipo === 'cerca_squadra' ? BOARD_A : BOARD_B;
-  // La textarea usa la stessa carta dei bigliettini appesi.
   const noteBg = tipo === 'cerca_squadra' ? NOTE_YELLOW : NOTE_WHITE;
 
-  // Niente stato di attesa qui: la pubblicazione è istantanea e la
-  // conferma è visiva (la nota appare in bacheca con la sua
-  // animazione di caduta). Un "sto salvando..." di 300 ms sarebbe
-  // rumore.
+  const { state, run, busy } = useActionState({ savedMs: 700 });
+
   function handleSubmit() {
-    if (!testo.trim()) return;
-    onSubmit();
+    if (!testo.trim() || busy) return;
+    run(() => onSubmit());
+  }
+
+  function handleShellClick() {
+    if (!open) {
+      onOpen();
+    }
+  }
+
+  function handleShellKeyDown(e) {
+    if (!open && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      onOpen();
+    }
   }
 
   return (
-    <div className="rounded-lg  border-2 p-4 sm:p-5 mb-8 transition-colors"
+    <div
+      role={!open ? 'button' : undefined}
+      tabIndex={!open ? 0 : undefined}
+      onClick={handleShellClick}
+      onKeyDown={handleShellKeyDown}
+      className={[
+        'bacheca-composer-shell rounded-2xl border-2 p-4 sm:p-5 mb-6 transition-colors duration-300',
+        open ? 'bacheca-composer-shell--open' : 'bacheca-composer-shell--closed',
+      ].join(' ')}
       style={{
-        backgroundColor: noteBg,
-        borderColor: accent,
+        backgroundColor: open ? noteBg : SAND,
+        borderColor: open ? accent : 'rgba(34,48,31,0.12)',
         color: INK,
-        '--tw-ring-color': accent,
-      }}>
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <Chip active={tipo === 'cerca_squadra'} onClick={() => setTipo('cerca_squadra')} color={BOARD_A}>
-          Cerco squadra
-        </Chip>
-        <Chip active={tipo === 'cerca_giocatore'} onClick={() => setTipo('cerca_giocatore')} color={BOARD_B}>
-          Cercasi giocatori
-        </Chip>
+        '--tw-ring-color': open ? accent : 'rgba(34,48,31,0.18)',
+      }}
+    >
+      <div className="bacheca-composer-header flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="font-semibold text-lg leading-none" style={{ color: INK }}>
+            Pubblica un annuncio
+          </h3>
+        </div>
+
+        {open ? (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-black/5 shrink-0"
+            style={{ color: INK, opacity: 0.55 }}
+            aria-label="Chiudi compositore"
+          >
+            <X size={18} />
+          </button>
+        ) : (
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+            style={{
+              backgroundColor: INK,
+              color: SAND,
+            }}
+          >
+            <Plus size={20} />
+          </div>
+        )}
       </div>
-      <textarea
-        value={testo}
-        onChange={(e) => setTesto(e.target.value)}
-        placeholder="Scrivi il tuo annuncio: torneo, ruolo, ..."
-        rows={5}
-        maxLength={400}
-        className="w-full rounded-lg border-1 p-3 text-2sm sm:text-2sm outline-none focus:ring-1 resize-none transition-colors"
-        style={{
-          color: INK,
-          borderColor: 'rgba(34,48,31,0.18)',
-          '--tw-ring-color': 'rgba(34,48,31,0.28)',
-        }}
-      />
-      <div className="flex justify-end mt-3">
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={!testo.trim()}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold text-sm
-                     disabled:opacity-40 transition-transform active:scale-95"
-          style={{
-            backgroundColor: INK,
-            color: SAND,
-            cursor: testo.trim() ? 'pointer' : 'not-allowed',
-          }}
-        >
-          <Pin size={18} />
-          Attacca l'annuncio
-        </button>
+
+      <div className="bacheca-composer-body" aria-hidden={!open}>
+        <div>
+          <div className="pt-4">
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <Chip active={tipo === 'cerca_squadra'} onClick={() => setTipo('cerca_squadra')} color={BOARD_A}>
+                Cerco squadra
+              </Chip>
+              <Chip active={tipo === 'cerca_giocatore'} onClick={() => setTipo('cerca_giocatore')} color={BOARD_B}>
+                Cercasi giocatori
+              </Chip>
+            </div>
+
+            <textarea
+              value={testo}
+              onChange={(e) => setTesto(e.target.value)}
+              disabled={busy}
+              placeholder="Scrivi il tuo annuncio: torneo, ruolo, ..."
+              rows={5}
+              maxLength={400}
+              className="w-full rounded-lg border-2 p-3 text-2sm sm:text-2sm outline-none border-black/20 focus:border-gray-600 resize-none transition-colors disabled:opacity-70"
+              style={{
+                color: INK,
+                // borderColor: 'rgba(34,48,31,0.18)',
+                // '--tw-ring-color': 'rgba(34,48,31,0.28)',
+              }}
+            />
+
+            <div className="flex justify-end gap-2 mt-3">
+              <button
+                type="button"
+                onClick={onCancel}
+                className="px-4 py-2.5 rounded-full font-semibold text-sm transition-transform active:scale-95"
+                style={{
+                  color: INK,
+                  backgroundColor: 'rgba(34,48,31,0.08)',
+                }}
+              >
+                Annulla
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!testo.trim() || busy}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold text-sm
+                           disabled:opacity-40 transition-all duration-200 active:scale-95"
+                style={{
+                  backgroundColor: state === 'saved' ? GRASS_DARK : INK,
+                  color: SAND,
+                  cursor: testo.trim() && !busy ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {state === 'saving' && (
+                  <>
+                    <Pin size={18} className="animate-spin" />
+                    Attacco...
+                  </>
+                )}
+                {state === 'saved' && (
+                  <>
+                    <Check size={18} />
+                    Attaccato
+                  </>
+                )}
+                {state === 'idle' && (
+                  <>
+                    <Pin size={18} />
+                    Attacca l&apos;annuncio
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -271,6 +407,7 @@ export default function Bacheca({
   // Track which notes are new so only they play the drop animation.
   const seenRef = useRef(null);
   const [newIds, setNewIds] = useState([]);
+  const [composerOpen, setComposerOpen] = useState(false);
 
   useEffect(() => {
     const ids = annunci.map((a) => a.id);
@@ -292,12 +429,26 @@ export default function Bacheca({
     return () => clearTimeout(t);
   }, [annunci]);
 
+  function handleCancelComposer() {
+    setComposerOpen(false);
+    setNuovoTesto('');
+  }
+
   return (
     <div className="max-w-[70rem] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-4 mb-6">
       <style>{BACHECA_MOTION_CSS}</style>
 
       {canPost ? (
-        <BachecaComposer testo={nuovoTesto} setTesto={setNuovoTesto} tipo={nuovoTipo} setTipo={setNuovoTipo} onSubmit={onPubblica} />
+        <BachecaComposer
+          testo={nuovoTesto}
+          setTesto={setNuovoTesto}
+          tipo={nuovoTipo}
+          setTipo={setNuovoTipo}
+          onSubmit={onPubblica}
+          open={composerOpen}
+          onOpen={() => setComposerOpen(true)}
+          onCancel={handleCancelComposer}
+        />
       ) : (
         <div
           className="rounded-lg border-2 p-4 sm:p-5 mb-8 flex items-center gap-3"
@@ -329,7 +480,7 @@ export default function Bacheca({
             La bacheca è vuota
           </h3>
           <p className="text-sm" style={{ color: INK, opacity: 0.6 }}>
-            Non c'è ancora nessun annuncio.
+            Non c&apos;è ancora nessun annuncio.
           </p>
         </div>
       ) : (

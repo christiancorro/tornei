@@ -1,12 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import {
-  CalendarDays, StickyNote, MessageCircle, Pencil, Trash2, Plus, Clock, Check, Ban, Settings, LogOut, Info
+  CalendarDays,
+  StickyNote,
+  MessageCircle,
+  Pencil,
+  Trash2,
+  Plus,
+  Clock,
+  Check,
+  Ban,
+  Settings,
+  LogOut,
+  Info,
 } from 'lucide-react';
 
 import { INK, SAND, SUN, GRASS_DARK, CLAY, CARD_BG, BOARD_A, BOARD_B } from '../theme';
 import {
-  STATUS_PENDING, STATUS_PUBLISHED, STATUS_REJECTED, STATUS_LABELS,
-  ROLE_LABELS, isOrganizer, isActive,
+  STATUS_PENDING,
+  STATUS_PUBLISHED,
+  STATUS_REJECTED,
+  STATUS_LABELS,
+  ROLE_LABELS,
+  isOrganizer,
+  isActive,
 } from '../roles';
 import { formatDataLunga, timeAgo } from '../utils';
 import MessagesPanel from './MessagesPanel';
@@ -43,6 +59,7 @@ function Tab({ active, onClick, children, badge }) {
 function StatusBadge({ status }) {
   const s = STATUS_STYLE[status] ?? STATUS_STYLE[STATUS_PUBLISHED];
   const { Icon } = s;
+
   return (
     <span
       className="inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full shrink-0"
@@ -67,36 +84,30 @@ export default function AccountDashboard({
   onOpenDetail,
   onLogout,
   onDeleted,
-  /* Se il parent vuole aprire un thread specifico (per esempio
-     dopo che ho appena risposto a un annuncio) passa qui il convId:
-     salta al tab Messaggi e apri quella conversazione. */
+  onOpenBacheca,
   pendingOpenConv,
   onConvOpened,
 }) {
   const [tab, setTab] = useState('tornei');
-
-  // Contatore che sale ogni volta che si ri-clicca il tab Messaggi
-  // mentre siamo già dentro. Serve a due cose insieme:
-  // • forza il rimount del wrapper view-swap (entra in `key`) → si
-  //   rigioca l'animazione di transizione come alla prima apertura;
-  // • siccome MessagesPanel viene rimontato, il suo stato interno
-  //   (openId) riparte da null, quindi la conversazione aperta si
-  //   chiude e si torna alla lista — comportamento standard delle
-  //   app di messaggistica ("torna a tutti").
   const [messaggiResetSignal, setMessaggiResetSignal] = useState(0);
 
   function apriMessaggi() {
     if (tab === 'messaggi') {
-      // Già lì: significa "porta indietro alla lista" + replay animazione.
       setMessaggiResetSignal((n) => n + 1);
     } else {
       setTab('messaggi');
     }
   }
 
-  // Se arriva un convId da aprire, spostati sul tab messaggi. Il
-  // MessagesPanel poi vede la stessa prop e apre il thread; io qui
-  // sposto solo il tab così il pannello è montato.
+  function handleOpenBacheca() {
+    if (typeof onOpenBacheca === 'function') {
+      onOpenBacheca();
+      return;
+    }
+
+    window.location.hash = 'bacheca';
+  }
+
   useEffect(() => {
     if (pendingOpenConv) setTab('messaggi');
   }, [pendingOpenConv]);
@@ -111,7 +122,6 @@ export default function AccountDashboard({
           Ciao {profile?.displayName?.split(' ')[0] || ''}
         </h2>
 
-        {/* Uscire deve costare un tocco, non un giro nelle impostazioni. */}
         <button
           type="button"
           onClick={onLogout}
@@ -130,41 +140,43 @@ export default function AccountDashboard({
         <Tab active={tab === 'tornei'} onClick={() => setTab('tornei')}>
           <CalendarDays size={16} /> I miei tornei
         </Tab>
+
         <Tab active={tab === 'annunci'} onClick={() => setTab('annunci')}>
           <StickyNote size={16} /> I miei annunci
         </Tab>
+
         <Tab active={tab === 'messaggi'} onClick={apriMessaggi} badge={unreadTotal}>
           <MessageCircle size={16} /> Messaggi
         </Tab>
+
         <Tab active={tab === 'impostazioni'} onClick={() => setTab('impostazioni')}>
           <Settings size={16} /> Impostazioni
         </Tab>
       </div>
 
-      {/* key rimonta il blocco a ogni cambio, così `view-swap-in`
-          si rigioca: senza, React riusa gli stessi nodi e
-          l'animazione non riparte mai. Il segnale di reset
-          Messaggi entra qui dentro così che ri-cliccare il tab
-          quando siamo già lì rimonta ugualmente il wrapper
-          (MessagesPanel torna alla lista + animazione replay). */}
       <div key={`${tab}-${messaggiResetSignal}`} className="view-swap">
         {tab === 'tornei' && (
           <>
             {attivo && (
-              <button
-                type="button"
-                onClick={onNuovoTorneo}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold mb-4"
-                style={{ backgroundColor: SUN, color: INK }}
-              >
-                <Plus size={18} /> {organizer ? 'Pubblica un torneo' : 'Proponi un torneo'}
-              </button>
+              <div className="flex justify-center mb-4">
+                <button
+                  type="button"
+                  onClick={onNuovoTorneo}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold"
+                  style={{ backgroundColor: SUN, color: INK }}
+                >
+                  <Plus size={18} /> {organizer ? 'Pubblica un torneo' : 'Proponi un torneo'}
+                </button>
+              </div>
             )}
 
             {!attivo && (
-              <div className="text-sm rounded-lg px-3 py-2 mb-4" style={{ backgroundColor: '#FBE3DC', color: '#8C3520' }}>
+              <div
+                className="text-sm rounded-lg px-3 py-2 mb-4"
+                style={{ backgroundColor: '#FBE3DC', color: '#8C3520' }}
+              >
                 Il tuo account è bloccato: non puoi pubblicare tornei né annunci.
-                Scrivi all'amministratore se pensi si tratti di un errore.
+                Scrivi all&apos;amministratore se pensi si tratti di un errore.
               </div>
             )}
 
@@ -187,19 +199,29 @@ export default function AccountDashboard({
               </p>
             ) : (
               mieiTornei.map((t) => (
-                <div key={t.id} className="rounded-xl border-2 p-4 mb-3" style={{ backgroundColor: CARD_BG, borderColor: 'rgba(34,48,31,0.15)' }}>
+                <div
+                  key={t.id}
+                  className="rounded-xl border-2 p-4 mb-3"
+                  style={{ backgroundColor: CARD_BG, borderColor: 'rgba(34,48,31,0.15)' }}
+                >
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <button type="button" onClick={() => onOpenDetail(t)} className="text-left min-w-0">
-                      <h4 className="font-black text-base truncate" style={{ color: INK }}>{t.nome}</h4>
+                      <h4 className="font-black text-base truncate" style={{ color: INK }}>
+                        {t.nome}
+                      </h4>
                       <p className="text-xs" style={{ color: INK, opacity: 0.6 }}>
                         {formatDataLunga(t.data)} · {t.comune}
                       </p>
                     </button>
+
                     <StatusBadge status={t.status} />
                   </div>
 
                   {t.status === STATUS_REJECTED && t.motivoRifiuto && (
-                    <p className="text-xs mb-2 px-2 py-1.5 rounded" style={{ backgroundColor: '#FBE3DC', color: '#8C3520' }}>
+                    <p
+                      className="text-xs mb-2 px-2 py-1.5 rounded"
+                      style={{ backgroundColor: '#FBE3DC', color: '#8C3520' }}
+                    >
                       Motivo: {t.motivoRifiuto}
                     </p>
                   )}
@@ -213,6 +235,7 @@ export default function AccountDashboard({
                     >
                       <Pencil size={14} /> Modifica
                     </button>
+
                     <button
                       type="button"
                       onClick={() => onDeleteTorneo(t)}
@@ -229,41 +252,76 @@ export default function AccountDashboard({
         )}
 
         {tab === 'annunci' && (
-          mieiAnnunci.length === 0 ? (
-            <p className="text-sm text-center py-12" style={{ color: INK, opacity: 0.6 }}>
-              Non hai ancora scritto annunci in bacheca.
-            </p>
-          ) : (
-            mieiAnnunci.map((a) => (
-              <div
-                key={a.id}
-                className="rounded-xl border-2 p-4 mb-3"
-                style={{
-                  backgroundColor: CARD_BG,
-                  borderColor: a.tipo === 'cerca_squadra' ? BOARD_A : BOARD_B,
-                }}
-              >
-                <div className="flex items-center justify-between gap-3 mb-2">
-                  <span
-                    className="text-xs font-semibold px-2 py-0.5 rounded"
-                    style={{ backgroundColor: a.tipo === 'cerca_squadra' ? BOARD_A : BOARD_B, color: '#fff' }}
-                  >
-                    {a.tipo === 'cerca_squadra' ? 'Cerco squadra' : 'Cercasi giocatori'}
-                  </span>
-                  <span className="text-xs" style={{ color: INK, opacity: 0.5 }}>{timeAgo(a.data)}</span>
-                </div>
-                <p className="text-sm whitespace-pre-wrap mb-3" style={{ color: INK }}>{a.testo}</p>
+          <>
+            {attivo && (
+              <div className="flex justify-center mb-4">
                 <button
                   type="button"
-                  onClick={() => onDeleteAnnuncio(a.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
-                  style={{ border: `1px solid ${CLAY}`, color: CLAY }}
+                  onClick={handleOpenBacheca}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold"
+                  style={{ backgroundColor: SUN, color: INK }}
                 >
-                  <Trash2 size={14} /> Elimina
+                  <Plus size={18} /> Pubblica un annuncio
                 </button>
               </div>
-            ))
-          )
+            )}
+
+            {!attivo && (
+              <div
+                className="text-sm rounded-lg px-3 py-2 mb-4"
+                style={{ backgroundColor: '#FBE3DC', color: '#8C3520' }}
+              >
+                Il tuo account è bloccato: non puoi pubblicare tornei né annunci.
+                Scrivi all&apos;amministratore se pensi si tratti di un errore.
+              </div>
+            )}
+
+            {mieiAnnunci.length === 0 ? (
+              <p className="text-sm text-center py-12" style={{ color: INK, opacity: 0.6 }}>
+                Non hai ancora scritto annunci in bacheca.
+              </p>
+            ) : (
+              mieiAnnunci.map((a) => (
+                <div
+                  key={a.id}
+                  className="rounded-xl border-2 p-4 mb-3"
+                  style={{
+                    backgroundColor: CARD_BG,
+                    borderColor: a.tipo === 'cerca_squadra' ? BOARD_A : BOARD_B,
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <span
+                      className="text-xs font-semibold px-2 py-0.5 rounded"
+                      style={{
+                        backgroundColor: a.tipo === 'cerca_squadra' ? BOARD_A : BOARD_B,
+                        color: '#fff',
+                      }}
+                    >
+                      {a.tipo === 'cerca_squadra' ? 'Cerco squadra' : 'Cercasi giocatori'}
+                    </span>
+
+                    <span className="text-xs" style={{ color: INK, opacity: 0.5 }}>
+                      {timeAgo(a.data)}
+                    </span>
+                  </div>
+
+                  <p className="text-sm whitespace-pre-wrap mb-3" style={{ color: INK }}>
+                    {a.testo}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => onDeleteAnnuncio(a.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
+                    style={{ border: `1px solid ${CLAY}`, color: CLAY }}
+                  >
+                    <Trash2 size={14} /> Elimina
+                  </button>
+                </div>
+              ))
+            )}
+          </>
         )}
 
         {tab === 'messaggi' && (

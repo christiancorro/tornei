@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CalendarDays, StickyNote, MessageCircle, Pencil, Trash2, Plus, Clock, Check, Ban, Settings, LogOut, Info
 } from 'lucide-react';
@@ -67,8 +67,37 @@ export default function AccountDashboard({
   onOpenDetail,
   onLogout,
   onDeleted,
+  /* Se il parent vuole aprire un thread specifico (per esempio
+     dopo che ho appena risposto a un annuncio) passa qui il convId:
+     salta al tab Messaggi e apri quella conversazione. */
+  pendingOpenConv,
+  onConvOpened,
 }) {
   const [tab, setTab] = useState('tornei');
+
+  // Contatore che viene bumped ogni volta che si ri-clicca il tab
+  // Messaggi mentre siamo già dentro. MessagesPanel osserva questo
+  // segnale e, al cambio, chiude la conversazione aperta tornando
+  // alla lista dei thread: comportamento standard delle app di
+  // messaggistica ("torna a tutti").
+  const [messaggiResetSignal, setMessaggiResetSignal] = useState(0);
+
+  function apriMessaggi() {
+    if (tab === 'messaggi') {
+      // Già lì: significa "porta indietro alla lista".
+      setMessaggiResetSignal((n) => n + 1);
+    } else {
+      setTab('messaggi');
+    }
+  }
+
+  // Se arriva un convId da aprire, spostati sul tab messaggi. Il
+  // MessagesPanel poi vede la stessa prop e apre il thread; io qui
+  // sposto solo il tab così il pannello è montato.
+  useEffect(() => {
+    if (pendingOpenConv) setTab('messaggi');
+  }, [pendingOpenConv]);
+
   const organizer = isOrganizer(profile);
   const attivo = isActive(profile);
 
@@ -101,7 +130,7 @@ export default function AccountDashboard({
         <Tab active={tab === 'annunci'} onClick={() => setTab('annunci')}>
           <StickyNote size={16} /> I miei annunci
         </Tab>
-        <Tab active={tab === 'messaggi'} onClick={() => setTab('messaggi')} badge={unreadTotal}>
+        <Tab active={tab === 'messaggi'} onClick={apriMessaggi} badge={unreadTotal}>
           <MessageCircle size={16} /> Messaggi
         </Tab>
         <Tab active={tab === 'impostazioni'} onClick={() => setTab('impostazioni')}>
@@ -236,6 +265,9 @@ export default function AccountDashboard({
             conversations={conversations}
             profile={profile}
             onDeleteConversation={onDeleteConversation}
+            pendingOpenConv={pendingOpenConv}
+            onConvOpened={onConvOpened}
+            resetSignal={messaggiResetSignal}
           />
         )}
 

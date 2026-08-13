@@ -4,7 +4,6 @@ import {
   SlidersHorizontal,
   X,
   ChevronDown,
-  CircleUserRound,
   ShieldCheck,
 } from 'lucide-react';
 
@@ -134,69 +133,81 @@ export default function Header({
               )}
             </div>
 
-            <div className="flex justify-end shrink-0">
-              {profile ? (
-                <button
-                  type="button"
-                  onClick={() => setView('account')}
-                  title="Il mio profilo"
-                  className={`
-                    group flex items-center gap-2 cursor-pointer shrink-0
-                    rounded-full border-2 border-transparent transition-all
-                    py-1 pl-1 pr-1 sm:pl-4
-                    ${onAccount
-                      ? 'bg-[#282828] text-[#fff8ef]'
-                      : 'text-[#282828] hover:border-[#282828]'
-                    }
-                  `}
-                >
-                  {/* L'opacità sta sul nome, non sul bottone: gli altri tab
-                      sono solo testo, qui sotto c'è una foto e schiarirla la
-                      farebbe sembrare non caricata. */}
-                  <span
-                    className={`text-sm font-semibold hidden sm:inline max-w-32 truncate transition-opacity ${onAccount ? '' : 'opacity-60 group-hover:opacity-100'
-                      }`}
-                  >
-                    {/* {profile.displayName || 'Profilo'} */}
-                    Il mio profilo
-                  </span>
+            {/* Un solo pulsante che assume due stati (loggato / non
+                loggato) invece di due componenti diversi. Prima:
+                "Accedi" e "Il mio profilo" avevano padding e icone di
+                dimensioni differenti, così al momento del login il
+                container cambiava larghezza e spostava lateralmente
+                nav e logo su mobile — l'effetto "salto" al login.
 
-                  {/* Solo questo bottone diventa scuro quando sei nell'area
-                      personale: è lui a fare da tab, non l'header intero. */}
-                  <span className="relative shrink-0">
-                    <Avatar
-                      src={profile.photoURL}
-                      name={profile.displayName}
-                      size={30}
-                    />
-                    {unreadTotal > 0 && (
-                      <span
-                        className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full text-xs font-black flex items-center justify-center border-2"
-                        style={{ backgroundColor: SUN, color: INK, borderColor: onAccount ? INK : SAND }}
-                      >
-                        {unreadTotal > 9 ? '9+' : unreadTotal}
-                      </span>
-                    )}
-                  </span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={onLoginClick}
-                  disabled={!authReady}
-                  title="Accedi con Google"
-                  className="flex items-center gap-2 cursor-pointer shrink-0
-                    rounded-full border-2 border-transparent transition-all
-                    px-4 py-1.5 text-[#282828] opacity-60
-                    hover:opacity-100 hover:border-[#282828]"
-                  style={{ opacity: authReady ? undefined : 0.5 }}
+                Adesso struttura identica in entrambi gli stati:
+                • stesso padding;
+                • stesso cerchio icona da 30px (via Avatar, che ha una
+                  fallback CircleUserRound quando manca la foto).
+
+                Il testo, se presente, ha larghezza naturale — nessun
+                riservo di spazio dentro il pulsante, altrimenti
+                "Accedi" avrebbe un vuoto imbarazzante alla sua destra.
+                Va bene comunque perché:
+                • su mobile il testo è `hidden sm:inline`, quindi
+                  entrambi gli stati mostrano solo il cerchio da 30px:
+                  il pulsante ha la stessa larghezza in "Accedi" e "Il
+                  mio profilo" — nulla si sposta;
+                • su desktop l'header è `sm:grid sm:grid-cols-3`, le
+                  tre colonne sono di larghezza fissa (1/3 ciascuna).
+                  Il pulsante account si allunga verso sinistra
+                  restando ancorato al bordo destro della sua colonna,
+                  ma nav e logo — che stanno nelle altre due colonne —
+                  non si spostano.
+
+                Al caricamento della foto, Avatar tiene già lo spazio
+                riservato e ha un fondo neutro, quindi non si vede
+                lampeggiare da vuoto a immagine. */}
+            <div className="flex justify-end shrink-0">
+              <button
+                type="button"
+                onClick={profile ? () => setView('account') : onLoginClick}
+                disabled={!profile && !authReady}
+                title={profile ? 'Il mio profilo' : 'Accedi con Google'}
+                className={`
+                  group flex items-center gap-2 cursor-pointer shrink-0
+                  rounded-full border-2 border-transparent transition-all
+                  py-1 pl-1 pr-1 sm:pl-4
+                  ${profile && onAccount
+                    ? 'bg-[#282828] text-[#fff8ef]'
+                    : 'text-[#282828] hover:border-[#282828]'
+                  }
+                `}
+                style={{ opacity: !profile && !authReady ? 0.5 : undefined }}
+              >
+                {/* L'opacità sta sul nome, non sul bottone: gli altri
+                    tab sono solo testo, qui sotto c'è una foto e
+                    schiarirla la farebbe sembrare non caricata. */}
+                <span
+                  className={`text-sm font-semibold hidden sm:inline truncate max-w-32 transition-opacity ${profile && onAccount ? '' : 'opacity-60 group-hover:opacity-100'}`}
                 >
-                  <span className="text-sm font-semibold hidden sm:inline">
-                    Accedi
-                  </span>
-                  <CircleUserRound size={22} />
-                </button>
-              )}
+                  {profile ? 'Il mio profilo' : 'Accedi'}
+                </span>
+
+                {/* Cerchio icona identico nei due stati: Avatar con
+                    src usa la foto, senza src disegna un
+                    CircleUserRound nello stesso cerchio da 30px. */}
+                <span className="relative shrink-0">
+                  <Avatar
+                    src={profile?.photoURL}
+                    name={profile?.displayName}
+                    size={30}
+                  />
+                  {profile && unreadTotal > 0 && (
+                    <span
+                      className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full text-xs font-black flex items-center justify-center border-2"
+                      style={{ backgroundColor: SUN, color: INK, borderColor: onAccount ? INK : SAND }}
+                    >
+                      {unreadTotal > 9 ? '9+' : unreadTotal}
+                    </span>
+                  )}
+                </span>
+              </button>
             </div>
           </div>
         </div>

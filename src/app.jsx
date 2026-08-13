@@ -47,6 +47,11 @@ export default function App() {
   const [detailTarget, setDetailTarget] = useState(null);
   const [replyTarget, setReplyTarget] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
+  /* convId che vogliamo aprire in Account → Messaggi: settato dal
+     redirect post-reply, azzerato dal MessagesPanel appena l'apre.
+     Tenuto qui e non dentro il pannello perché il redirect parte da
+     un'altra vista (Bacheca) e deve sopravvivere al cambio view. */
+  const [pendingOpenConv, setPendingOpenConv] = useState(null);
   const [nuovoTesto, setNuovoTesto] = useState('');
   const [nuovoTipo, setNuovoTipo] = useState('cerca_squadra');
   const [selectedDurate, setSelectedDurate] = useState([]);
@@ -357,8 +362,19 @@ export default function App() {
     }
   }
 
+  /* Restituisce il convId così ReplyModal (via useActionState.onDone)
+     può passarlo a openConversazione e portarci sul thread appena
+     creato. */
   async function handleReply(annuncio, testo) {
-    await reply(annuncio, profile, testo);
+    return reply(annuncio, profile, testo);
+  }
+
+  function openConversazione(convId) {
+    setPendingOpenConv(convId);
+    setView('account');
+    // Il MessagesPanel, appena vede pendingOpenConv non-null, apre il
+    // thread e chiama onConvOpened → setPendingOpenConv(null). Serve
+    // per non riscattarlo se l'utente naviga altrove e torna.
   }
 
   return (
@@ -484,6 +500,8 @@ export default function App() {
             onOpenDetail={setDetailTarget}
             onLogout={signOut}
             onDeleted={() => setView('tornei')}
+            pendingOpenConv={pendingOpenConv}
+            onConvOpened={() => setPendingOpenConv(null)}
           />
         </div>
       )}
@@ -537,6 +555,7 @@ export default function App() {
         <ReplyModal
           annuncio={replyTarget}
           onSend={handleReply}
+          onOpenConversazione={openConversazione}
           onClose={() => setReplyTarget(null)}
         />
       )}

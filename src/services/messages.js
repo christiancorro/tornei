@@ -29,7 +29,13 @@ import {
 
 import { db, COL_CONVERSAZIONI, SUB_MESSAGGI } from '../firebase';
 
-export const MAX_MESSAGGIO = 2000;
+/* Tetto alto perché non vogliamo limitare l'utente nella scrittura,
+   ma un tappo serve comunque: un documento Firestore non può superare
+   1 MB e senza soglia un incolla accidentale (o malevolo) potrebbe
+   riempirlo. 10 000 caratteri sono ~10 KB, non un problema.
+   Le regole Firestore hanno lo stesso valore per coerenza; se
+   modifichi qui, aggiornale anche in firestore.rules. */
+export const MAX_MESSAGGIO = 10000;
 
 export function conversationId(annuncioId, senderUid) {
   return `${annuncioId}__${senderUid}`;
@@ -99,11 +105,18 @@ export async function replyToAnnuncio(annuncio, sender, testo) {
      qualcuno dopo aver cancellato la conversazione precedente.
 
      setDoc con merge copre entrambi i casi: crea se manca, aggiorna
-     l'anteprima se c'è già. */
+     l'anteprima se c'è già.
+
+     `annuncioTesto` teniamo il testo INTERO (max 600 char, cappa
+     lato regole degli annunci) e non uno snippet: viene mostrato
+     come primo bubble nel thread per dare contesto — troncare
+     rovinerebbe la lettura. La lista conversazioni usa comunque
+     `lastMessage`, non questo campo, quindi non c'è impatto lì. */
   await setDoc(convRef(convId), {
     annuncioId: annuncio.id,
-    annuncioTesto: annuncio.testo.slice(0, 140),
+    annuncioTesto: annuncio.testo,
     annuncioTipo: annuncio.tipo,
+    annuncioAuthorId: annuncio.authorId,
     participants: [sender.uid, annuncio.authorId],
     names: {
       [sender.uid]: sender.displayName ?? '',

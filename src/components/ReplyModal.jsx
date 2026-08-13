@@ -4,7 +4,6 @@ import { useModalClose } from '../hooks/useModalClose';
 import { useActionState } from '../hooks/useActionState';
 
 import { INK, SUN, CLAY, GRASS_DARK, NOTE_YELLOW, NOTE_WHITE, BOARD_A, BOARD_B } from '../theme';
-import { MAX_MESSAGGIO } from '../services/messages';
 
 /* Risposta privata a un annuncio. Non è una chat pubblica:
    apre (o riapre) un thread visibile solo ai due.
@@ -12,14 +11,26 @@ import { MAX_MESSAGGIO } from '../services/messages';
    Il pulsante Invia passa da idle → saving → saved prima
    che il modale si chiuda: lo stato 'saved' dà la conferma
    che il messaggio è partito, così non ci si chiede se il
-   click abbia fatto qualcosa. */
-export default function ReplyModal({ annuncio, onSend, onClose }) {
+   click abbia fatto qualcosa.
+
+   `onSend` deve restituire il convId della conversazione
+   creata/riaperta: lo passiamo al chiamante via
+   `onOpenConversazione` così può portare l'utente sul thread
+   appena chiuso il modale. */
+export default function ReplyModal({ annuncio, onSend, onOpenConversazione, onClose }) {
   const { closing, close } = useModalClose(onClose);
   const [testo, setTesto] = useState('');
   const [error, setError] = useState('');
   const { state, run, busy } = useActionState({
     savedMs: 700,
-    onDone: close,
+    onDone: (convId) => {
+      close();
+      // Il redirect al thread parte prima ancora che il modale
+      // finisca l'animazione di uscita: mentre l'utente vede
+      // ancora "Inviato ✓", sotto la vista è già cambiata, così
+      // quando la modale sparisce la conversazione è già lì.
+      if (convId && onOpenConversazione) onOpenConversazione(convId);
+    },
     onError: (err) => setError(err?.message || 'Invio non riuscito.'),
   });
 
@@ -64,20 +75,21 @@ export default function ReplyModal({ annuncio, onSend, onClose }) {
           {annuncio.testo}
         </div>
 
+        {/* Niente maxLength: il tappo di sicurezza è in
+            services/messages.js (MAX_MESSAGGIO) e nelle regole
+            Firestore. Se l'utente supera il tetto, l'errore di
+            invio glielo dice — ma con 10 000 caratteri come tetto
+            in pratica non capiterà mai. */}
         <textarea
           value={testo}
           onChange={(e) => setTesto(e.target.value)}
           rows={4}
-          maxLength={MAX_MESSAGGIO}
           autoFocus
           disabled={busy}
           placeholder="Ciao! Sono interessato, gioco in banda e sono libero quel weekend..."
-          className="w-full px-3 py-2.5 rounded-lg border-2 text-sm outline-none resize-none mb-1 disabled:opacity-60"
+          className="w-full px-3 py-2.5 rounded-lg border-2 text-sm outline-none resize-none mb-3 disabled:opacity-60"
           style={{ borderColor: 'rgba(34,48,31,0.25)', color: INK }}
         />
-        <p className="text-xs mb-3 text-right" style={{ color: INK, opacity: 0.45 }}>
-          {testo.length}/{MAX_MESSAGGIO}
-        </p>
 
         {error && <p className="text-sm font-semibold mb-3" style={{ color: CLAY }}>{error}</p>}
 

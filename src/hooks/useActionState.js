@@ -67,7 +67,10 @@ export function useActionState({ savedMs = 700, onDone, onError } = {}) {
     if (stateRef.current !== 'idle') return;
     setState('saving');
     try {
-      await fn();
+      // Il valore restituito da fn viene passato a onDone: utile per
+      // esempio quando l'azione crea qualcosa (una conversazione, un
+      // torneo) e chi ha cliccato vuole poi navigare a quell'entità.
+      const result = await fn();
       if (!mounted.current) return;
       setState('saved');
       const finalize = () => {
@@ -75,7 +78,7 @@ export function useActionState({ savedMs = 700, onDone, onError } = {}) {
         // smontare il pulsante durante lo stato 'saved' (bello a
         // vedersi: la conferma resta visibile finché il modale
         // completa la sua transizione di uscita).
-        onDone?.();
+        onDone?.(result);
         if (mounted.current) setState('idle');
       };
       if (savedMs > 0) setTimeout(finalize, savedMs);

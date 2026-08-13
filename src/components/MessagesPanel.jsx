@@ -61,7 +61,7 @@ function AnnuncioBubble({ conv, profile, readOnly }) {
         <div className="text-[10px] font-bold mb-1 uppercase tracking-wide" style={{ color: accent }}>
           {readOnly
             ? `${authorName} · ${isSquadra ? 'Cerco squadra' : 'Cercasi giocatori'}`
-            : `${isSquadra ? 'Cerco squadra' : 'Cercasi giocatori'} · annuncio in bacheca`}
+            : `${isSquadra ? 'Cerco squadra' : 'Cercasi giocatori'}`}
         </div>
         <div className="whitespace-pre-wrap break-words">{conv.annuncioTesto}</div>
       </div>

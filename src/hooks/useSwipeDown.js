@@ -352,8 +352,21 @@ export function useSwipeDown(
       }
 
       const percorso = g.yPrec - g.y0;
-      if (percorso > SOGLIA || g.vy > VELOCITA) chiudiTrascinando(g.y);
-      else setOffset(0);
+
+      if (percorso > SOGLIA || g.vy > VELOCITA) {
+        chiudiTrascinando(g.y);
+      } else {
+        // Durante il drag il transform è stato scritto direttamente sul DOM.
+        // Prima allineo React alla posizione effettiva, poi torno a zero
+        // lasciando che la transizione CSS animi il rientro.
+        setOffset(g.y);
+
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setOffset(0);
+          });
+        });
+      }
     }
 
     el.addEventListener('touchstart', onStart, { passive: true });

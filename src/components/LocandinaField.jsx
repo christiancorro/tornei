@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ImagePlus, Loader2, Trash2, Link2, Upload } from 'lucide-react';
 
 import { INK, SUN, CLAY, GRASS_DARK, SAND } from '../theme';
@@ -12,13 +12,78 @@ function formatSize(bytes) {
 }
 
 /* ---------------------------------------------------------
+   Anteprima con cross-fade.
+
+   Un <img> semplice, cambiando `src`, resta bianco finché il
+   nuovo file non è decodificato: dopo "Sostituisci" si vede
+   uno sfarfallio. Qui teniamo traccia del load per src e
+   facciamo comparire l'immagine in opacità sopra uno sfondo
+   tenue — la nuova entra dolce, la vecchia non "sparisce"
+   prima del tempo.
+--------------------------------------------------------- */
+function AnteprimaLocandina({ src, className = '' }) {
+  const [loaded, setLoaded] = useState(false);
+  // Resetto `loaded` solo su un vero cambio di src: se lo facessi
+  // ogni render, la stessa immagine rifarebbe il fade da capo.
+  const prevSrcRef = useRef(src);
+  useEffect(() => {
+    if (prevSrcRef.current !== src) {
+      prevSrcRef.current = src;
+      setLoaded(false);
+    }
+  }, [src]);
+
+  return (
+    <div className={`relative w-16 h-20 shrink-0 rounded overflow-hidden ${className}`}>
+      {/* Sfondo tenue: riempie lo slot mentre l'img decodifica, così
+          non si vede mai un buco bianco durante lo swap. */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundColor: 'rgba(34,48,31,0.08)',
+          opacity: loaded ? 0 : 1,
+          transition: 'opacity 200ms ease-out',
+        }}
+        aria-hidden="true"
+      />
+      <img
+        // key=src smonta il vecchio <img> a ogni cambio: garantisce che
+        // il `loaded` ripartisca da capo anche se React riusasse
+        // l'istanza per pigrizia di riconciliazione.
+        key={src}
+        src={src}
+        alt="Anteprima locandina"
+        onLoad={() => setLoaded(true)}
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{
+          opacity: loaded ? 1 : 0,
+          transition: 'opacity 260ms ease-out',
+        }}
+      />
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
    Campo locandina: carica un file (compresso) oppure incolla
    un URL. Le due modalità scrivono sullo stesso campo `locandina`,
    ma solo il file valorizza `locandinaPath` — che è ciò che
    permette di cancellare il file da Storage insieme al torneo.
+
+   Da quando l'upload produce anche una preview piccola, il
+   campo scrive quattro chiavi in un colpo unico:
+     locandina + locandinaPath    → file grande (dettaglio)
+     locandinaThumb + …ThumbPath  → file piccolo (card lista)
+   Anche "Sostituisci" passa da qui, quindi grande e thumb
+   restano sempre in coppia: non può capitare di ritrovarsi
+   con la locandina nuova e il thumb vecchio.
+
+   In modalità "URL" resta valorizzato solo il grande: chi
+   incolla un link esterno non ci fa una preview server-side,
+   e la card ripiega sul grande.
 --------------------------------------------------------- */
 export default function LocandinaField({
-  value, path, onChange, labelClass, labelStyle, inputClass, inputStyle,
+  value, path, thumbPath, onChange, labelClass, labelStyle, inputClass, inputStyle,
 }) {
   const [mode, setMode] = useState(path || !value ? 'file' : 'url');
   const [busy, setBusy] = useState(false);
@@ -35,13 +100,25 @@ export default function LocandinaField({
     setBusy(true);
     setProgress(0);
 
-    const vecchio = path; // da rimuovere solo a caricamento riuscito
+    // Da rimuovere solo a caricamento riuscito: sia il file grande
+    // che il thumb del set precedente, se esistevano.
+    const vecchioPath = path;
+    const vecchioThumbPath = thumbPath;
 
     try {
       const res = await uploadLocandina(file, setProgress);
-      onChange({ locandina: res.url, locandinaPath: res.path });
-      setInfo(`${formatSize(res.originalSize)} → ${formatSize(res.size)}`);
-      if (vecchio && vecchio !== res.path) deleteLocandina(vecchio);
+      // Patch atomico dei quattro campi: main e thumb non possono
+      // divergere. Se dopo un salvataggio vedessi solo l'uno cambiato
+      // e l'altro no, sarebbe un baco qui.
+      onChange({
+        locandina: res.url,
+        locandinaPath: res.path,
+        locandinaThumb: res.thumbUrl,
+        locandinaThumbPath: res.thumbPath,
+      });
+      setInfo(`${formatSize(res.originalSize)} → ${formatSize(res.size)} + ${formatSize(res.thumbSize)}`);
+      if (vecchioPath && vecchioPath !== res.path) deleteLocandina(vecchioPath);
+      if (vecchioThumbPath && vecchioThumbPath !== res.thumbPath) deleteLocandina(vecchioThumbPath);
     } catch (err) {
       console.error('[locandina]', err);
       setError(
@@ -52,12 +129,23 @@ export default function LocandinaField({
     } finally {
       setBusy(false);
       setProgress(0);
+      // Reset del value dell'input: senza questo, riaprire la finestra
+      // e scegliere lo stesso file non fa scattare onChange (il browser
+      // vede value invariato) — "Sostituisci con lo stesso file" non
+      // partirebbe mai.
+      if (inputRef.current) inputRef.current.value = '';
     }
   }
 
   function rimuovi() {
     if (path) deleteLocandina(path);
-    onChange({ locandina: '', locandinaPath: '' });
+    if (thumbPath) deleteLocandina(thumbPath);
+    onChange({
+      locandina: '',
+      locandinaPath: '',
+      locandinaThumb: '',
+      locandinaThumbPath: '',
+    });
     setInfo('');
     setError('');
     if (inputRef.current) inputRef.current.value = '';
@@ -95,7 +183,15 @@ export default function LocandinaField({
           className={inputClass}
           style={inputStyle}
           value={value ?? ''}
-          onChange={(e) => onChange({ locandina: e.target.value, locandinaPath: '' })}
+          onChange={(e) => onChange({
+            locandina: e.target.value,
+            locandinaPath: '',
+            // Un link esterno non ha una preview separata: azzero il
+            // thumb così la card ripiega sull'URL grande e non tenta
+            // di caricare un thumb vecchio ormai orfano.
+            locandinaThumb: '',
+            locandinaThumbPath: '',
+          })}
           placeholder="https://..."
         />
       ) : value ? (
@@ -103,14 +199,31 @@ export default function LocandinaField({
           className="flex items-center gap-3 p-3 rounded-lg border-2"
           style={{ borderColor: 'rgba(34,48,31,0.2)' }}
         >
-          <img
-            src={value}
-            alt="Anteprima locandina"
-            className="w-16 h-20 object-cover rounded shrink-0"
-          />
+          <div className="relative">
+            <AnteprimaLocandina src={value} />
+            {/* Durante la sostituzione l'anteprima vecchia resta a
+                schermo (il patch dei campi arriva solo a upload finito),
+                ma copro con un velo + spinner per dire "ci sto lavorando".
+                Senza questo, l'utente non sa se il click ha fatto niente
+                e ripreme "Sostituisci". */}
+            {busy && (
+              <div
+                className="absolute inset-0 flex items-center justify-center rounded"
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.7)',
+                  transition: 'opacity 200ms ease-out',
+                }}
+                aria-hidden="true"
+              >
+                <Loader2 size={18} className="animate-spin" style={{ color: INK }} />
+              </div>
+            )}
+          </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold" style={{ color: GRASS_DARK }}>
-              Immagine caricata
+              {busy
+                ? (progress > 0 ? `Caricamento ${progress}%` : 'Compressione...')
+                : 'Immagine caricata'}
             </p>
             {/* {info && (
               <p className="text-xs" style={{ color: INK, opacity: 0.55 }}>
@@ -120,7 +233,8 @@ export default function LocandinaField({
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="text-xs font-semibold underline mt-1"
+              disabled={busy}
+              className="text-xs font-semibold underline mt-1 disabled:opacity-40"
               style={{ color: INK }}
             >
               Sostituisci
@@ -129,7 +243,8 @@ export default function LocandinaField({
           <button
             type="button"
             onClick={rimuovi}
-            className="shrink-0 p-2 rounded-full"
+            disabled={busy}
+            className="shrink-0 p-2 rounded-full disabled:opacity-40"
             style={{ color: CLAY }}
             aria-label="Rimuovi locandina"
           >

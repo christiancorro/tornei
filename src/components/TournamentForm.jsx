@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Check, Loader2 } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
 
-import { INK, SUN } from '../theme';
+import { INK, SUN, GRASS_DARK } from '../theme';
 import { DISCIPLINE, DISCIPLINE_COLORS, FORMATI } from '../constants';
 import { emptyTournament, toggleValue } from '../utils';
 import Chip from './ui/Chip';
@@ -11,19 +11,32 @@ import LocandinaField from './LocandinaField';
 /* ---------------------------------------------------------
    Admin form (add / edit) — no backend yet, so this writes
    straight into local state.
+
+   Chiusura del modale: prima chiudeva app.jsx dopo il save.
+   Adesso la chiusura è governata da qui, perché il pulsante
+   attraversa tre stati (idle → saving → saved) e vogliamo che
+   il feedback "Salvato!" sia visibile un attimo prima che il
+   pannello vada via. Il chiamante (`onSave`) deve rilanciare
+   l'errore se il salvataggio fallisce, così il bottone può
+   tornare in idle.
 --------------------------------------------------------- */
 export default function TournamentForm({ initial, onSave, onCancel }) {
   const { closing, close } = useModalClose(onCancel);
   const [form, setForm] = useState(initial || emptyTournament());
+  const [errore, setErrore] = useState('');
+  // Stato del pulsante Salva: 'idle' → 'saving' → 'saved' → chiusura.
+  // Su errore torna in 'idle' e il toast lo mostra il chiamante.
+  const [saveState, setSaveState] = useState('idle');
+  const isEdit = Boolean(initial);
+  const busy = saveState !== 'idle';
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  const [errore, setErrore] = useState('');
-
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
+    if (busy) return;
     // `required` non funziona su un input file nascosto, quindi il
     // controllo sulla locandina va fatto qui a mano.
     if (!form.locandina) {
@@ -31,7 +44,27 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
       return;
     }
     setErrore('');
-    onSave(form);
+    setSaveState('saving');
+    try {
+      await onSave(form);
+      setSaveState('saved');
+      // Lascio respirare l'animazione di conferma prima di far partire
+      // quella di chiusura: 700ms sono percepiti come "azione compiuta"
+      // senza far aspettare inutilmente. useModalClose aggiunge poi la
+      // sua transizione di uscita.
+      setTimeout(() => close(), 700);
+    } catch {
+      // Il chiamante ha già mostrato il toast di errore: qui basta
+      // riportare il pulsante allo stato interagibile.
+      setSaveState('idle');
+    }
+  }
+
+  // Il modale non deve chiudersi mentre stiamo salvando: né dal backdrop,
+  // né dalla X, né dall'Escape. Altrimenti si perderebbe la conferma o
+  // peggio si annullerebbe un'operazione in corso.
+  function chiudiSePossibile() {
+    if (!busy) close();
   }
 
   const inputClass = 'w-full px-3.5 py-2.5 rounded-lg border-2 outline-none text-sm focus:ring-2 focus:ring-amber-500';
@@ -43,7 +76,7 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
     <div
       className={`fixed inset-0 flex items-center justify-center p-4 z-50 modal-backdrop ${closing ? 'is-closing' : ''}`}
       style={{ backgroundColor: 'rgba(20, 19, 18, 0.93)' }}
-      onClick={close}
+      onClick={chiudiSePossibile}
     >
       <div
         className={`bg-white rounded-2xl w-full max-w-2xl overflow-y-auto modal-panel ${closing ? 'is-closing' : ''}`}
@@ -55,12 +88,13 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
           style={{ borderColor: 'rgba(34,48,31,0.1)' }}
         >
           <h2 className="font-black text-lg" style={{ color: INK }}>
-            {initial ? 'Modifica torneo' : 'Nuovo torneo'}
+            {isEdit ? 'Modifica torneo' : 'Nuovo torneo'}
           </h2>
           <button
             type="button"
-            onClick={close}
-            className="p-1.5 rounded-full hover:bg-gray-100 "
+            onClick={chiudiSePossibile}
+            disabled={busy}
+            className="p-1.5 rounded-full hover:bg-gray-100 disabled:opacity-40"
             style={{ color: INK }}
           >
             <X size={18} />
@@ -258,6 +292,10 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
           <LocandinaField
             value={form.locandina}
             path={form.locandinaPath}
+            /* Serve al campo per cancellare il thumb vecchio quando
+               l'utente sostituisce l'immagine o preme "Rimuovi": senza
+               questo, il thumb resta orfano su Storage. */
+            thumbPath={form.locandinaThumbPath}
             onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
             labelClass={labelClass}
             labelStyle={labelStyle}
@@ -272,18 +310,44 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
           <div className="flex gap-3 pt-2">
             <button
               type="button"
-              onClick={close}
-              className="flex-1 py-2.5 rounded-lg border-2 font-semibold "
+              onClick={chiudiSePossibile}
+              disabled={busy}
+              className="flex-1 py-2.5 rounded-lg border-2 font-semibold disabled:opacity-40"
               style={{ borderColor: 'rgba(34,48,31,0.25)', color: INK }}
             >
               Annulla
             </button>
             <button
               type="submit"
-              className="flex-1 py-2.5 rounded-lg font-semibold text-white shadow-sm  focus:ring-offset-2"
-              style={{ backgroundColor: SUN }}
+              disabled={busy}
+              /* Transizione morbida su tutto (colore, ombra, scala):
+                 il pulsante "cambia carattere" tra idle → saving → saved
+                 invece di sostituirsi di colpo. La scala 0.98 sul click
+                 va con :active in styles.css; qui ci pensa transition-all. */
+              className="flex-1 py-2.5 rounded-lg font-semibold text-white shadow-sm transition-all duration-200
+                         flex items-center justify-center gap-2
+                         active:scale-[0.98] disabled:cursor-default
+                         focus:ring-offset-2"
+              style={{
+                // Verde a conferma avvenuta: dice "è successo" senza
+                // bisogno di leggere il testo. Idle e saving restano
+                // sul giallo del brand.
+                backgroundColor: saveState === 'saved' ? GRASS_DARK : SUN,
+              }}
             >
-              Crea torneo
+              {saveState === 'saving' && (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Salvataggio...
+                </>
+              )}
+              {saveState === 'saved' && (
+                <>
+                  <Check size={16} />
+                  Salvato!
+                </>
+              )}
+              {saveState === 'idle' && (isEdit ? 'Modifica torneo' : 'Crea torneo')}
             </button>
           </div>
         </form>

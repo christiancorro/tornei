@@ -21,8 +21,14 @@ export function emptyTournament() {
     instagram: '',
     facebook: '',
     sitoWeb: '',
+    // `locandina` è il file grande mostrato nel dettaglio;
+    // `locandinaThumb` è la preview piccola usata nelle card di
+    // lista. Le card leggono il thumb con fallback al grande, così
+    // i tornei vecchi (senza thumb) continuano a funzionare.
     locandina: '',
     locandinaPath: '',
+    locandinaThumb: '',
+    locandinaThumbPath: '',
   };
 }
 

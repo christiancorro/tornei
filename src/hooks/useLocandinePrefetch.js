@@ -1,32 +1,33 @@
 import { useEffect } from 'react';
 
 /* ---------------------------------------------------------
-   useLocandinePrefetch — precarica in background tutte le
-   locandine della lista.
+   useLocandinePrefetch — precarica in background le
+   locandine grandi (quelle del dettaglio).
 
-   Perché: senza questo hook, ogni locandina viene scaricata
-   solo quando la sua card entra nel viewport (loading="lazy"
-   di LazyImage) o quando si apre la card detail. Risultato:
-   scrolling che rivela immagini "vuote", detail che si apre
-   con placeholder + fade.
+   Divisione dei compiti:
+   • Le CARD di lista mostrano il file `locandinaThumb` (~40 KB):
+     è piccolo, arriva subito, non serve prefetch — basta il
+     loading normale + `eager` per le prime card sopra la piega.
+   • Il DETTAGLIO mostra la `locandina` grande (~400 KB). Qui il
+     prefetch conta: appena i tornei arrivano da Firestore (cioè
+     all'ingresso nel sito, NON al click sulla card) un `Image()`
+     fuori-DOM parte in background a priorità bassa. Quando
+     l'utente apre una card il file è già in cache, LazyImage la
+     vede `complete` e la mostra senza skeleton né fade.
 
-   Cosa fa: appena i tornei sono in memoria, crea un `Image()`
-   fuori-DOM per ogni URL di locandina e ne setta la `src`. Il
-   browser scarica, mette in cache, tiene le connessioni pool
-   (max ~6 in parallelo per origine — Firebase Storage). Quando
-   LazyImage renderizza la stessa src, la trova già in cache:
-   `img.complete` è true al mount, `detectStatus` promuove
-   direttamente a 'ready' e non parte alcun fade.
+   Perché parto subito (niente requestIdleCallback):
+   con l'idle callback il prefetch poteva slittare di 1–2 s su
+   telefoni lenti — troppo per uno che apre subito la prima card.
+   `fetchPriority = 'low'` fa già il lavoro di "stai indietro":
+   il browser scarica prima gli asset critici (JS, CSS, thumb
+   visibili) e in parallelo, sui socket liberi, lavora sulle
+   locandine grandi. Il risultato è che quando l'utente ha finito
+   di guardare la lista e clicca, il grande è già in cache.
 
-   `fetchPriority = 'low'`: queste immagini sono in background,
-   non devono competere con eventuali risorse critiche che il
-   browser sta caricando (JS, CSS, immagini visibili "eager").
-
-   Costo: banda. Con 50 tornei da ~200 KB fanno ~10 MB. Per un
-   sito di tornei con lista contenuta è accettabile; se un giorno
-   la lista diventa enorme, aggiungi una soglia (es. prefetch
-   solo dei primi N) o un requestIdleCallback per aspettare che
-   il browser sia idle prima di partire.
+   Costo: banda. Con 50 tornei da ~400 KB fanno ~20 MB. Se un
+   giorno la lista diventa enorme, aggiungere una soglia (es.
+   prefetch solo dei primi N tornei per data o solo dei prossimi
+   X giorni).
 --------------------------------------------------------- */
 export function useLocandinePrefetch(tournaments) {
   useEffect(() => {
@@ -34,36 +35,29 @@ export function useLocandinePrefetch(tournaments) {
     if (!tournaments || tournaments.length === 0) return undefined;
 
     // Set: se due tornei condividessero la stessa URL (raro ma possibile)
-    // non facciamo due download separati.
+    // non facciamo due download separati. Prefetch della SOLA versione
+    // grande: la thumb è già gestita dal render normale delle card.
     const urls = new Set();
     tournaments.forEach((t) => {
       if (t.locandina) urls.add(t.locandina);
     });
     if (urls.size === 0) return undefined;
 
-    /* requestIdleCallback: aspetto che il browser abbia finito le cose
-       importanti (primo paint, listener, layout) prima di lanciare i
-       download in background. Fallback a setTimeout dove non c'è
-       (Safari fino alla 16.4 non lo supportava). */
-    const richiedi = window.requestIdleCallback
-      || ((cb) => window.setTimeout(cb, 200));
-    const cancella = window.cancelIdleCallback
-      || window.clearTimeout;
-
+    // Parto subito, non aspetto l'idle callback: il browser gestisce da
+    // solo l'ordine grazie a fetchPriority='low'. Se aspettassi l'idle,
+    // sui telefoni lenti il prefetch slitterebbe abbastanza da farsi
+    // battere dal primo click dell'utente su una card.
     const images = [];
-    const handle = richiedi(() => {
-      urls.forEach((url) => {
-        const img = new Image();
-        img.decoding = 'async';
-        // fetchPriority è recente ma safe: browser vecchi lo ignorano.
-        img.fetchPriority = 'low';
-        img.src = url;
-        images.push(img);
-      });
-    }, { timeout: 2000 });
+    urls.forEach((url) => {
+      const img = new Image();
+      img.decoding = 'async';
+      // fetchPriority è recente ma safe: browser vecchi lo ignorano.
+      img.fetchPriority = 'low';
+      img.src = url;
+      images.push(img);
+    });
 
     return () => {
-      cancella(handle);
       /* Non svuoto le src: se il download è a metà lo abortirei
          sprecando la banda già consumata. Meglio lasciar completare —
          una volta in cache resta comunque utile alla prossima visita. */

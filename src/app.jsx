@@ -291,17 +291,22 @@ export default function App() {
     action();
   }
 
+  /* La chiusura del form (setFormState(null)) la fa il form stesso
+     dopo l'animazione "Salvato!" — qui restituiamo solo il risultato
+     del salvataggio, rilanciando l'errore così il form può tornare
+     in stato "idle" se qualcosa va male. */
   async function handleSave(t) {
+    const isNew = !t.id;
     try {
       await saveTournament(t, profile);
-      setFormState(null);
-      if (!isOrganizer(profile) && !t.id) {
+      if (!isOrganizer(profile) && isNew) {
         toast('Proposta inviata! Un amministratore la controllerà a breve.', 'success', 6000);
         setView('account');
       }
     } catch (err) {
       console.error('[salva torneo]', err);
       toast('Salvataggio non riuscito. Controlla i campi obbligatori.', 'error');
+      throw err;
     }
   }
 

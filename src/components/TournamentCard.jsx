@@ -11,19 +11,27 @@ import LazyImage from './ui/LazyImage';
    stub on the left, perforation, details on the right.
 
    La card si disegna subito con tutte le info testuali; la
-   locandina è asincrona (LazyImage riserva lo spazio con uno
-   skeleton e la fa entrare in dissolvenza quando è pronta),
-   così scorrendo la lista non ci sono salti né attese
-   percepite.
+   locandina qui è una *preview*, non la locandina intera:
+   usa il file thumb (~40 KB, 400px) prodotto in upload, così
+   la card entra in scena subito invece di aspettare i 400 KB
+   della versione grande. La versione grande la vede chi apre
+   il dettaglio.
+
+   Fallback: sui tornei vecchi salvati prima del thumb, se
+   `locandinaThumb` non c'è si ripiega sulla `locandina`
+   grande — meglio una preview lenta di nessuna preview.
 --------------------------------------------------------- */
 export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDetail, eagerImage = false }) {
   const [posterMissing, setPosterMissing] = useState(false);
   const style = STUB_STYLE[t.disciplina] || STUB_STYLE['Green Volley'];
   const stub = formatStubGiorno(t.data, t.dataFine);
-  // Lo slot poster esiste finché c'è una locandina da tentare: se
+  // Preview: prima il thumb piccolo, poi ripiego sul grande se il
+  // torneo è stato salvato prima che i thumb esistessero.
+  const previewSrc = t.locandinaThumb || t.locandina;
+  // Lo slot poster esiste finché c'è una preview da tentare: se
   // non c'è o è rotta il chiamante di LazyImage (onUnavailable) ce
   // lo dice e nascondiamo del tutto la colonna.
-  const hasPoster = Boolean(t.locandina) && !posterMissing;
+  const hasPoster = Boolean(previewSrc) && !posterMissing;
   const stubSize = stub.giorno.length <= 2 ? 'text-3xl' : stub.giorno.length <= 5 ? 'text-[1.8rem]' : 'text-base';
 
   return (
@@ -139,9 +147,12 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
 
       </div>
       {hasPoster && (
-        <div className="hidden sm:flex w-22 shrink-0 py-3 items-center justify-center sm:mr-6 rounded-lg">
+        /* Colonna preview: stretta di proposito. La locandina qui
+           è solo un'anteprima — quella "in grande" è nel dettaglio.
+           Meno spazio + file più piccolo = card che entra subito. */
+        <div className="hidden sm:flex w-16 lg:w-20 shrink-0 py-3 items-center justify-center sm:mr-6 rounded-lg">
           <LazyImage
-            src={t.locandina}
+            src={previewSrc}
             alt={`Locandina di ${t.nome}`}
             /* Niente aspectRatio: la locandina mantiene la sua forma
                originale (verticale, quadrata, orizzontale). Rinuncio

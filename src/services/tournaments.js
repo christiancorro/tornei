@@ -41,7 +41,12 @@ const tourneysRef = collection(db, COL_TORNEI);
 const FIELDS = [
   'nome', 'disciplina', 'formati', 'modalita', 'data', 'dataFine', 'ora',
   'comune', 'costo', 'organizzatore', 'descrizioneOrganizzatore',
-  'instagram', 'facebook', 'sitoWeb', 'locandina', 'locandinaPath',
+  'instagram', 'facebook', 'sitoWeb',
+  // `locandina` è la versione grande (dettaglio), `locandinaThumb`
+  // quella piccola usata come preview nelle card di lista. I due
+  // *Path servono a cancellarne i file da Storage con il torneo.
+  'locandina', 'locandinaPath',
+  'locandinaThumb', 'locandinaThumbPath',
 ];
 
 function toFirestore(t) {
@@ -125,8 +130,14 @@ export function saveTournament(t, profile) {
 }
 
 export async function deleteTournament(t) {
+  // Cancella prima entrambi i file (main + thumb), poi il documento.
+  // Se uno dei file non c'è più (o non c'è mai stato — tornei vecchi
+  // senza thumb) il catch tiene buono il flusso.
   if (t.locandinaPath) {
     await deleteObject(ref(storage, t.locandinaPath)).catch(() => { });
+  }
+  if (t.locandinaThumbPath) {
+    await deleteObject(ref(storage, t.locandinaThumbPath)).catch(() => { });
   }
   await deleteDoc(doc(db, COL_TORNEI, t.id));
 }
@@ -171,14 +182,24 @@ export async function rejectTournament(torneo, adminUid, motivo = '') {
    Upload della locandina.
 
    Le locandine arrivano quasi sempre da uno screenshot o da
-   una foto del telefono: 4–8 MB, 4000px di lato. Nella scheda
-   ne vediamo al massimo 800px. Comprimere prima di caricare
-   fa risparmiare banda a chi carica, soldi di Storage a te, e
-   secondi di attesa a chi guarda.
+   una foto del telefono: 4–8 MB, 4000px di lato. Da qui
+   produciamo due file:
+
+   • FULL (~400 KB, max 1600px): quello che si vede nel
+     dettaglio, dove c'è spazio per apprezzarla.
+   • THUMB (~40 KB, max 400px): l'anteprima nelle card di
+     lista. Deve entrare subito, quindi la vogliamo piccola:
+     una card che aspetta un JPG da 400 KB non è "immediata".
+
+   Entrambi vanno su Storage e i loro URL/paths finiscono sul
+   documento del torneo (`locandina` + `locandinaPath` per il
+   grande, `locandinaThumb` + `locandinaThumbPath` per il
+   piccolo). Le card leggono il thumb con fallback al full, i
+   tornei vecchi senza thumb continuano a funzionare.
 
    `onProgress` riceve 0–100: senza, su una connessione lenta
    l'utente non sa se sta succedendo qualcosa e ripreme il
-   bottone.
+   bottone. Il progresso è la media pesata dei due upload.
 --------------------------------------------------------- */
 export const MAX_LOCANDINA_MB = 20;
 
@@ -204,47 +225,98 @@ export async function compressLocandina(file) {
   }
 
   const webp = supportsWebP();
+  const type = webp ? 'image/webp' : 'image/jpeg';
+  const ext = webp ? 'webp' : 'jpg';
 
-  const compressed = await imageCompression(file, {
-    maxSizeMB: 0.4,
-    maxWidthOrHeight: 1600,
-    initialQuality: 0.82,
-    useWebWorker: true, // la compressione non blocca l'interfaccia
-    fileType: webp ? 'image/webp' : 'image/jpeg',
-  });
+  // Le due compressioni girano in parallelo: sono due passate
+  // indipendenti sullo stesso file d'ingresso, non c'è motivo di
+  // farle in sequenza. Su un telefono lento la seconda comunque
+  // condivide la worker: nessun rischio di raddoppio dei tempi.
+  const [full, thumb] = await Promise.all([
+    imageCompression(file, {
+      maxSizeMB: 0.4,
+      maxWidthOrHeight: 1600,
+      initialQuality: 0.82,
+      useWebWorker: true,
+      fileType: type,
+    }),
+    imageCompression(file, {
+      // Il thumb sta in una colonnina di ~80px nella card: 400px
+      // di lato è già abbondante per il retina. La qualità un po'
+      // più bassa (0.7) fa scendere i KB senza artefatti visibili
+      // a quella dimensione.
+      maxSizeMB: 0.05,
+      maxWidthOrHeight: 400,
+      initialQuality: 0.7,
+      useWebWorker: true,
+      fileType: type,
+    }),
+  ]);
 
   return {
-    blob: compressed,
-    type: webp ? 'image/webp' : 'image/jpeg',
-    ext: webp ? 'webp' : 'jpg',
+    full: { blob: full, type, ext, size: full.size },
+    thumb: { blob: thumb, type, ext, size: thumb.size },
     originalSize: file.size,
-    size: compressed.size,
   };
+}
+
+/* Un singolo upload verso Storage. Ritorna URL + path e chiama
+   onProgress con i bytes trasferiti per pesare il progresso
+   combinato dei due file. */
+function uploadOne(blob, type, path, onBytes) {
+  const task = uploadBytesResumable(ref(storage, path), blob, {
+    contentType: type,
+    cacheControl: 'public, max-age=31536000', // le locandine non cambiano mai
+  });
+
+  return new Promise((resolve, reject) => {
+    task.on(
+      'state_changed',
+      (snap) => onBytes?.(snap.bytesTransferred),
+      reject,
+      async () => {
+        try {
+          const url = await getDownloadURL(task.snapshot.ref);
+          resolve({ url, path });
+        } catch (err) {
+          reject(err);
+        }
+      }
+    );
+  });
 }
 
 export async function uploadLocandina(file, onProgress) {
   const c = await compressLocandina(file);
   if (!c) return null;
 
-  const path = `locandine/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${c.ext}`;
-  const task = uploadBytesResumable(ref(storage, path), c.blob, {
-    contentType: c.type,
-    cacheControl: 'public, max-age=31536000', // le locandine non cambiano mai
-  });
+  const base = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const pathFull = `locandine/${base}.${c.full.ext}`;
+  const pathThumb = `locandine/${base}-thumb.${c.thumb.ext}`;
 
-  await new Promise((resolve, reject) => {
-    task.on(
-      'state_changed',
-      (snap) => onProgress?.(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
-      reject,
-      resolve
-    );
-  });
+  // Progresso combinato: sommo i bytes trasferiti dei due upload
+  // e li divido sul totale. Così la barra sale in modo lineare
+  // anche se un file finisce prima dell'altro.
+  const totali = c.full.size + c.thumb.size;
+  let bytesFull = 0;
+  let bytesThumb = 0;
+  const aggiorna = () => {
+    if (!onProgress || !totali) return;
+    onProgress(Math.round(((bytesFull + bytesThumb) / totali) * 100));
+  };
+
+  const [fullRes, thumbRes] = await Promise.all([
+    uploadOne(c.full.blob, c.full.type, pathFull, (b) => { bytesFull = b; aggiorna(); }),
+    uploadOne(c.thumb.blob, c.thumb.type, pathThumb, (b) => { bytesThumb = b; aggiorna(); }),
+  ]);
 
   return {
-    url: await getDownloadURL(task.snapshot.ref),
-    path,
-    size: c.size,
+    url: fullRes.url,
+    path: fullRes.path,
+    thumbUrl: thumbRes.url,
+    thumbPath: thumbRes.path,
+    size: c.full.size,
+    thumbSize: c.thumb.size,
     originalSize: c.originalSize,
   };
 }
@@ -302,6 +374,8 @@ export async function createTestTournament(profile) {
       descrizioneOrganizzatore: 'Test Storage',
       locandina: uploaded.url,
       locandinaPath: uploaded.path,
+      locandinaThumb: uploaded.thumbUrl,
+      locandinaThumbPath: uploaded.thumbPath,
     },
     profile
   );

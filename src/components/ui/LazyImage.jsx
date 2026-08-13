@@ -135,7 +135,7 @@ export default function LazyImage({
         alt={alt}
         loading={eager ? 'eager' : 'lazy'}
         decoding="async"
-        fetchpriority={eager ? 'high' : 'low'}
+        fetchPriority={eager ? 'high' : 'low'}
         onLoad={() => {
           READY_SRCS.add(src);
           setStatus('ready');

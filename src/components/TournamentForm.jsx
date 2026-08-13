@@ -44,7 +44,7 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
     // `required` non funziona su un input file nascosto, quindi il
     // controllo sulla locandina va fatto qui a mano.
     if (!form.locandina) {
-      setErrore('Aggiungi la locandina: è la prima cosa che si guarda.');
+      setErrore('Aggiungi la locandina.');
       return;
     }
     setErrore('');

@@ -75,7 +75,7 @@ export default function AccountSettings({ profile, onDeleted }) {
       <div className="rounded-xl border-2 p-4 mb-4" style={{ backgroundColor: CARD_BG, borderColor: 'rgba(34,48,31,0.15)' }}>
         <h3 className="font-black text-base mb-3" style={{ color: INK }}>Profilo</h3>
 
-        <label className="block text-xs font-bold mb-1" style={{ color: INK }}>Nome visualizzato</label>
+        <label className="block text-xs font-semibold mb-1" style={{ color: INK }}>Nome visualizzato</label>
         <input
           type="text"
           value={nome}
@@ -112,7 +112,7 @@ export default function AccountSettings({ profile, onDeleted }) {
           {salva.idle && <Save size={16} />}
           {salva.saving ? 'Salvataggio...'
             : salva.saved ? 'Salvato'
-            : 'Salva'}
+              : 'Salva'}
         </button>
       </div>
 
@@ -196,7 +196,7 @@ export default function AccountSettings({ profile, onDeleted }) {
                 {rimuovi.saved && <Check size={16} />}
                 {rimuovi.saving ? 'Eliminazione...'
                   : rimuovi.saved ? 'Eliminato'
-                  : 'Elimina definitivamente'}
+                    : 'Elimina definitivamente'}
               </button>
             </div>
           </>

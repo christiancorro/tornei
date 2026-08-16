@@ -255,7 +255,7 @@ html {
   height: calc(100dvh - max(env(safe-area-inset-top, 0px), 20px));
   /* Solo angoli superiori arrotondati: i due inferiori sono a filo del
      fondo dello schermo, e comunque non li vedresti. */
-  border-radius: 1.5rem 1.5rem 0 0;
+  border-radius: 1.2rem 1.2rem 0 0;
 }
 .tournament-detail-scroll {
   max-height: calc(100vh - max(env(safe-area-inset-top, 0px), 24px));

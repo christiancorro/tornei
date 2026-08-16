@@ -141,8 +141,16 @@ export default function App() {
   );
 
   /* Lista su cui scorre il dettaglio: quella che si aveva davanti
-     quando si è aperta la scheda, non sempre i tornei pubblici. */
-  const listaDettaglio = view === 'account' ? mieiTornei : filtered;
+     quando si è aperta la scheda, non sempre i tornei pubblici.
+     Sui tornei pubblici uso solo i "futuri": lo swipe laterale nel
+     dettaglio non sfoglia mai nel passato, così anche chi apre un
+     torneo di oggi non si ritrova per sbaglio in quello di due
+     settimane fa (che sta nascosto sotto "tornei precedenti").
+     Una card passata aperta dalla sezione a scomparsa finisce fuori
+     dalla lista di navigazione: indice = -1 → nessun precedente né
+     prossimo, lo swipe fa il "rimbalzo" di useSwipeDown senza cambiare
+     scheda, ed è il comportamento giusto per una scheda d'archivio. */
+  const listaDettaglio = view === 'account' ? mieiTornei : futuri;
   const sortedAnnunci = useMemo(
     () => [...annunci].sort((a, b) => new Date(b.data) - new Date(a.data)),
     [annunci]

@@ -58,7 +58,7 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
       }}
     >
       <div
-        className="relative flex flex-col items-center justify-center text-center py-3 sm:py-4 shrink-0 overflow-hidden w-20 sm:w-28 lg:w-32 sm:mr-8"
+        className="relative flex flex-col items-center justify-center text-center py-3 sm:py-4 shrink-0 overflow-hidden w-20 sm:w-28 lg:w-32 mr-1 sm:mr-8"
         style={{ background: style.bg }}
       >
         <div className="relative text-white px-1" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.35)' }}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { History, ChevronDown, ChevronUp } from 'lucide-react';
 import MonthHeader from './ui/MonthHeader';
 import TournamentCard from './TournamentCard';
@@ -30,7 +30,29 @@ export default function TournamentList({
   onResetFilters,
 }) {
   const [mostraPassati, setMostraPassati] = useState(false);
+  const bottonePassatiRef = useRef(null);
   const totalePassati = gruppiPassati.reduce((sum, g) => sum + g.items.length, 0);
+
+  /* Aprendo la sezione dei passati, il contenuto atterra sotto la
+     piega — senza aiuto l'utente non si accorge che qualcosa si è
+     mosso. Dopo il toggle, sposto lo scroll per portare il pulsante
+     al centro dello schermo: sopra si vedono ancora gli ultimi
+     "in programma" e sotto il primo dei passati (quello più recente,
+     grazie all'ordinamento discendente), così il confine è chiaro.
+     Due rAF: uno per lasciare React renderizzare la sezione appena
+     espansa, l'altro perché il layout sia già a regime prima di
+     misurare. Solo all'apertura: chiudendo, lo scroll starebbe
+     saltando via da dove si era per niente. */
+  const togglePassati = () => {
+    const staAprendo = !mostraPassati;
+    setMostraPassati((v) => !v);
+    if (!staAprendo) return;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        bottonePassatiRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      });
+    });
+  };
 
   /* Vuoto per davvero: né futuri né passati. Solo in questo caso
      l'EmptyState (con "azzera filtri") ha senso. Se ci sono passati
@@ -89,8 +111,9 @@ export default function TournamentList({
              al 60% a riposo, bordo pieno e opacità 100% al hover. */}
           <div className="flex justify-center">
             <button
+              ref={bottonePassatiRef}
               type="button"
-              onClick={() => setMostraPassati((v) => !v)}
+              onClick={togglePassati}
               aria-expanded={mostraPassati}
               className="inline-flex items-center gap-1.5 cursor-pointer shrink-0
                 rounded-full border-2 border-transparent transition-all

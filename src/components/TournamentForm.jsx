@@ -75,7 +75,7 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
       onClick={chiudiSePossibile}
     >
       <div
-        className={`rounded-2xl w-full max-w-2xl overflow-y-auto modal-panel ${closing ? 'is-closing' : ''
+        className={`rounded-2xl w-full max-w-xl overflow-y-auto modal-panel ${closing ? 'is-closing' : ''
           }`}
         style={{
           maxHeight: '90vh',

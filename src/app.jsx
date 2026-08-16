@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import './styles.css';
 import { SAND, INK } from './theme';
 import { nextViewMode } from './constants';
-import { groupByMonth } from './utils';
+import { groupByMonth, splitPassatoFuturo, todayISO } from './utils';
 import { canPostAnnuncio, canProposeTournament, canDeleteAnnuncio, isOrganizer } from './roles';
 
 import { useAuth } from './hooks/useAuth';
@@ -122,7 +122,23 @@ export default function App() {
       .sort((a, b) => a.data.localeCompare(b.data));
   }, [tournaments, search, selectedDisciplines, selectedFormats, selectedDurate, dateFrom, dateTo]);
 
-  const grouped = useMemo(() => groupByMonth(filtered), [filtered]);
+  /* Splitto in "in programma" (oggi e futuro) e "passati" (ieri e
+     indietro). La lista principale mostra solo i primi; i passati
+     vivono in una sezione a scomparsa in fondo alla lista, per non
+     ingombrare quando l'utente cerca qualcosa a cui iscriversi. */
+  const oggi = useMemo(() => todayISO(), []);
+  const { futuri, passati } = useMemo(
+    () => splitPassatoFuturo(filtered, oggi),
+    [filtered, oggi]
+  );
+  const grouped = useMemo(() => groupByMonth(futuri), [futuri]);
+  /* I passati li ordino al contrario: mese più recente in alto,
+     giorno più recente in alto dentro il mese. Chi apre "tornei
+     precedenti" quasi sempre vuole vedere prima quelli appena finiti. */
+  const gruppiPassati = useMemo(
+    () => groupByMonth(passati, { descending: true }),
+    [passati]
+  );
 
   /* Lista su cui scorre il dettaglio: quella che si aveva davanti
      quando si è aperta la scheda, non sempre i tornei pubblici. */
@@ -439,7 +455,7 @@ export default function App() {
           className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex justify-center"
           style={{ color: INK, opacity: 0.6 }}
         >
-          <Spinner size={26} thickness={2.5} label="Caricamento tornei" />
+          <Spinner size={36} thickness={3} label="Caricamento tornei" />
         </div>
       )}
 
@@ -449,6 +465,7 @@ export default function App() {
           {viewMode === 'lista' && (
             <TournamentList
               grouped={grouped}
+              gruppiPassati={gruppiPassati}
               isAdmin={isAdmin}
               onEdit={(t) => setFormState(t)}
               onDeleteRequest={(t) => setDeleteTarget(t)}

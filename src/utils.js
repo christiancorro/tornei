@@ -112,17 +112,52 @@ export function toggleValue(arr, val) {
   return arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val];
 }
 
-export function groupByMonth(list) {
+export function groupByMonth(list, { descending = false } = {}) {
   const groups = {};
   list.forEach((t) => {
     const key = t.data.slice(0, 7);
     if (!groups[key]) groups[key] = [];
     groups[key].push(t);
   });
-  return Object.keys(groups)
-    .sort()
-    .map((key) => {
-      const [y, m] = key.split('-');
-      return { key, label: `${MESI[parseInt(m, 10) - 1]} ${y}`, items: groups[key] };
-    });
+  const keys = Object.keys(groups).sort();
+  if (descending) keys.reverse();
+  return keys.map((key) => {
+    const [y, m] = key.split('-');
+    /* Con descending: dentro il mese vanno le date più recenti in alto.
+       Copio l'array perché il caller potrebbe averlo passato per
+       riferimento (in-place sarebbe sorpresa spiacevole). */
+    const items = descending ? [...groups[key]].reverse() : groups[key];
+    return { key, label: `${MESI[parseInt(m, 10) - 1]} ${y}`, items };
+  });
+}
+
+/* Data di oggi in formato ISO (YYYY-MM-DD), in ora locale.
+   toISOString() darebbe UTC — a mezzanotte italiana sarebbe già
+   il giorno dopo per lo standard, e i tornei di oggi verrebbero
+   confusi per passati. */
+export function todayISO() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/* Un torneo è "passato" quando il suo ultimo giorno è precedente a
+   oggi. Se dura più giorni conta la dataFine, altrimenti la data
+   singola. Un torneo che si sta tenendo *oggi* non è passato:
+   nasconderlo mentre sta ancora giocando sarebbe strano. */
+export function isPassato(t, todayIso) {
+  const ultimoGiorno = t.dataFine || t.data;
+  return ultimoGiorno < todayIso;
+}
+
+export function splitPassatoFuturo(list, todayIso) {
+  const futuri = [];
+  const passati = [];
+  for (const t of list) {
+    if (isPassato(t, todayIso)) passati.push(t);
+    else futuri.push(t);
+  }
+  return { futuri, passati };
 }

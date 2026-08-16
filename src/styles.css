@@ -48,7 +48,9 @@ body {
 }
 
 .modal-panel {
-  animation: modal-pop-in 0.24s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  /* Durata più lunga perché la corsa è lunga: 50vh in 0.24s sarebbe stato
+     uno scatto. 0.36s con la stessa curva soft-out la fa sembrare "lanciata". */
+  animation: modal-pop-in 0.36s cubic-bezier(0.2, 0.8, 0.3, 1) both;
 }
 
 @keyframes modal-fade-in {
@@ -63,7 +65,11 @@ body {
 @keyframes modal-pop-in {
   from {
     opacity: 0;
-    transform: translateY(12px) scale(0.98);
+    /* Parte da metà schermo e sale, stile bottom-sheet mobile. In vh
+       così la corsa è la stessa a prescindere dalla dimensione della
+       card e del dispositivo — su un telefono alto 800px viaggia 400px,
+       su un desktop 1000px ne viaggia 500. */
+    transform: translateY(20vh);
   }
   to {
     opacity: 1;
@@ -97,7 +103,8 @@ body {
   }
   to {
     opacity: 0;
-    transform: translateY(8px) scale(0.98);
+    /* Esce verso il basso, coerente con l'ingresso dal basso. */
+    transform: translateY(24px);
   }
 }
 
@@ -142,6 +149,51 @@ a:active {
   scrollbar-width: none;
 }
 
+/* ---------------------------------------------------------
+   Scrollbar sottili su tutta l'app.
+
+   Due sintassi separate perché i browser si sono divisi in due
+   scuole e nessuna delle due copre l'altro campo:
+   • Firefox / standard CSS: `scrollbar-width` + `scrollbar-color`
+     su un elemento scrollabile qualsiasi. Metto su html così
+     eredita anche per tutti i figli.
+   • WebKit / Blink (Safari, Chrome, Edge): pseudo-elementi
+     `::-webkit-scrollbar*`. Non hanno selettore parent perché
+     si applicano automaticamente a ogni scroll dell'app.
+
+   Larghezza 6px: sottile ma ancora afferrabile col mouse. Thumb
+   in nero al 20% di opacità, che sale al 40% al hover — resta
+   discreto sul bianco della modale e sui fondi chiari dell'app
+   senza sparire. Track trasparente: la scrollbar sembra
+   "poggiata" sul contenuto invece di occupare una corsia.
+--------------------------------------------------------- */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -167,6 +219,83 @@ a:active {
    propagarsi alla pagina sotto. */
 .modal-panel {
   overscroll-behavior: contain;
+}
+
+/* ---------------------------------------------------------
+   Dettaglio torneo — fullscreen su mobile, sheet centrato
+   su desktop.
+
+   Su mobile la card prende tutto lo schermo, senza angoli
+   arrotondati né padding intorno (l'effetto "app nativa"):
+   così su schermi piccoli non c'è più il bordino nero
+   intorno con la locandina strozzata al centro.
+
+   Uso 100dvh (dynamic viewport) oltre al 100vh: evita che
+   la card si accorci di ~50px quando la barra degli
+   indirizzi di iOS Safari torna a comparire durante lo
+   scroll. I browser che non conoscono dvh cadono sulla
+   riga precedente in 100vh.
+
+   env(safe-area-inset-*): rispetta notch e home-indicator
+   sugli iPhone recenti. Senza, il titolo e la X finirebbero
+   sotto il notch, e il pulsante Condividi sotto la barretta
+   del gesto home.
+--------------------------------------------------------- */
+.tournament-detail-panel {
+  max-width: 100vw;
+  /* Bottom-sheet mobile: la card copre tutto tranne una striscia in
+     alto dove si vedono gli angoli arrotondati contro lo sfondo scuro.
+     La striscia coincide con la safe-area-top (notch/status bar) con
+     un minimo di 24px sui telefoni senza notch, così i due archi
+     restano sempre visibili. Doppia dichiarazione per il fallback
+     100vh → 100dvh come per la card fullscreen di prima. */
+  max-height: calc(100vh - max(env(safe-area-inset-top, 0px), 20px));
+  max-height: calc(100dvh - max(env(safe-area-inset-top, 0px), 20px));
+  height: calc(100vh - max(env(safe-area-inset-top, 0px), 20px));
+  height: calc(100dvh - max(env(safe-area-inset-top, 0px), 20px));
+  /* Solo angoli superiori arrotondati: i due inferiori sono a filo del
+     fondo dello schermo, e comunque non li vedresti. */
+  border-radius: 1.5rem 1.5rem 0 0;
+}
+.tournament-detail-scroll {
+  max-height: calc(100vh - max(env(safe-area-inset-top, 0px), 24px));
+  max-height: calc(100dvh - max(env(safe-area-inset-top, 0px), 24px));
+}
+.tournament-detail-header {
+  /* Il notch è già sopra la card (per via dell'offset del panel), quindi
+     qui basta il padding normale — niente env(safe-area-inset-top). */
+  padding-top: 1.5rem;
+}
+.tournament-detail-handle {
+  padding-top: 0.5rem;
+}
+.tournament-detail-content {
+  padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 640px) {
+  .tournament-detail-panel {
+    /* max-w-xl = 36rem, ma senza toccare max-width qui rimarrebbe 100vw:
+       lo riporto al valore che aveva prima insieme all'altezza. Su
+       desktop la card è una sheet centrata, quindi tornano tutti e
+       quattro gli angoli arrotondati. */
+    max-width: 36rem;
+    max-height: 90vh;
+    height: auto;
+    border-radius: 1rem;
+  }
+  .tournament-detail-scroll {
+    max-height: 90vh;
+  }
+  .tournament-detail-header {
+    padding-top: 1rem;
+  }
+  .tournament-detail-handle {
+    padding-top: 0.5rem;
+  }
+  .tournament-detail-content {
+    padding-bottom: 1.5rem;
+  }
 }
 
 /* ---------------------------------------------------------
@@ -304,4 +433,3 @@ a:active {
     animation-duration: 2.5s;
   }
 }
-

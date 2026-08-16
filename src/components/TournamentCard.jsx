@@ -150,7 +150,7 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
         /* Colonna preview: stretta di proposito. La locandina qui
            è solo un'anteprima — quella "in grande" è nel dettaglio.
            Meno spazio + file più piccolo = card che entra subito. */
-        <div className="hidden sm:flex w-16 lg:w-20 shrink-0 py-3 items-center justify-center sm:mr-6 rounded-lg">
+        <div className="hidden sm:flex w-21 lg:w-20 shrink-0 py-3 items-center justify-center sm:mr-8 rounded-lg">
           <LazyImage
             src={previewSrc}
             alt={`Locandina di ${t.nome}`}

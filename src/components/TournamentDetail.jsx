@@ -8,7 +8,7 @@ import { FaFacebook, FaInstagram } from 'react-icons/fa';
 import { INK, SAND } from '../theme';
 import { STUB_STYLE } from '../constants';
 import { getMapsUrl, formatDataRange } from '../utils';
-import LazyImage from './ui/LazyImage';
+import ZoomableLocandina from './ZoomableLocandina';
 
 /* ---------------------------------------------------------
    Tournament detail — opened by tapping a card. The poster
@@ -73,7 +73,14 @@ export default function TournamentDetail({ tournament, onClose, lista = [], onNa
         {slot.map((scheda, i) => (
           <div
             key={scheda ? scheda.id : `vuoto-${i}`}
-            className="shrink-0 h-full flex items-center justify-center p-4"
+            /* p-0 su mobile così la card fullscreen non ha bordi neri
+               intorno; sm:p-4 su desktop lascia respirare la sheet
+               centrata.
+               items-end su mobile: la card è un bottom-sheet, allineata
+               al fondo, con la striscia di sfondo scuro sopra dove
+               emergono gli angoli arrotondati. sm:items-center torna
+               al centro classico su desktop. */
+            className="shrink-0 h-full flex items-end sm:items-center justify-center p-0 sm:p-4"
             /* panelStyle(i) mette la scala solo sulla card uscente:
                la centrale sotto il dito, o il laterale dove è finita
                la scheda dopo un cambio. Le altre restano a piena
@@ -243,28 +250,33 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
          ritagliare gli angoli. Se lo scroll stesse qui, la scrollbar
          (che occupa il bordo destro) romperebbe gli angoli su desktop:
          il div interno sotto è quello scrollabile, così la scrollbar
-         resta dentro il ritaglio arrotondato. */
-      className={`bg-white rounded-2xl w-full max-w-xl overflow-hidden ${attivo ? 'modal-panel' : ''} ${attivo && closing ? 'is-closing' : ''} ${grabbed ? 'is-grabbed' : ''}`}
-      style={{ maxHeight: '90vh' }}
+         resta dentro il ritaglio arrotondato.
+
+         Dimensioni, max-width e border-radius sono ora in
+         `.tournament-detail-panel` (styles.css): fullscreen su mobile,
+         sheet centrata da 90vh su desktop. */
+      className={`bg-white w-full overflow-hidden tournament-detail-panel ${attivo ? 'modal-panel' : ''} ${attivo && closing ? 'is-closing' : ''} ${grabbed ? 'is-grabbed' : ''}`}
       onClick={(e) => e.stopPropagation()}
       aria-hidden={!attivo}
     >
       <div
         ref={attivo ? scrollRef : null}
-        className="overflow-y-auto"
-        style={{ maxHeight: '90vh' }}
+        className="overflow-y-auto tournament-detail-scroll"
       >
         <div
           /* z-10: l'header è sticky ma senza z-index i fratelli sotto
              (la locandina, il cui wrapper LazyImage è position:relative)
              gli passano sopra durante lo scroll, coprendo titolo e
-             pulsante di chiusura. */
-          className="sticky top-0 z-10 bg-white border-b-2 px-5 sm:px-6 pt-6 pb-3 sm:pt-4 flex items-center justify-between gap-3"
+             pulsante di chiusura.
+             Il padding-top è in `.tournament-detail-header` per
+             rispettare env(safe-area-inset-top) su iPhone con notch. */
+          className="sticky top-0 z-10 bg-white border-b-2 px-5 sm:px-6 pb-3 flex items-center justify-between gap-3 tournament-detail-header"
           style={{ borderColor: 'rgba(34,48,31,0.1)' }}
         >
-          {/* Maniglia: dice al dito che il pannello si può trascinare. */}
+          {/* Maniglia: dice al dito che il pannello si può trascinare.
+             Anche qui il pt vive nel CSS per aggiungere la safe-area. */}
           <div
-            className="absolute inset-x-0 top-0 flex justify-center pt-2 pb-1 sm:hidden"
+            className="absolute inset-x-0 top-0 flex justify-center pb-1 sm:hidden tournament-detail-handle"
             aria-hidden="true"
           >
             <span className="w-10 h-1 rounded-full" style={{ backgroundColor: 'rgba(34,48,31,0.2)' }} />
@@ -286,10 +298,15 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
           </div>
         </div>
 
-        <div className="p-5 sm:p-6 space-y-3">
+        <div className="p-5 sm:p-6 space-y-3 tournament-detail-content pt-2 sm:pt-4">
           {showPoster && (
             <div className="w-full flex justify-center mb-4">
-              <LazyImage
+              {/* Pinch a due dita per zoomare, doppio tap per toggle a 2x,
+                 pan a un dito quando zoomati. A scala 1 il tocco singolo
+                 passa al parent (useSwipeDown) così swipe-down-per-chiudere
+                 e sfoglio laterale continuano a partire anche dalla locandina. */}
+              <ZoomableLocandina
+                attivo={attivo}
                 src={t.locandina}
                 alt={`Locandina di ${t.nome}`}
                 /* La scheda attiva è quella che l'utente sta guardando
@@ -297,12 +314,12 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
                    pigrizia. Le due vicine (pre-caricate per lo swipe)
                    possono aspettare finché non è il loro turno. */
                 eager={attivo}
-                className="rounded-lg shadow"
+                className="rounded-xl shadow"
                 placeholderColor={style.bg}
                 /* maxHeight sull'img, non sul wrapper: sul wrapper +
                    overflow:hidden l'immagine sarebbe stata tagliata a
                    750px. Sull'img cappa l'altezza mantenendo il rapporto. */
-                imgStyle={{ maxHeight: '750px', maxWidth: '100%' }}
+                imgStyle={{ maxHeight: '730px', maxWidth: '100%' }}
                 onUnavailable={() => setPosterOk(false)}
               />
             </div>

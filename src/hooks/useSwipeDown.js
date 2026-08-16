@@ -47,13 +47,19 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 const SOGLIA = 110;      // px di trascinamento oltre i quali si chiude
 const VELOCITA = 0.55;   // px/ms: uno scatto rapido chiude comunque
-const USCITA = 220;      // durata dell'uscita, in ms
-const RIENTRO = 260;     // durata del rientro quando il gesto non basta
-const ATTIVAZIONE = 8;   // px di tolleranza prima di decidere la direzione
+const USCITA = 320;      // durata dell'uscita, in ms
+const RIENTRO = 460;     // durata del rientro quando il gesto non basta
+const ATTIVAZIONE = 1;   // px di tolleranza prima di decidere la direzione
 
-const SOGLIA_X = 55;     // px oltre i quali si cambia scheda
-const VELOCITA_X = 0.28; // px/ms: basta una sfogliata svelta
-const SCORRIMENTO = 320; // durata dell'assestamento laterale (più morbida)
+const SOGLIA_X = 64;     // px oltre i quali si cambia scheda
+const VELOCITA_X = 0.58; // px/ms: basta una sfogliata svelta
+const SCORRIMENTO = 620; // durata dell'assestamento laterale (più morbida)
+/* Spazio scuro dello sfondo che compare tra due card durante lo
+   swipe laterale. A riposo la card è al centro dello schermo e il
+   gap sta tutto fuori dai bordi del viewport (invisibile); appena
+   il dito trascina, la card vicina spunta lasciando questo spazio
+   tra sé e quella in uscita. */
+const SPAZIO_TRA_CARD = 64;
 /* Curva "soft-out": parte decisa, rallenta a lungo. Su iOS è
    quella che dà la sensazione di "scivolamento" sotto al dito
    anche dopo il rilascio. */
@@ -61,7 +67,7 @@ const EASING_SLIDE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 /* Riduzione di scala massima applicata alla card uscente:
    ~5% dà chiaramente l'idea di profondità (come nel selettore
    app) senza sembrare che si sia rotto qualcosa. */
-const SCALA_MAX = 0.05;
+const SCALA_MAX = 0.0;
 
 export function useSwipeDown(
   onDismiss,
@@ -141,14 +147,19 @@ export function useSwipeDown(
     const progressoX = Math.min(1, Math.abs(punto.x) / (larghezza * 0.5));
 
     el.style.transition = 'none';
+    /* Base della traslazione: -100vw sposta il track di una schermata a
+       sinistra così lo slot centrale (l'unico visibile a riposo) sta al
+       centro. -SPAZIO_TRA_CARD compensa il gap che il layout flex mette
+       tra gli slot: senza, lo slot centrale finirebbe spostato di un gap
+       a destra. */
     el.style.transform =
-      `translate3d(calc(-100vw + ${punto.x}px), ${punto.y}px, 0) scale(${1 - progressoY * SCALA_MAX})`;
+      `translate3d(calc(-100vw - ${SPAZIO_TRA_CARD}px + ${punto.x}px), ${punto.y}px, 0) scale(${1 - progressoY * SCALA_MAX})`;
 
     // Slot centrale (l'uscente durante il drag orizzontale).
     const centrale = el.children[1];
     if (centrale) {
       centrale.style.transition = 'none';
-      centrale.style.transform = `scale(${1 - progressoX * SCALA_MAX})`;
+      // centrale.style.transform = `scale(${1 - progressoX * SCALA_MAX})`;
     }
 
     const sfondo = backdropRef.current;
@@ -177,7 +188,10 @@ export function useSwipeDown(
     const tr = getComputedStyle(el).transform;
     if (!tr || tr === 'none') return 0;
     try {
-      return new DOMMatrixReadOnly(tr).m41 + window.innerWidth;
+      /* m41 è la componente tx del transform. La base è -100vw - SPAZIO,
+         quindi per ottenere il solo offsetX "extra" del drag sommo
+         window.innerWidth + SPAZIO. */
+      return new DOMMatrixReadOnly(tr).m41 + window.innerWidth + SPAZIO_TRA_CARD;
     } catch (err) {
       return 0;
     }
@@ -206,7 +220,10 @@ export function useSwipeDown(
     setGrabbed(true);
     setDragging(false);
     setSenzaTransizione(true);
-    setOffsetX(partenza + direzione * larghezza);
+    /* Il salto da fare per portare la scheda entrante al centro è di
+       una schermata + un gap: senza il SPAZIO_TRA_CARD si vedrebbe uno
+       scatto di un gap alla fine dello sfoglio. */
+    setOffsetX(partenza + direzione * (larghezza + SPAZIO_TRA_CARD));
     setDirezioneSlittamento(direzione);
     vai();
 
@@ -389,9 +406,12 @@ export function useSwipeDown(
 
   /* La pista è larga tre schermate e sta ferma sulla seconda: da qui
      il -100vw fisso, a cui il dito somma il suo spostamento. La scala
-     orizzontale non sta più qui — ora vive sul singolo slot. */
+     orizzontale non sta più qui — ora vive sul singolo slot.
+     `gap` mette una fascia di sfondo scuro tra due card durante lo
+     sfoglio; il -SPAZIO_TRA_CARD nel translate compensa il fatto che
+     il gap sposta lo slot centrale a destra di un gap. */
   const trackStyle = {
-    transform: `translate3d(calc(-100vw + ${offsetX}px), ${offset}px, 0) scale(${1 - progressoY * SCALA_MAX})`,
+    transform: `translate3d(calc(-100vw - ${SPAZIO_TRA_CARD}px + ${offsetX}px), ${offset}px, 0)`,
     transition:
       dragging || senzaTransizione
         ? 'none'
@@ -399,6 +419,7 @@ export function useSwipeDown(
     willChange: 'transform',
     touchAction: 'pan-y',
     overscrollBehavior: 'contain',
+    gap: `${SPAZIO_TRA_CARD}px`,
   };
 
   /* Stile del singolo slot (0=precedente, 1=attuale, 2=prossimo).
@@ -426,13 +447,16 @@ export function useSwipeDown(
       /* Scala calcolata dalla distanza dello slot dal centro dello
          schermo: allontanarsi = rimpicciolire (fino a SCALA_MAX). Al
          momento dello snap post-cambia questo valore coincide con
-         quello dipinto durante il drag, quindi non c'è salto. */
+         quello dipinto durante il drag, quindi non c'è salto.
+         La distanza tra i centri di due slot vicini è larghezza + gap,
+         non solo larghezza — senza SPAZIO_TRA_CARD la scala si
+         azzererebbe un po' prima del tempo. */
       const larghezza = typeof window === 'undefined' ? 1200 : window.innerWidth;
-      const posizione = relativo * larghezza + offsetX;
+      const posizione = relativo * (larghezza + SPAZIO_TRA_CARD) + offsetX;
       const distanza = Math.abs(posizione);
       const progresso = Math.min(1, distanza / (larghezza * 0.5));
       return {
-        transform: `scale(${1 - progresso * SCALA_MAX})`,
+        // transform: `scale(${1 - progresso * SCALA_MAX})`,
         transition: transitionValue,
         willChange: 'transform',
       };
@@ -442,7 +466,7 @@ export function useSwipeDown(
        transform precedente (dipingi durante drag), la transizione la
        riporta morbidamente a piena dimensione. */
     return {
-      transform: 'scale(1)',
+      // transform: 'scale(1)',
       transition: transitionValue,
     };
   }, [dragging, direzioneSlittamento, offsetX, senzaTransizione]);

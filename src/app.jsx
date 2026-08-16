@@ -439,7 +439,7 @@ export default function App() {
           className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex justify-center"
           style={{ color: INK, opacity: 0.6 }}
         >
-          <Spinner size={36} thickness={3} label="Caricamento tornei" />
+          <Spinner size={26} thickness={2.5} label="Caricamento tornei" />
         </div>
       )}
 

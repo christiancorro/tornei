@@ -52,6 +52,6 @@ export const VIEW_MODE_LABELS = {
 // }
 
 export function nextViewMode(mode) {
-  if (mode === 'lista') return 'calendario';
+  if (mode === 'lista') return 'mappa';
   return 'lista';
 }

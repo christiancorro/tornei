@@ -5,10 +5,12 @@ import { INK, SUN } from '../theme';
 import { VIEW_MODE_LABELS, nextViewMode } from '../constants';
 
 // Icon shown on the multimodal button for each view mode.
+// Calendario disattivato per ora (vedi nextViewMode in constants.js):
+// tengo la riga commentata così ripristinarlo è simmetrico.
 const VIEW_MODE_ICONS = {
     lista: LayoutList,
-    // mappa: Map,
-    calendario: CalendarDays,
+    mappa: Map,
+    // calendario: CalendarDays,
 };
 
 /* ---------------------------------------------------------

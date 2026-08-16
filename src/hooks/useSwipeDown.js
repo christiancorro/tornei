@@ -53,7 +53,7 @@ const ATTIVAZIONE = 1;   // px di tolleranza prima di decidere la direzione
 
 const SOGLIA_X = 64;     // px oltre i quali si cambia scheda
 const VELOCITA_X = 0.58; // px/ms: basta una sfogliata svelta
-const SCORRIMENTO = 620; // durata dell'assestamento laterale (più morbida)
+const SCORRIMENTO = 520; // durata dell'assestamento laterale (più morbida)
 /* Spazio scuro dello sfondo che compare tra due card durante lo
    swipe laterale. A riposo la card è al centro dello schermo e il
    gap sta tutto fuori dai bordi del viewport (invisibile); appena

@@ -482,11 +482,16 @@ export default function App() {
             />
           )}
 
-          {false && viewMode === 'mappa' && <MapView tournaments={filtered} />}
-
-          {viewMode === 'calendario' && (
-            <CalendarView tournaments={filtered} onOpenDetail={setDetailTarget} />
+          {viewMode === 'mappa' && (
+            <MapView tournaments={filtered} onOpenDetail={setDetailTarget} />
           )}
+
+          {/* Calendario nascosto per ora — il toggle ciclo lista ⇄ mappa
+             non ci passa. Lascio il blocco commentato così riattivarlo
+             è di nuovo una riga. */}
+          {/* {viewMode === 'calendario' && (
+            <CalendarView tournaments={filtered} onOpenDetail={setDetailTarget} />
+          )} */}
         </div>
       )}
 
@@ -517,6 +522,11 @@ export default function App() {
             mieiAnnunci={mieiAnnunci}
             conversations={conversations}
             unreadTotal={unreadTotal}
+            /* Passo pendingCount anche qui: il pulsante Admin dentro
+               AccountDashboard mostra lo stesso badge giallo dei tornei
+               da approvare — un solo numero che significa la stessa cosa
+               ovunque compaia. */
+            pendingCount={pending.length}
             onNuovoTorneo={() => setFormState('new')}
             onEditTorneo={(t) => setFormState(t)}
             onDeleteTorneo={(t) => setDeleteTarget(t)}
@@ -524,6 +534,7 @@ export default function App() {
             onDeleteConversation={removeMyConversation}
             onOpenDetail={setDetailTarget}
             onLogout={signOut}
+            onOpenAdmin={() => setView('admin')}
             onDeleted={() => setView('tornei')}
             pendingOpenConv={pendingOpenConv}
             onConvOpened={() => setPendingOpenConv(null)}

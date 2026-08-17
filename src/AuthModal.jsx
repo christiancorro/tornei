@@ -63,12 +63,12 @@ export default function AuthModal({ onGoogle, onClose }) {
         </button>
 
         {error && <p className="text-sm font-semibold mb-3" style={{ color: CLAY }}>{error}</p>}
-
+        {/* 
         <p className="text-xs" style={{ color: INK, opacity: 0.55 }}>
           Al primo accesso creiamo il tuo profilo con il nome e l'email del tuo
           account Google. Puoi cambiare il nome, o eliminare l'account, dalle
           impostazioni.
-        </p>
+        </p> */}
 
         <button
           type="button"

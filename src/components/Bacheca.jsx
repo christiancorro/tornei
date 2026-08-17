@@ -458,7 +458,7 @@ export default function Bacheca({
           <p className="text-sm" style={{ color: INK, opacity: 0.7 }}>
             {profile
               ? 'Il tuo account non può pubblicare annunci.'
-              : 'Accedi o registrati per scrivere un annuncio.'}
+              : 'Accedi per scrivere o rispondere a un annuncio e per proporre nuovi tornei.'}
           </p>
           {!profile && (
             <button

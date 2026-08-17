@@ -90,7 +90,7 @@ export default function Header({
                 className="font-display text-xl sm:text-4xl leading-none shrink-0 rounded"
                 style={{ color: INK }}
               >
-                tornei<span style={{ color: SUN }}>FVG</span>
+                volley<span style={{ color: SUN }}>FVG</span>
               </button>
             </div>
 
@@ -115,22 +115,6 @@ export default function Header({
                 Bacheca
               </NavTab>
 
-              {isAdmin && (
-                <NavTab active={view === 'admin'} onClick={() => setView('admin')}>
-                  <span className="inline-flex items-center gap-1.5">
-                    <ShieldCheck size={15} />
-                    Admin
-                    {pendingCount > 0 && (
-                      <span
-                        className="text-xs px-1.5 rounded-full font-black"
-                        style={{ backgroundColor: SUN, color: INK }}
-                      >
-                        {pendingCount}
-                      </span>
-                    )}
-                  </span>
-                </NavTab>
-              )}
             </div>
 
             {/* Un solo pulsante che assume due stati (loggato / non
@@ -347,26 +331,26 @@ export default function Header({
                   <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
                     <div className="flex flex-wrap items-end gap-3">
                       <div>
-                        <div className="text-xs font-bold mb-2" style={{ color: INK, opacity: 0.6 }}>
+                        <div className="text-xs font-bold mb-1" style={{ color: INK, opacity: 0.6 }}>
                           DAL
                         </div>
                         <input
                           type="date"
                           value={dateFrom}
                           onChange={(e) => setDateFrom(e.target.value)}
-                          className="w-36 px-2.5 py-2 rounded-lg border-2 text-sm "
+                          className="w-32 px-2.5 py-2 rounded-lg border-2 text-sm "
                           style={{ borderColor: 'rgba(34,48,31,0.25)', color: INK }}
                         />
                       </div>
                       <div>
-                        <div className="text-xs font-bold mb-2" style={{ color: INK, opacity: 0.6 }}>
+                        <div className="text-xs font-bold mb-1" style={{ color: INK, opacity: 0.6 }}>
                           AL
                         </div>
                         <input
                           type="date"
                           value={dateTo}
                           onChange={(e) => setDateTo(e.target.value)}
-                          className="w-36 px-2.5 py-2 rounded-lg border-2 text-sm "
+                          className="w-32 px-2.5 py-2 rounded-lg border-2 text-sm "
                           style={{ borderColor: 'rgba(34,48,31,0.25)', color: INK }}
                         />
                       </div>

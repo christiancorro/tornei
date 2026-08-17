@@ -12,6 +12,9 @@ import {
   Settings,
   LogOut,
   Info,
+  ShieldCheck,
+  Lightbulb,
+  Send,
 } from 'lucide-react';
 
 import { INK, SAND, SUN, GRASS_DARK, CLAY, CARD_BG, BOARD_A, BOARD_B } from '../theme';
@@ -27,6 +30,7 @@ import {
 import { formatDataLunga, timeAgo } from '../utils';
 import MessagesPanel from './MessagesPanel';
 import AccountSettings from './AccountSettings';
+import FeedbackPanel from './FeedbackPanel'
 
 const STATUS_STYLE = {
   [STATUS_PENDING]: { bg: '#FFF4DE', fg: '#8A5A00', Icon: Clock },
@@ -39,7 +43,10 @@ function Tab({ active, onClick, children, badge }) {
     <button
       type="button"
       onClick={onClick}
-      className="px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2"
+      // shrink-0 + whitespace-nowrap: in una riga con overflow-x-auto
+      // il default flex farebbe comprimere i bottoni fino a spezzare il
+      // testo. Così mantengono la larghezza naturale e la riga scorre.
+      className="px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 shrink-0 whitespace-nowrap"
       style={{
         backgroundColor: active ? INK : 'transparent',
         color: active ? SAND : INK,
@@ -72,6 +79,9 @@ function StatusBadge({ status }) {
 
 export default function AccountDashboard({
   profile,
+  isAdmin,
+  pendingCount,
+  onOpenAdmin,
   mieiTornei,
   mieiAnnunci,
   conversations,
@@ -85,6 +95,8 @@ export default function AccountDashboard({
   onLogout,
   onDeleted,
   onOpenBacheca,
+  onSendFeedback,
+  mieRichieste = [],
   pendingOpenConv,
   onConvOpened,
 }) {
@@ -118,25 +130,64 @@ export default function AccountDashboard({
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="flex items-start justify-between gap-3 mb-1">
-        <h2 className="font-black text-2xl" style={{ color: INK }}>
+        {/* min-w-0 così il nome lungo va in ellipsi invece di spingere
+      fuori i pulsanti a destra su mobile. */}
+        <h2 className="font-black text-2xl min-w-0 truncate" style={{ color: INK }}>
           Ciao {profile?.displayName?.split(' ')[0] || ''}
         </h2>
 
-        <button
-          type="button"
-          onClick={onLogout}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold shrink-0"
-          style={{ backgroundColor: INK, color: SAND }}
-        >
-          <LogOut size={16} /> Esci
-        </button>
+        {/* I pulsanti a destra vivono in un sotto-flex con shrink-0:
+      così il titolo può ridursi (min-w-0 + truncate) mentre Admin
+      e Esci restano affiancati e mai spezzati su due righe. */}
+        <div className="flex items-center gap-2 shrink-0">
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={onOpenAdmin}
+              title="Pannello admin"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold"
+              style={{ backgroundColor: SUN, color: INK }}
+            >
+              <ShieldCheck size={16} />
+              <span className="hidden sm:inline">Admin</span>
+              {pendingCount > 0 && (
+                <span
+                  className="text-xs px-1.5 rounded-full font-black"
+                  style={{ backgroundColor: INK, color: SUN }}
+                >
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onLogout}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold"
+            style={{ backgroundColor: INK, color: SAND }}
+          >
+            <LogOut size={16} />
+            <span className="hidden sm:inline">Esci</span>
+          </button>
+        </div>
       </div>
 
       <p className="text-sm mb-5" style={{ color: INK, opacity: 0.6 }}>
         Il tuo ruolo: <strong>{ROLE_LABELS[profile?.role] ?? '—'}</strong>
       </p>
 
-      <div className="flex gap-2 mb-5 flex-wrap">
+      {/* Tab su una sola riga, con scroll orizzontale se non ci stanno.
+          Prima era flex-wrap: su mobile i tab andavano a capo creando
+          due righe e "spingendo giù" il contenuto sotto.
+          Ora:
+          • overflow-x-auto → scorre in orizzontale quando serve;
+          • no-scrollbar → nasconde la barra (mantenendo lo scroll);
+          • -mx-4 / px-4 sm:-mx-6 sm:px-6 → estende la riga fino al
+            bordo dello schermo, così l'ultimo tab non viene tagliato
+            dal padding del contenitore e c'è margine per scorrere;
+          • i bottoni Tab hanno shrink-0 e whitespace-nowrap. */}
+      <div className="flex gap-2 mb-5 overflow-x-auto no-scrollbar -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <Tab active={tab === 'tornei'} onClick={() => setTab('tornei')}>
           <CalendarDays size={16} /> I miei tornei
         </Tab>
@@ -151,6 +202,10 @@ export default function AccountDashboard({
 
         <Tab active={tab === 'impostazioni'} onClick={() => setTab('impostazioni')}>
           <Settings size={16} /> Impostazioni
+        </Tab>
+
+        <Tab active={tab === 'suggerimenti'} onClick={() => setTab('suggerimenti')}>
+          <Lightbulb size={16} /> Suggerimenti
         </Tab>
       </div>
 
@@ -187,7 +242,7 @@ export default function AccountDashboard({
               >
                 <Info size={18} className="shrink-0 mt-0.5" />
                 <span>
-                  Il tuo primo torneo deve essere revisionato dal gran capo per verificare che tu sia una bella persona e non un brutto bot.
+                  Il tuo primo torneo deve essere revisionato dall'amministratore per evitare un'invasione di bot.
                   Una volta approvato diventerai organizzatore e i successivi tornei verranno pubblicati subito.
                 </span>
               </div>
@@ -336,6 +391,13 @@ export default function AccountDashboard({
 
         {tab === 'impostazioni' && (
           <AccountSettings profile={profile} onDeleted={onDeleted} />
+        )}
+
+        {tab === 'suggerimenti' && (
+          <FeedbackPanel
+            onSendFeedback={onSendFeedback}
+            mieRichieste={mieRichieste}
+          />
         )}
       </div>
     </div>

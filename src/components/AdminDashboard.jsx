@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   ShieldCheck, Check, X, Users, Clock, Search, MessageCircle, StickyNote, Trash2,
-  UserX, Loader2,
+  UserX, Loader2, Lightbulb, Mail, MailOpen,
 } from 'lucide-react';
 
 import { INK, SAND, SUN, GRASS_DARK, CLAY, CARD_BG } from '../theme';
@@ -375,8 +375,139 @@ function AdminAnnuncioRow({ annuncio, onDelete }) {
   );
 }
 
+/* --- Riga richiesta (suggerimento/segnalazione utente) ---
+   Le non lette hanno fondo caldo + bordo SUN + badge "Nuovo":
+   distinguibili a colpo d'occhio anche scorrendo veloce.
+   `markRead` e `remove` sono azioni indipendenti (due useActionState)
+   così il feedback "Segnato come letto" resta sul pulsante giusto
+   anche se l'utente clicca su Elimina subito dopo. */
+function RichiestaRow({ richiesta, onMarkRead, onDelete }) {
+  const { toast, confirm } = useFeedback();
+  const nonLetta = !richiesta.letto;
+
+  const segna = useActionState({
+    savedMs: 800,
+    onError: () => toast('Aggiornamento non riuscito.', 'error'),
+  });
+  const elimina = useActionState({
+    savedMs: 700,
+    onError: () => toast('Eliminazione non riuscita.', 'error'),
+  });
+  const busy = segna.busy || elimina.busy;
+
+  async function toggleLetto() {
+    segna.run(() => onMarkRead(richiesta.id, nonLetta));
+  }
+
+  async function handleDelete() {
+    const ok = await confirm({
+      title: 'Eliminare questa richiesta?',
+      message: 'L\'operazione è irreversibile: il messaggio dell\'utente sparirà per sempre.',
+      confirmLabel: 'Elimina',
+      dangerous: true,
+    });
+    if (!ok) return;
+    elimina.run(() => onDelete(richiesta.id));
+  }
+
+  // createdAt può essere un Timestamp Firestore o null se la
+  // scrittura non è ancora stata confermata dal server (offline).
+  const quando = richiesta.createdAt?.toDate?.() ?? richiesta.createdAt ?? null;
+
+  return (
+    <div
+      className="rounded-xl border-2 p-4 mb-3"
+      style={{
+        backgroundColor: nonLetta ? '#FFF8E7' : CARD_BG,
+        borderColor: nonLetta ? SUN : 'rgba(34,48,31,0.15)',
+      }}
+    >
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="min-w-0">
+          <h4 className="font-black text-base truncate" style={{ color: INK }}>
+            {richiesta.authorName || 'Utente anonimo'}
+          </h4>
+          <p className="text-xs truncate" style={{ color: INK, opacity: 0.6 }}>
+            {richiesta.authorEmail || '—'}
+            {quando && <> · {timeAgo(quando)}</>}
+          </p>
+        </div>
+        {nonLetta && (
+          <span
+            className="text-xs font-black px-2 py-0.5 rounded-full shrink-0"
+            style={{ backgroundColor: SUN, color: INK }}
+          >
+            Nuovo
+          </span>
+        )}
+      </div>
+
+      <p className="text-sm whitespace-pre-wrap mb-3" style={{ color: INK }}>
+        {richiesta.testo}
+      </p>
+
+      {/* Diagnostica in piccolo: URL della pagina + browser. Serve
+          quando la richiesta è un bug report — l'admin capisce dove
+          l'utente stava guardando senza doverglielo chiedere. */}
+      {(richiesta.url || richiesta.userAgent) && (
+        <p className="text-[11px] mb-3 break-all" style={{ color: INK, opacity: 0.4 }}>
+          {richiesta.url}
+          {richiesta.userAgent && <> · {richiesta.userAgent}</>}
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={toggleLetto}
+          disabled={busy}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold
+                     transition-all duration-200 active:scale-[0.98]"
+          style={{
+            border: `1px solid ${segna.saved ? GRASS_DARK : 'rgba(34,48,31,0.25)'}`,
+            color: segna.saved ? GRASS_DARK : INK,
+            opacity: busy && !segna.busy ? 0.4 : 1,
+          }}
+        >
+          {segna.saving && <Loader2 size={13} className="animate-spin" />}
+          {segna.saved && <Check size={13} />}
+          {segna.idle && (nonLetta ? <MailOpen size={13} /> : <Mail size={13} />)}
+          {segna.saving
+            ? 'Aggiorno…'
+            : segna.saved
+              ? 'Fatto'
+              : nonLetta
+                ? 'Segna come letta'
+                : 'Segna come non letta'}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={busy}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold
+                     transition-all duration-200 active:scale-[0.98]"
+          style={{
+            border: `1px solid ${elimina.saved ? GRASS_DARK : CLAY}`,
+            color: elimina.saved ? GRASS_DARK : CLAY,
+            opacity: busy && !elimina.busy ? 0.4 : 1,
+          }}
+        >
+          {elimina.saving && <Loader2 size={13} className="animate-spin" />}
+          {elimina.saved && <Check size={13} />}
+          {elimina.idle && <Trash2 size={13} />}
+          {elimina.saving ? 'Elimino…'
+            : elimina.saved ? 'Eliminata'
+              : 'Elimina'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboard({
   pending, users, counts, myUid, profile, conversations, annunci,
+  richieste = [], onMarkRichiestaRead, onDeleteRichiesta,
   onApprove, onReject, onChangeRole, onDeleteConversation, onDeleteAnnuncio,
   onDeleteUser, onUserFootprint,
 }) {
@@ -390,6 +521,11 @@ export default function AdminDashboard({
       (u) => u.email?.toLowerCase().includes(s) || u.displayName?.toLowerCase().includes(s)
     );
   }, [users, q]);
+
+  const richiesteNonLette = useMemo(
+    () => richieste.filter((r) => !r.letto).length,
+    [richieste],
+  );
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -413,6 +549,13 @@ export default function AdminDashboard({
         </Tab>
         <Tab active={tab === 'messaggi'} onClick={() => setTab('messaggi')}>
           <MessageCircle size={16} /> Messaggi
+        </Tab>
+        <Tab
+          active={tab === 'richieste'}
+          onClick={() => setTab('richieste')}
+          badge={richiesteNonLette}
+        >
+          <Lightbulb size={16} /> Richieste
         </Tab>
       </div>
 
@@ -487,6 +630,29 @@ export default function AdminDashboard({
               emptyLabel="Nessuna conversazione è ancora stata avviata."
             />
           </>
+        )}
+
+        {tab === 'richieste' && (
+          richieste.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="text-5xl mb-3">💡</div>
+              <h3 className="font-black text-lg mb-1" style={{ color: INK }}>
+                Nessuna richiesta
+              </h3>
+              <p className="text-sm" style={{ color: INK, opacity: 0.6 }}>
+                I suggerimenti e le segnalazioni degli utenti compariranno qui.
+              </p>
+            </div>
+          ) : (
+            richieste.map((r) => (
+              <RichiestaRow
+                key={r.id}
+                richiesta={r}
+                onMarkRead={onMarkRichiestaRead}
+                onDelete={onDeleteRichiesta}
+              />
+            ))
+          )
         )}
       </div>
     </div>

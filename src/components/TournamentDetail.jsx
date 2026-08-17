@@ -368,7 +368,7 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
           </div>
 
           {t.descrizioneOrganizzatore && (
-            <div className="rounded-lg p-3.5 flex items-start gap-2.5 text-base sm:text-lg" style={{ backgroundColor: SAND, color: INK }}>
+            <div className="rounded-lg p-3.5 flex items-start gap-2.5 text-base sm:text-lg" style={{ backgroundColor: "#fff4de", color: "#8a5a00" }}>
               <Info size={20} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
               <span className="whitespace-pre-wrap">{t.descrizioneOrganizzatore}</span>
             </div>

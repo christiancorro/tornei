@@ -141,7 +141,7 @@ function ConfirmDialog({ opts, onResolve }) {
             {azione.saved && <Check size={16} />}
             {azione.saving ? savingLabel
               : azione.saved ? savedLabel
-              : confirmLabel}
+                : confirmLabel}
           </button>
         </div>
       </div>

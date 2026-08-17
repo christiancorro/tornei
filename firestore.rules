@@ -13,7 +13,41 @@ rules_version = '2';
    Solo un admin può scrivere il campo `role`.
 --------------------------------------------------------- */
 service cloud.firestore {
+  
   match /databases/{database}/documents {
+
+    /* ---------- feedback (suggerimenti utenti) ---------- */
+
+     match /richieste/{id} {
+      // Solo l'admin legge: i suggerimenti sono privati verso di lui,
+      // non visibili né all'autore né agli altri utenti. L'autore
+      // "spedisce e dimentica" — se serve rispondere si apre una
+      // conversazione con lui usando il suo uid.
+      allow read: if isAdmin()
+  || (isSignedIn() && resource.data.authorId == request.auth.uid);
+
+      // Chiunque sia attivo può inviare, ma solo firmandosi con la
+      // propria identità. `letto` deve nascere a false: l'admin lo
+      // ribalta in update, l'utente non deve poter marcare da solo
+      // come "già visto" il proprio messaggio.
+      allow create: if isActive()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.testo is string
+        && request.resource.data.testo.size() >= 5
+        && request.resource.data.testo.size() <= 2000
+        && request.resource.data.letto == false;
+
+      // Solo l'admin modifica: in pratica per ribaltare `letto`.
+      allow update: if isAdmin();
+
+      // Cancellazione solo admin (moderazione / pulizia code lette).
+      allow delete: if isAdmin();
+    }
+
+    /* Tutto il resto è chiuso. */
+    match /{document=**} {
+      allow read, write: if false;
+    }
 
     /* ---------- helper ---------- */
 
@@ -99,7 +133,7 @@ service cloud.firestore {
         && (!('descrizioneOrganizzatore' in d) || d.descrizioneOrganizzatore.size() <= 1500);
     }
 
-    match /tornei/{torneoId} {
+    match /tornei/{torneoId} { 
       // Pubblici i tornei approvati; il proprio anche se in coda;
       // tutto all'admin. NB: le query devono filtrare esplicitamente
       // (where status == 'published'), perché le regole non filtrano

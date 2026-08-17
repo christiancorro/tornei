@@ -51,7 +51,7 @@ export default function AuthModal({ onGoogle, onClose }) {
           Accedi a TorneyFVG
         </h3>
         <p className="text-sm text-gray-500 mb-5">
-          È necessario solo se vuoi proporre un torneo, scrivere in bacheca e rispondere agli annunci. Serve per evitare spam o strani bot.
+          È necessario solo se vuoi proporre un torneo, scrivere e rispondere agli annunci in bacheca. Serve per evitare spam e bot.
         </p>
 
         <button
@@ -68,8 +68,8 @@ export default function AuthModal({ onGoogle, onClose }) {
         {error && <p className="text-sm font-semibold mb-3" style={{ color: CLAY }}>{error}</p>}
 
         <p className="text-xs" style={{ color: INK, opacity: 0.55 }}>
-          Al primo accesso verrà creato il tuo profilo con il nome e l'email del tuo
-          account Google. Puoi cambiare il nome, dalle impostazioni quando vuoi.
+          Al primo accesso verrà creato il tuo profilo con il nome del tuo
+          account Google. Puoi cambiare il nome dalle impostazioni quando vuoi.
         </p>
 
         <button

@@ -12,7 +12,8 @@ import { useLocandinePrefetch } from './hooks/useLocandinePrefetch';
 import { useAnnunci, useMyAnnunci } from './hooks/useAnnunci';
 import { useUsers } from './hooks/useUsers';
 import { useConversations, useAllConversations } from './hooks/useMessages';
-import { useFeedback } from './components/FeedbackProvider';
+import { useRichieste, useMyRichieste } from './hooks/useRichieste';
+
 
 import Header from './components/Header';
 import Spinner from './components/ui/Spinner';
@@ -29,9 +30,11 @@ import AuthModal from './components/AuthModal';
 import AdminDashboard from './components/AdminDashboard';
 import AccountDashboard from './components/AccountDashboard';
 import ReplyModal from './components/ReplyModal';
+import { useFeedback } from './components/FeedbackProvider';
+import { sendRichiesta } from './services/richieste';
 
 /* ---------------------------------------------------------
-   App
+App
 --------------------------------------------------------- */
 export default function App() {
   const [view, setView] = useState('tornei');
@@ -47,6 +50,7 @@ export default function App() {
   const [detailTarget, setDetailTarget] = useState(null);
   const [replyTarget, setReplyTarget] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
+
   /* convId che vogliamo aprire in Account → Messaggi: settato dal
      redirect post-reply, azzerato dal MessagesPanel appena l'apre.
      Tenuto qui e non dentro il pannello perché il redirect parte da
@@ -58,7 +62,9 @@ export default function App() {
 
   const { toast } = useFeedback();
   const { user, profile, authReady, isAdmin, signInGoogle, signOut } = useAuth();
+  const { richieste, markRead: handleMarkRichiestaRead, remove: handleDeleteRichiesta, } = useRichieste(isAdmin);
   const uid = profile?.uid ?? null;
+  const { mine: mieRichieste } = useMyRichieste(profile?.uid);
 
   const {
     tournaments,
@@ -103,9 +109,9 @@ export default function App() {
             .filter(Boolean)
             .map((d) => mesi[new Date(d).getMonth()]);
 
-          const values = Object.values(t)
-            .filter(Boolean)
-            .flatMap((value) => (Array.isArray(value) ? value : [value]))
+          const values = Object.entries(t)
+            .filter(([key, value]) => key !== 'descrizioneOrganizzatore' && value)
+            .flatMap(([, value]) => (Array.isArray(value) ? value : [value]))
             .map((value) => String(value).toLowerCase());
 
           return [...values, ...date].some((value) => value.includes(q));
@@ -386,12 +392,24 @@ export default function App() {
     }
   }
 
+  async function handleSendFeedback({ testo }) {
+    try {
+      await sendRichiesta({ testo }, profile);
+      toast('Grazie! Il tuo messaggio è stato inviato.', 'success', 5000);
+    } catch (err) {
+      toast(err.message || 'Invio non riuscito.', 'error');
+      throw err;
+    }
+  }
+
   /* Restituisce il convId così ReplyModal (via useActionState.onDone)
      può passarlo a openConversazione e portarci sul thread appena
      creato. */
   async function handleReply(annuncio, testo) {
     return reply(annuncio, profile, testo);
   }
+
+
 
   function openConversazione(convId) {
     setPendingOpenConv(convId);
@@ -522,6 +540,10 @@ export default function App() {
             mieiAnnunci={mieiAnnunci}
             conversations={conversations}
             unreadTotal={unreadTotal}
+            isAdmin={isAdmin}
+            mieRichieste={mieRichieste}
+            onSendFeedback={handleSendFeedback}
+
             /* Passo pendingCount anche qui: il pulsante Admin dentro
                AccountDashboard mostra lo stesso badge giallo dei tornei
                da approvare — un solo numero che significa la stessa cosa
@@ -559,6 +581,9 @@ export default function App() {
             onDeleteAnnuncio={handleEliminaAnnuncio}
             onDeleteUser={removeUser}
             onUserFootprint={footprint}
+            richieste={richieste}
+            onMarkRichiestaRead={handleMarkRichiestaRead}
+            onDeleteRichiesta={handleDeleteRichiesta}
           />
         </div>
       )}

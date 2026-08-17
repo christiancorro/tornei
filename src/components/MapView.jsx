@@ -110,14 +110,14 @@ function spargi(base, indice) {
 }
 
 function CentraSuUtente({ posizione }) {
-  const map = useMap();
-  const fatto = useRef(false);
+  // const map = useMap();
+  // const fatto = useRef(false);
 
-  useEffect(() => {
-    if (!posizione || fatto.current) return;
-    fatto.current = true;
-    map.flyTo(posizione, 10, { duration: 1.2 });
-  }, [posizione, map]);
+  // useEffect(() => {
+  //   if (!posizione || fatto.current) return;
+  //   fatto.current = true;
+  //   map.flyTo(posizione, 10, { duration: 1.2 });
+  // }, [posizione, map]);
 
   return null;
 }
@@ -153,10 +153,10 @@ export default function MapView({ tournaments = [], onOpenDetail }) {
 
   return (
     <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-6 py-2 mb-0">
-      <div className="h-[73vh] rounded-2xl overflow-hidden shadow border-0">
+      <div className="h-[74vh] rounded-2xl overflow-hidden shadow border-0">
         <MapContainer
-          center={[46.07, 13.24]}
-          zoom={9}
+          center={[45.96, 13.24]}
+          zoom={10}
           className="h-full w-full"
         >
           <TileLayer
@@ -168,14 +168,6 @@ export default function MapView({ tournaments = [], onOpenDetail }) {
 
           {posizioneUtente && (
             <Marker position={posizioneUtente} icon={iconaUtente}>
-              <Popup>
-                <div
-                  className="text-sm font-semibold"
-                  style={{ color: INK, fontFamily: 'inherit' }}
-                >
-                  Sei qui
-                </div>
-              </Popup>
             </Marker>
           )}
 

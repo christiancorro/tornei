@@ -93,6 +93,18 @@ export default function App() {
   const { conversations: tutteConversazioni, remove: removeConversation } =
     useAllConversations(isAdmin);
 
+  const suggerimentiNonLetti = useMemo(
+    () => mieRichieste.filter((r) => r.risposto === true && r.lettoDaUtente === false).length,
+    [mieRichieste],
+  );
+
+  const richiesteAdminNonLette = useMemo(
+    () => (isAdmin ? richieste.filter((r) => !r.letto).length : 0),
+    [isAdmin, richieste],
+  );
+
+  const notificheTotali = unreadTotal + suggerimentiNonLetti;
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tournaments
@@ -431,9 +443,11 @@ export default function App() {
           resetFilters();
         }}
         isAdmin={isAdmin}
+        pendingCount={pending.length}
+        richiesteAdminNonLette={richiesteAdminNonLette}
         profile={profile}
         authReady={authReady}
-        unreadTotal={unreadTotal}
+        unreadTotal={notificheTotali}
         pendingCount={pending.length}
         onLoginClick={() => setShowAuth(true)}
         onLogout={signOut}
@@ -540,15 +554,11 @@ export default function App() {
             mieiAnnunci={mieiAnnunci}
             conversations={conversations}
             unreadTotal={unreadTotal}
-            isAdmin={isAdmin}
+
             mieRichieste={mieRichieste}
             onSendFeedback={handleSendFeedback}
+            mieRichieste={mieRichieste}
 
-            /* Passo pendingCount anche qui: il pulsante Admin dentro
-               AccountDashboard mostra lo stesso badge giallo dei tornei
-               da approvare — un solo numero che significa la stessa cosa
-               ovunque compaia. */
-            pendingCount={pending.length}
             onNuovoTorneo={() => setFormState('new')}
             onEditTorneo={(t) => setFormState(t)}
             onDeleteTorneo={(t) => setDeleteTarget(t)}

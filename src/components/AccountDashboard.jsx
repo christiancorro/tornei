@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   CalendarDays,
   StickyNote,
@@ -31,6 +31,7 @@ import { formatDataLunga, timeAgo } from '../utils';
 import MessagesPanel from './MessagesPanel';
 import AccountSettings from './AccountSettings';
 import FeedbackPanel from './FeedbackPanel'
+import { markRichiesteLetteDaUtente } from '../services/richieste';
 
 const STATUS_STYLE = {
   [STATUS_PENDING]: { bg: '#FFF4DE', fg: '#8A5A00', Icon: Clock },
@@ -79,9 +80,6 @@ function StatusBadge({ status }) {
 
 export default function AccountDashboard({
   profile,
-  isAdmin,
-  pendingCount,
-  onOpenAdmin,
   mieiTornei,
   mieiAnnunci,
   conversations,
@@ -101,6 +99,29 @@ export default function AccountDashboard({
   onConvOpened,
 }) {
   const [tab, setTab] = useState('tornei');
+  // Conta le richieste con una risposta admin non ancora vista.
+  // `lettoDaUtente` undefined (richieste vecchie, pre-feature) è
+  // trattato come letto: nessun falso badge per dati legacy.
+  const suggerimentiNonLetti = useMemo(
+    () => mieRichieste.filter((r) => r.risposto === true && r.lettoDaUtente === false).length,
+    [mieRichieste],
+  );
+
+  // Quando l'utente apre la tab Suggerimenti, marca tutte come lette.
+  // useEffect dipendente da `tab`: scatta al cambio tab, non ad ogni
+  // nuova risposta admin (quello lo lascio arrivare mentre lui è dentro
+  // e sparirà il badge la prossima volta che rientra).
+  useEffect(() => {
+    if (tab !== 'suggerimenti') return;
+    const daMarkare = mieRichieste
+      .filter((r) => r.risposto === true && r.lettoDaUtente === false)
+      .map((r) => r.id);
+    if (daMarkare.length === 0) return;
+    markRichiesteLetteDaUtente(daMarkare).catch((e) =>
+      console.warn('[suggerimenti] mark letto fallito:', e),
+    );
+  }, [tab, mieRichieste]);
+
   const [messaggiResetSignal, setMessaggiResetSignal] = useState(0);
 
   function apriMessaggi() {
@@ -128,7 +149,7 @@ export default function AccountDashboard({
   const attivo = isActive(profile);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-[65rem] mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="flex items-start justify-between gap-3 mb-1">
         {/* min-w-0 così il nome lungo va in ellipsi invece di spingere
       fuori i pulsanti a destra su mobile. */}
@@ -140,26 +161,6 @@ export default function AccountDashboard({
       così il titolo può ridursi (min-w-0 + truncate) mentre Admin
       e Esci restano affiancati e mai spezzati su due righe. */}
         <div className="flex items-center gap-2 shrink-0">
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={onOpenAdmin}
-              title="Pannello admin"
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold"
-              style={{ backgroundColor: SUN, color: INK }}
-            >
-              <ShieldCheck size={16} />
-              <span className="hidden sm:inline">Admin</span>
-              {pendingCount > 0 && (
-                <span
-                  className="text-xs px-1.5 rounded-full font-black"
-                  style={{ backgroundColor: INK, color: SUN }}
-                >
-                  {pendingCount}
-                </span>
-              )}
-            </button>
-          )}
 
           <button
             type="button"
@@ -204,7 +205,11 @@ export default function AccountDashboard({
           <Settings size={16} /> Impostazioni
         </Tab>
 
-        <Tab active={tab === 'suggerimenti'} onClick={() => setTab('suggerimenti')}>
+        <Tab
+          active={tab === 'suggerimenti'}
+          onClick={() => setTab('suggerimenti')}
+          badge={suggerimentiNonLetti}
+        >
           <Lightbulb size={16} /> Suggerimenti
         </Tab>
       </div>
@@ -397,6 +402,7 @@ export default function AccountDashboard({
           <FeedbackPanel
             onSendFeedback={onSendFeedback}
             mieRichieste={mieRichieste}
+            profile={profile}
           />
         )}
       </div>

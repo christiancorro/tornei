@@ -42,6 +42,11 @@ const FIELDS = [
   'nome', 'disciplina', 'formati', 'modalita', 'data', 'dataFine', 'ora',
   'comune', 'costo', 'organizzatore', 'descrizioneOrganizzatore',
   'instagram', 'facebook', 'sitoWeb',
+  // Coordinate geografiche del comune, risolte al momento del
+  // salvataggio dal form (utils/geocode.js). Se un torneo ne è
+  // sprovvisto (creato prima di questa feature) non compare
+  // sulla mappa finché non viene ri-salvato.
+  'lat', 'lng',
   // `locandina` è la versione grande (dettaglio), `locandinaThumb`
   // quella piccola usata come preview nelle card di lista. I due
   // *Path servono a cancellarne i file da Storage con il torneo.

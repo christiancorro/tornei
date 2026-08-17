@@ -1,11 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { MapPin, Euro } from 'lucide-react';
 
-import { CARD_BG, INK } from '../theme';
-import { STUB_STYLE } from '../constants';
-import { formatDataRange } from '../utils';
+import { INK } from '../theme';
 
 const iconaUtente = L.divIcon({
   className: '',
@@ -96,55 +93,16 @@ function creaIconaTorneo(disciplina, nome) {
   });
 }
 
-const GEO_CACHE_KEY = 'tornei-fvg:geocache:v1';
-
-function caricaCache() {
-  if (typeof localStorage === 'undefined') return {};
-
-  try {
-    return JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || '{}');
-  } catch {
-    return {};
-  }
-}
-
-function salvaCache(cache) {
-  if (typeof localStorage === 'undefined') return;
-
-  try {
-    localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(cache));
-  } catch {
-  }
-}
-
-async function geocode(comune) {
-  const q = encodeURIComponent(`${comune}, Friuli-Venezia Giulia, Italia`);
-  const url = `https://photon.komoot.io/api/?q=${q}&limit=1`;
-
-  const res = await fetch(url);
-
-  if (!res.ok) {
-    throw new Error(`geo HTTP ${res.status}`);
-  }
-
-  const data = await res.json();
-  const feat = data?.features?.[0];
-
-  if (!feat) return null;
-
-  const [lon, lat] = feat.geometry.coordinates;
-
-  return [lat, lon];
-}
-
+/* Più tornei nello stesso comune ricadrebbero tutti sullo
+   stesso pin: li sparpaglio in una spirale aurea intorno al
+   centro comunale così restano cliccabili singolarmente,
+   senza sovrapporsi visivamente. */
 const ANGOLO_AUREO = (137.5 * Math.PI) / 180;
 
 function spargi(base, indice) {
   if (indice === 0) return base;
-
   const raggio = 0.0015 * Math.sqrt(indice);
   const theta = indice * ANGOLO_AUREO;
-
   return [
     base[0] + raggio * Math.cos(theta),
     base[1] + raggio * Math.sin(theta),
@@ -157,118 +115,41 @@ function CentraSuUtente({ posizione }) {
 
   useEffect(() => {
     if (!posizione || fatto.current) return;
-
     fatto.current = true;
-
-    map.flyTo(posizione, 10, {
-      duration: 1.2,
-    });
+    map.flyTo(posizione, 10, { duration: 1.2 });
   }, [posizione, map]);
 
   return null;
 }
 
 export default function MapView({ tournaments = [], onOpenDetail }) {
-  const [geocache, setGeocache] = useState(caricaCache);
   const [posizioneUtente, setPosizioneUtente] = useState(null);
 
   useEffect(() => {
-    const daCercare = [
-      ...new Set(
-        tournaments
-          .map((t) => t.comune)
-          .filter((c) => c && !(c in geocache))
-      ),
-    ];
-
-    if (daCercare.length === 0) return undefined;
-
-    let annullato = false;
-
-    (async () => {
-      for (const comune of daCercare) {
-        if (annullato) return;
-
-        try {
-          const coords = await geocode(comune);
-
-          if (annullato) return;
-
-          setGeocache((prev) => {
-            if (comune in prev) return prev;
-
-            const next = {
-              ...prev,
-              [comune]: coords,
-            };
-
-            salvaCache(next);
-
-            return next;
-          });
-        } catch (err) {
-          console.warn(
-            '[mappa] geocoding fallito per',
-            comune,
-            err
-          );
-        }
-
-        if (annullato) return;
-
-        await new Promise((r) => setTimeout(r, 400));
-      }
-    })();
-
-    return () => {
-      annullato = true;
-    };
-  }, [tournaments]);
-
-  useEffect(() => {
-    if (
-      typeof navigator === 'undefined' ||
-      !navigator.geolocation
-    ) {
-      return;
-    }
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
 
     navigator.geolocation.getCurrentPosition(
       (pos) =>
-        setPosizioneUtente([
-          pos.coords.latitude,
-          pos.coords.longitude,
-        ]),
+        setPosizioneUtente([pos.coords.latitude, pos.coords.longitude]),
       (err) =>
-        console.warn(
-          '[mappa] posizione non disponibile:',
-          err.message
-        ),
-      {
-        timeout: 8000,
-        maximumAge: 5 * 60 * 1000,
-      }
+        console.warn('[mappa] posizione non disponibile:', err.message),
+      { timeout: 8000, maximumAge: 5 * 60 * 1000 },
     );
   }, []);
 
+  // Nessun geocoding a runtime: la mappa mostra solo i tornei
+  // già geolocalizzati al momento del salvataggio (utils/geocode
+  // dentro TournamentForm). I tornei vecchi senza lat/lng
+  // torneranno visibili quando il loro organizzatore li salva
+  // di nuovo (il form scatena il geocoding e li arricchisce).
   const contatore = {};
-
   const marcatori = tournaments
+    .filter((t) => typeof t.lat === 'number' && typeof t.lng === 'number')
     .map((t) => {
-      const base = geocache[t.comune];
-
-      if (!base) return null;
-
       const idx = contatore[t.comune] || 0;
-
       contatore[t.comune] = idx + 1;
-
-      return {
-        t,
-        posizione: spargi(base, idx),
-      };
-    })
-    .filter(Boolean);
+      return { t, posizione: spargi([t.lat, t.lng], idx) };
+    });
 
   return (
     <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-6 py-2 mb-0">
@@ -286,17 +167,11 @@ export default function MapView({ tournaments = [], onOpenDetail }) {
           <CentraSuUtente posizione={posizioneUtente} />
 
           {posizioneUtente && (
-            <Marker
-              position={posizioneUtente}
-              icon={iconaUtente}
-            >
+            <Marker position={posizioneUtente} icon={iconaUtente}>
               <Popup>
                 <div
                   className="text-sm font-semibold"
-                  style={{
-                    color: INK,
-                    fontFamily: 'inherit',
-                  }}
+                  style={{ color: INK, fontFamily: 'inherit' }}
                 >
                   Sei qui
                 </div>
@@ -304,110 +179,16 @@ export default function MapView({ tournaments = [], onOpenDetail }) {
             </Marker>
           )}
 
-          {marcatori.map(({ t, posizione }) => {
-            const style =
-              STUB_STYLE[t.disciplina] ||
-              STUB_STYLE['Green Volley'];
-
-            return (
-              <Marker
-                key={t.id}
-                position={posizione}
-                icon={creaIconaTorneo(t.disciplina, t.nome)}
-                eventHandlers={{
-                  click: () => onOpenDetail?.(t),
-                }}
-              >
-                {/*
-  <Popup>
-    <div
-      onClick={() => onOpenDetail?.(t)}
-      className="cursor-pointer overflow-hidden rounded-lg"
-      style={{
-        minWidth: 280,
-        maxWidth: 340,
-        backgroundColor: CARD_BG,
-        color: INK,
-        fontFamily: 'inherit',
-      }}
-    >
-      <div className="flex">
-        <div className="flex-1 p-3 min-w-0">
-          <h3
-            className="font-black text-xl leading-tight mb-2"
-            style={{ color: INK }}
-          >
-            {t.nome}
-          </h3>
-
-          <div className="flex items-center gap-1.5 flex-wrap mb-2.5">
-            <span
-              className="text-xs font-semibold px-2 py-0.5 rounded"
-              style={{
-                backgroundColor: style.tagBg,
-                color: style.tagText,
-              }}
-            >
-              {t.disciplina}
-            </span>
-
-            {t.formati?.map((f) => (
-              <span
-                key={f}
-                className="text-xs font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-800"
-              >
-                {f}
-              </span>
-            ))}
-          </div>
-
-          <div className="text-sm text-gray-700 space-y-1">
-            <div className="flex items-center gap-1.5">
-              <MapPin
-                size={15}
-                className="text-gray-400 shrink-0"
-              />
-              <span>{t.comune}</span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <Euro
-                size={15}
-                className="text-gray-400 shrink-0"
-              />
-              <span>{t.costo || 'Gratis'}</span>
-            </div>
-
-            <div className="text-xs text-gray-500 mt-1">
-              📅{' '}
-              {formatDataRange(
-                t.data,
-                t.dataFine
-              )}
-            </div>
-          </div>
-        </div>
-
-        {t.locandina && (
-          <div className="w-20 shrink-0 p-2 flex items-center">
-            <img
-              src={t.locandina}
-              alt={`Locandina ${t.nome}`}
-              className="w-full rounded-lg shadow-sm"
-              style={{
-                maxHeight: 120,
-                objectFit: 'contain',
+          {marcatori.map(({ t, posizione }) => (
+            <Marker
+              key={t.id}
+              position={posizione}
+              icon={creaIconaTorneo(t.disciplina, t.nome)}
+              eventHandlers={{
+                click: () => onOpenDetail?.(t),
               }}
             />
-          </div>
-        )}
-      </div>
-    </div>
-  </Popup>
-  */}
-              </Marker>
-            );
-          })}
+          ))}
         </MapContainer>
       </div>
     </div>

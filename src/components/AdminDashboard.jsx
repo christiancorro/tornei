@@ -12,6 +12,7 @@ import {
 import { formatDataLunga, timeAgo } from '../utils';
 import { useActionState } from '../hooks/useActionState';
 import MessagesPanel from './MessagesPanel';
+import RichiestaThread from './RichiestaThread';
 import { useFeedback } from './FeedbackProvider';
 
 const ROLE_COLOR = {
@@ -33,12 +34,10 @@ function Tab({ active, onClick, children, badge }) {
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      className="px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition-colors"
+      className="px-4 py-2 rounded-full text-2sm font-bold flex items-center gap-2 transition-colors"
       style={{
         backgroundColor: active ? INK : 'transparent',
         color: active ? SAND : INK,
-        // Attivo: nessun bordo (l'INK di sfondo lo rende inutile).
-        // Inattivo: bordo grigio chiaro a riposo, più scuro in hover.
         border: active
           ? 'none'
           : `1px solid ${hover ? 'rgba(34,48,31,0.6)' : 'rgba(34,48,31,0.25)'}`,
@@ -57,13 +56,7 @@ function Tab({ active, onClick, children, badge }) {
   );
 }
 
-/* --- Coda di moderazione ---
-   Ogni riga ha due pulsanti indipendenti: Approva e Rifiuta.
-   Usiamo due hook di stato separati, così premere Approva
-   non fa "diventare tutto disabilitato": è la stessa card ma
-   sono azioni distinte, e la conferma "Approvato" resta sul
-   pulsante giusto. `busy` combinato disabilita l'altro per
-   evitare che partano entrambe in parallelo. */
+/* --- Coda di moderazione --- */
 function PendingCard({ torneo, onApprove, onReject }) {
   const { toast } = useFeedback();
   const [motivo, setMotivo] = useState('');
@@ -103,7 +96,7 @@ function PendingCard({ torneo, onApprove, onReject }) {
       </div>
 
       {torneo.descrizioneOrganizzatore && (
-        <p className="text-sm mb-3 whitespace-pre-wrap" style={{ color: INK, opacity: 0.85 }}>
+        <p className="text-2sm mb-3 whitespace-pre-wrap" style={{ color: INK, opacity: 0.85 }}>
           {torneo.descrizioneOrganizzatore}
         </p>
       )}
@@ -116,7 +109,7 @@ function PendingCard({ torneo, onApprove, onReject }) {
           onChange={(e) => setMotivo(e.target.value)}
           disabled={busy}
           placeholder="Motivo del rifiuto (visibile all'autore)"
-          className="w-full mb-3 px-3 py-2 rounded-lg border-2 text-sm outline-none disabled:opacity-60"
+          className="w-full mb-3 px-3 py-2 rounded-lg border-2 text-2sm outline-none disabled:opacity-60"
           style={{ borderColor: 'rgba(34,48,31,0.25)', color: INK }}
         />
       )}
@@ -126,7 +119,7 @@ function PendingCard({ torneo, onApprove, onReject }) {
           type="button"
           disabled={busy}
           onClick={() => approva.run(() => onApprove(torneo))}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold
+          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-2sm font-bold
                      transition-all duration-200 active:scale-[0.98] disabled:cursor-default"
           style={{
             backgroundColor: GRASS_DARK,
@@ -145,7 +138,7 @@ function PendingCard({ torneo, onApprove, onReject }) {
           type="button"
           disabled={busy}
           onClick={() => (showReject ? rifiuta.run(() => onReject(torneo, motivo)) : setShowReject(true))}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold
+          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-2sm font-bold
                      transition-all duration-200 active:scale-[0.98] disabled:cursor-default"
           style={{
             border: `2px solid ${rifiuta.saved ? GRASS_DARK : CLAY}`,
@@ -172,9 +165,6 @@ function UserRow({ utente, isMe, onChangeRole, onDelete, onFootprint }) {
   const [confermaElimina, setConfermaElimina] = useState(false);
   const [footprint, setFootprint] = useState(null);
 
-  // Cambio ruolo: quattro pulsanti (user/organizer/admin/blocked) ma
-  // solo uno alla volta è "in corso": teniamo un unico stato con il
-  // ruolo attualmente in salvataggio, così il feedback sta sul chip giusto.
   const [ruoloInCorso, setRuoloInCorso] = useState(null);
   const cambioRuolo = useActionState({
     savedMs: 600,
@@ -209,9 +199,6 @@ function UserRow({ utente, isMe, onChangeRole, onDelete, onFootprint }) {
   function eliminaOra() {
     elimina.run(async () => {
       await onDelete(utente.uid);
-      // Il toast di successo lo mantengo (feedback secondario, non
-      // sostituisce quello sul pulsante): utile perché la riga sparirà
-      // dalla lista subito dopo il refresh dei dati.
       toast('Utente eliminato.', 'success');
     });
   }
@@ -220,7 +207,7 @@ function UserRow({ utente, isMe, onChangeRole, onDelete, onFootprint }) {
     <div className="rounded-xl border-2 p-3 mb-2" style={{ backgroundColor: CARD_BG, borderColor: 'rgba(34,48,31,0.15)' }}>
       <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
         <div className="min-w-0">
-          <p className="font-bold text-sm truncate" style={{ color: INK }}>
+          <p className="font-bold text-2sm truncate" style={{ color: INK }}>
             {utente.displayName || '(senza nome)'} {isMe && <span className="text-xs font-normal">(tu)</span>}
           </p>
           <p className="text-xs truncate" style={{ color: INK, opacity: 0.6 }}>{utente.email}</p>
@@ -329,9 +316,7 @@ function UserRow({ utente, isMe, onChangeRole, onDelete, onFootprint }) {
   );
 }
 
-/* --- Riga annuncio in bacheca (moderazione) ---
-   Estratto in un component perché serve stato locale per il
-   feedback di eliminazione. Prima era inline dentro AdminDashboard. */
+/* --- Riga annuncio in bacheca --- */
 function AdminAnnuncioRow({ annuncio, onDelete }) {
   const { toast } = useFeedback();
   const elimina = useActionState({
@@ -352,7 +337,7 @@ function AdminAnnuncioRow({ annuncio, onDelete }) {
           {timeAgo(annuncio.data)}
         </span>
       </div>
-      <p className="text-sm whitespace-pre-wrap mb-2" style={{ color: INK }}>{annuncio.testo}</p>
+      <p className="text-2sm whitespace-pre-wrap mb-2" style={{ color: INK }}>{annuncio.testo}</p>
       <button
         type="button"
         onClick={() => elimina.run(() => onDelete(annuncio.id))}
@@ -375,13 +360,8 @@ function AdminAnnuncioRow({ annuncio, onDelete }) {
   );
 }
 
-/* --- Riga richiesta (suggerimento/segnalazione utente) ---
-   Le non lette hanno fondo caldo + bordo SUN + badge "Nuovo":
-   distinguibili a colpo d'occhio anche scorrendo veloce.
-   `markRead` e `remove` sono azioni indipendenti (due useActionState)
-   così il feedback "Segnato come letto" resta sul pulsante giusto
-   anche se l'utente clicca su Elimina subito dopo. */
-function RichiestaRow({ richiesta, onMarkRead, onDelete }) {
+/* --- Riga richiesta (con thread di risposte) --- */
+function RichiestaRow({ richiesta, profile, onMarkRead, onDelete }) {
   const { toast, confirm } = useFeedback();
   const nonLetta = !richiesta.letto;
 
@@ -402,7 +382,7 @@ function RichiestaRow({ richiesta, onMarkRead, onDelete }) {
   async function handleDelete() {
     const ok = await confirm({
       title: 'Eliminare questa richiesta?',
-      message: 'L\'operazione è irreversibile: il messaggio dell\'utente sparirà per sempre.',
+      message: 'L\'operazione è irreversibile: il messaggio dell\'utente e tutte le risposte spariranno per sempre.',
       confirmLabel: 'Elimina',
       dangerous: true,
     });
@@ -410,8 +390,6 @@ function RichiestaRow({ richiesta, onMarkRead, onDelete }) {
     elimina.run(() => onDelete(richiesta.id));
   }
 
-  // createdAt può essere un Timestamp Firestore o null se la
-  // scrittura non è ancora stata confermata dal server (offline).
   const quando = richiesta.createdAt?.toDate?.() ?? richiesta.createdAt ?? null;
 
   return (
@@ -442,13 +420,10 @@ function RichiestaRow({ richiesta, onMarkRead, onDelete }) {
         )}
       </div>
 
-      <p className="text-sm whitespace-pre-wrap mb-3" style={{ color: INK }}>
+      <p className="text-2sm whitespace-pre-wrap mb-3" style={{ color: INK }}>
         {richiesta.testo}
       </p>
 
-      {/* Diagnostica in piccolo: URL della pagina + browser. Serve
-          quando la richiesta è un bug report — l'admin capisce dove
-          l'utente stava guardando senza doverglielo chiedere. */}
       {(richiesta.url || richiesta.userAgent) && (
         <p className="text-[11px] mb-3 break-all" style={{ color: INK, opacity: 0.4 }}>
           {richiesta.url}
@@ -501,6 +476,11 @@ function RichiestaRow({ richiesta, onMarkRead, onDelete }) {
               : 'Elimina'}
         </button>
       </div>
+
+      {/* Thread di risposte: si espande al click, il listener parte
+          solo alla prima apertura per non tenere N onSnapshot aperti
+          quando ci sono molte richieste in elenco. */}
+      <RichiestaThread richiesta={richiesta} profile={profile} isAdmin />
     </div>
   );
 }
@@ -528,12 +508,12 @@ export default function AdminDashboard({
   );
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-[65rem] mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="flex items-center gap-2 mb-1">
         <ShieldCheck size={22} style={{ color: '#6B4E8E' }} />
         <h2 className="font-black text-2xl" style={{ color: INK }}>Dashboard admin</h2>
       </div>
-      <p className="text-sm mb-5" style={{ color: INK, opacity: 0.6 }}>
+      <p className="text-2sm mb-5" style={{ color: INK, opacity: 0.6 }}>
         {counts[ROLE_ORGANIZER]} organizzatori · {counts[ROLE_USER]} utenti · {counts[ROLE_BLOCKED]} bloccati
       </p>
 
@@ -559,15 +539,13 @@ export default function AdminDashboard({
         </Tab>
       </div>
 
-      {/* key={tab}: rimonta il blocco così l'animazione riparte,
-          come nel cambio vista in app.jsx. */}
       <div key={tab} className="view-swap">
         {tab === 'coda' && (
           pending.length === 0 ? (
             <div className="text-center py-16">
               <div className="text-5xl mb-3">✅</div>
               <h3 className="font-black text-lg mb-1" style={{ color: INK }}>Nessun torneo in attesa</h3>
-              <p className="text-sm" style={{ color: INK, opacity: 0.6 }}>
+              <p className="text-2sm" style={{ color: INK, opacity: 0.6 }}>
                 Le nuove proposte compaiono qui.
               </p>
             </div>
@@ -587,7 +565,7 @@ export default function AdminDashboard({
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Cerca per nome o email"
-                className="w-full pl-9 pr-3 py-2.5 rounded-lg border-2 text-sm outline-none"
+                className="w-full pl-9 pr-3 py-2.5 rounded-lg border-2 text-2sm outline-none"
                 style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK, backgroundColor: CARD_BG }}
               />
             </div>
@@ -606,7 +584,7 @@ export default function AdminDashboard({
 
         {tab === 'bacheca' && (
           annunci.length === 0 ? (
-            <p className="text-sm text-center py-12" style={{ color: INK, opacity: 0.6 }}>
+            <p className="text-2sm text-center py-12" style={{ color: INK, opacity: 0.6 }}>
               La bacheca è vuota.
             </p>
           ) : (
@@ -618,10 +596,7 @@ export default function AdminDashboard({
 
         {tab === 'messaggi' && (
           <>
-            <p className="text-xs rounded-lg px-3 py-2 mb-3" style={{ backgroundColor: '#FFF4DE', color: '#8A5A00' }}>
-              Vedi tutte le conversazioni private dell'app, in sola lettura. Gli utenti
-              sono avvisati che un amministratore può leggerle.
-            </p>
+
             <MessagesPanel
               conversations={conversations}
               profile={profile}
@@ -639,7 +614,7 @@ export default function AdminDashboard({
               <h3 className="font-black text-lg mb-1" style={{ color: INK }}>
                 Nessuna richiesta
               </h3>
-              <p className="text-sm" style={{ color: INK, opacity: 0.6 }}>
+              <p className="text-2sm" style={{ color: INK, opacity: 0.6 }}>
                 I suggerimenti e le segnalazioni degli utenti compariranno qui.
               </p>
             </div>
@@ -648,6 +623,7 @@ export default function AdminDashboard({
               <RichiestaRow
                 key={r.id}
                 richiesta={r}
+                profile={profile}
                 onMarkRead={onMarkRichiestaRead}
                 onDelete={onDeleteRichiesta}
               />

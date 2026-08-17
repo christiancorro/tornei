@@ -1,11 +1,5 @@
 import React, { useState, useRef } from 'react';
-import {
-  Search,
-  SlidersHorizontal,
-  X,
-  ChevronDown,
-  ShieldCheck,
-} from 'lucide-react';
+import { Search, SlidersHorizontal, X, ChevronDown, ShieldCheck } from 'lucide-react';
 
 import { INK, SAND, SUN } from '../theme';
 import {
@@ -29,6 +23,7 @@ export default function Header({
   authReady,
   unreadTotal,
   pendingCount,
+  richiesteAdminNonLette = 0,
   onLoginClick,
   onLogout,
   search,
@@ -114,6 +109,23 @@ export default function Header({
               <NavTab active={view === 'bacheca'} onClick={() => setView('bacheca')}>
                 Bacheca
               </NavTab>
+
+              {isAdmin && (
+                <NavTab active={view === 'admin'} onClick={() => setView('admin')}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <ShieldCheck size={15} />
+                    Admin
+                    {(pendingCount + richiesteAdminNonLette) > 0 && (
+                      <span
+                        className="text-xs px-1.5 rounded-full font-black"
+                        style={{ backgroundColor: SUN, color: INK }}
+                      >
+                        {pendingCount + richiesteAdminNonLette}
+                      </span>
+                    )}
+                  </span>
+                </NavTab>
+              )}
 
             </div>
 

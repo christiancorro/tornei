@@ -206,7 +206,18 @@ export function BachecaComposer({
         '--tw-ring-color': open ? accent : 'rgba(34,48,31,0.18)',
       }}
     >
-      <div className="bacheca-composer-header flex items-center justify-between gap-3">
+      <div
+        className="bacheca-composer-header flex items-center justify-between gap-3 cursor-pointer"
+        onClick={open ? onCancel : onOpen}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            open ? onCancel() : onOpen();
+          }
+        }}
+      >
         <div className="min-w-0">
           <h3 className="font-semibold text-lg leading-none" style={{ color: INK }}>
             Pubblica un annuncio

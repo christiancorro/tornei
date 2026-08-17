@@ -121,7 +121,7 @@ function Thread({ conv, profile, onBack, readOnly, onDelete }) {
         >
           <ChevronLeft size={20} className="shrink-0" />
           <div className="min-w-0 flex-1">
-            <p className="font-bold text-sm truncate" style={{ color: INK }}>
+            <p className="font-bold text-2sm truncate" style={{ color: INK }}>
               {readOnly
                 ? Object.values(conv.names ?? {}).filter(Boolean).join('  ↔  ')
                 : other.name}
@@ -320,7 +320,7 @@ function ConversationRow({ conv, profile, readOnly, onDelete, onOpen, confirm })
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <p className="font-bold text-sm truncate" style={{ color: INK }}>{label}</p>
+          <p className="font-bold text-2sm truncate" style={{ color: INK }}>{label}</p>
           {conv.lastAt?.toDate && (
             <span className="text-xs shrink-0" style={{ color: INK, opacity: 0.45 }}>
               {timeAgo(conv.lastAt.toDate())}

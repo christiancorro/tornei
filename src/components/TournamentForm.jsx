@@ -6,6 +6,7 @@ import { useActionState } from '../hooks/useActionState';
 import { INK, SUN, GRASS_DARK } from '../theme';
 import { DISCIPLINE, DISCIPLINE_COLORS, FORMATI } from '../constants';
 import { emptyTournament, toggleValue } from '../utils';
+import { geocode } from '../utils/geocode';
 import Chip from './ui/Chip';
 import LocandinaField from './LocandinaField';
 
@@ -28,7 +29,7 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
 
     if (busy) return;
@@ -40,7 +41,39 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
     }
 
     setErrore('');
-    run(() => onSave(form));
+
+    // Geocode il comune se serve davvero:
+    // • torneo nuovo (nessun lat/lng)
+    // • torneo esistente ma con comune cambiato dopo l'ultimo salvataggio
+    // • torneo esistente senza coordinate (creato prima di questa feature)
+    //
+    // Se il geocoder fallisce (rete, città inesistente, timeout) NON
+    // blocchiamo il salvataggio: il torneo si crea/aggiorna comunque,
+    // non apparirà sulla mappa finché lat/lng non vengono compilati.
+    // È il compromesso giusto: un errore di rete non deve impedire
+    // la pubblicazione di un torneo.
+    let patch = form;
+    const comuneCambiato = initial ? initial.comune !== form.comune : true;
+    const senzaCoords = !form.lat || !form.lng;
+
+    if (form.comune && (comuneCambiato || senzaCoords)) {
+      try {
+        const coords = await geocode(form.comune);
+        if (coords) {
+          patch = { ...form, lat: coords.lat, lng: coords.lng };
+        } else if (comuneCambiato) {
+          // Città cambiata ma il geocoder non trova la nuova: azzero
+          // le vecchie coord perché erano riferite al comune precedente,
+          // ora sbagliato. Meglio invisibile sulla mappa che geolocalizzato
+          // nel posto sbagliato.
+          patch = { ...form, lat: null, lng: null };
+        }
+      } catch (err) {
+        console.warn('[form] geocoding fallito per', form.comune, err);
+      }
+    }
+
+    run(() => onSave(patch));
   }
 
   // Il modale non deve chiudersi mentre stiamo salvando

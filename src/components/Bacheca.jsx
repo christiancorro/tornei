@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pin, X, CircleUserRound, MessageCircle, Check, Plus } from 'lucide-react';
+import { Pin, X, CircleUserRound, MessageCircle, Plus } from 'lucide-react';
 
 import {
   INK,
@@ -11,10 +11,8 @@ import {
   PIN_COLOR,
   NOTE_YELLOW,
   NOTE_WHITE,
-  GRASS_DARK,
 } from '../theme';
 import { formatDataBreve, timeAgo } from '../utils';
-import { useActionState } from '../hooks/useActionState';
 import Chip from './ui/Chip';
 
 /* ---------------------------------------------------------
@@ -169,11 +167,36 @@ export function BachecaComposer({
   const accent = tipo === 'cerca_squadra' ? BOARD_A : BOARD_B;
   const noteBg = tipo === 'cerca_squadra' ? NOTE_YELLOW : NOTE_WHITE;
 
-  const { state, run, busy } = useActionState({ savedMs: 700 });
+  /* Ref sulla textarea: serve per portare il focus quando il
+     compositore si apre da un'altra vista (es. Account → I miei
+     annunci → "Pubblica un annuncio"). Il focus manuale al click
+     non serve — il tap chiude il caret dove l'utente ha toccato —
+     ma per l'apertura programmatica sì. */
+  const textareaRef = useRef(null);
+  const wasOpen = useRef(open);
+  useEffect(() => {
+    if (open && !wasOpen.current) {
+      // Due rAF per essere sicuri che la grid transition abbia
+      // "rivelato" la textarea: senza, il focus casca su un
+      // elemento con altezza 0 e la tastiera mobile non compare.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          textareaRef.current?.focus();
+        });
+      });
+    }
+    wasOpen.current = open;
+  }, [open]);
 
+  /* "Attacca l'annuncio": fire-and-forget, senza useActionState.
+     Prima mostrava lo spinner "Attacco…" e poi il flash verde
+     "Attaccato ✓" per ~700ms — feedback ridondante dato che
+     l'annuncio appena pubblicato cade sulla bacheca con la sua
+     animazione di ingresso, che è già la conferma visiva
+     migliore che si potesse dare. */
   function handleSubmit() {
-    if (!testo.trim() || busy) return;
-    run(() => onSubmit());
+    if (!testo.trim()) return;
+    onSubmit();
   }
 
   function handleShellClick() {
@@ -260,13 +283,13 @@ export function BachecaComposer({
             </div>
 
             <textarea
+              ref={textareaRef}
               value={testo}
               onChange={(e) => setTesto(e.target.value)}
-              disabled={busy}
               placeholder="Scrivi il tuo annuncio: torneo, ruolo, ..."
               rows={5}
               maxLength={400}
-              className="w-full rounded-lg border-2 p-3 text-2sm sm:text-2sm outline-none border-black/20 focus:border-gray-600 resize-none transition-colors disabled:opacity-70"
+              className="w-full rounded-lg border-2 p-3 text-2sm sm:text-2sm outline-none border-black/20 focus:border-black/30 resize-none transition-colors"
               style={{
                 color: INK,
                 // borderColor: 'rgba(34,48,31,0.18)',
@@ -287,36 +310,24 @@ export function BachecaComposer({
                 Annulla
               </button>
 
+              {/* Nessun feedback in-button (spinner o "Attaccato ✓"):
+                  vedi handleSubmit sopra. Il bottone resta sempre
+                  con la stessa label e icona; è disabilitato solo
+                  quando la textarea è vuota. */}
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={!testo.trim() || busy}
+                disabled={!testo.trim()}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold text-sm
                            disabled:opacity-40 transition-all duration-200 active:scale-95"
                 style={{
-                  backgroundColor: state === 'saved' ? GRASS_DARK : INK,
+                  backgroundColor: INK,
                   color: SAND,
-                  cursor: testo.trim() && !busy ? 'pointer' : 'not-allowed',
+                  cursor: testo.trim() ? 'pointer' : 'not-allowed',
                 }}
               >
-                {state === 'saving' && (
-                  <>
-                    <Pin size={18} className="animate-spin" />
-                    Attacco...
-                  </>
-                )}
-                {state === 'saved' && (
-                  <>
-                    <Check size={18} />
-                    Attaccato
-                  </>
-                )}
-                {state === 'idle' && (
-                  <>
-                    <Pin size={18} />
-                    Attacca l&apos;annuncio
-                  </>
-                )}
+                <Pin size={18} />
+                Attacca l&apos;annuncio
               </button>
             </div>
           </div>
@@ -414,11 +425,26 @@ export default function Bacheca({
   canPost,
   canDelete,
   onLoginClick,
+  pendingOpenCompositore = false,
+  onCompositoreOpened,
 }) {
   // Track which notes are new so only they play the drop animation.
   const seenRef = useRef(null);
   const [newIds, setNewIds] = useState([]);
   const [composerOpen, setComposerOpen] = useState(false);
+
+  /* Apertura programmatica del compositore da un'altra vista
+     (Account → "Pubblica un annuncio"). Guardato da canPost così se
+     l'utente non può pubblicare non forziamo l'apertura di un
+     compositore che nemmeno viene renderizzato. Consumiamo subito
+     il segnale chiamando onCompositoreOpened, per evitare che
+     un rimount della Bacheca (tornandoci in un secondo momento)
+     lo riapra da solo. */
+  useEffect(() => {
+    if (!pendingOpenCompositore || !canPost) return;
+    setComposerOpen(true);
+    onCompositoreOpened?.();
+  }, [pendingOpenCompositore, canPost, onCompositoreOpened]);
 
   useEffect(() => {
     const ids = annunci.map((a) => a.id);

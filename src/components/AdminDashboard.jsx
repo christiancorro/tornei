@@ -34,7 +34,7 @@ function Tab({ active, onClick, children, badge }) {
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      className="px-4 py-2 rounded-full text-2sm font-bold flex items-center gap-2 transition-colors"
+      className="px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition-colors"
       style={{
         backgroundColor: active ? INK : 'transparent',
         color: active ? SAND : INK,
@@ -365,18 +365,25 @@ function RichiestaRow({ richiesta, profile, onMarkRead, onDelete }) {
   const { toast, confirm } = useFeedback();
   const nonLetta = !richiesta.letto;
 
-  const segna = useActionState({
-    savedMs: 800,
-    onError: () => toast('Aggiornamento non riuscito.', 'error'),
-  });
   const elimina = useActionState({
     savedMs: 700,
     onError: () => toast('Eliminazione non riuscita.', 'error'),
   });
-  const busy = segna.busy || elimina.busy;
+  const busy = elimina.busy;
 
+  /* "Segna come letta / non letta": fire-and-forget, senza
+     useActionState. Prima mostrava lo spinner "Aggiorno…" e poi
+     un flash "Fatto ✓" per ~800ms; il feedback era sproporzionato
+     per un'azione così banale (un toggle su un booleano che si
+     riflette subito nel pill "Nuovo" della card). Ora il click
+     parte, l'errore eventuale viene notificato via toast, e basta. */
   async function toggleLetto() {
-    segna.run(() => onMarkRead(richiesta.id, nonLetta));
+    try {
+      await onMarkRead(richiesta.id, nonLetta);
+    } catch (e) {
+      console.error('[richiesta] segna come letta', e);
+      toast('Aggiornamento non riuscito.', 'error');
+    }
   }
 
   async function handleDelete() {
@@ -432,6 +439,8 @@ function RichiestaRow({ richiesta, profile, onMarkRead, onDelete }) {
       )}
 
       <div className="flex flex-wrap gap-2">
+        {/* Bottone "Segna come letta / non letta": nessun
+            spinner né stato "Fatto" — vedi toggleLetto sopra. */}
         <button
           type="button"
           onClick={toggleLetto}
@@ -439,21 +448,13 @@ function RichiestaRow({ richiesta, profile, onMarkRead, onDelete }) {
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold
                      transition-all duration-200 active:scale-[0.98]"
           style={{
-            border: `1px solid ${segna.saved ? GRASS_DARK : 'rgba(34,48,31,0.25)'}`,
-            color: segna.saved ? GRASS_DARK : INK,
-            opacity: busy && !segna.busy ? 0.4 : 1,
+            border: '1px solid rgba(34,48,31,0.25)',
+            color: INK,
+            opacity: busy ? 0.4 : 1,
           }}
         >
-          {segna.saving && <Loader2 size={13} className="animate-spin" />}
-          {segna.saved && <Check size={13} />}
-          {segna.idle && (nonLetta ? <MailOpen size={13} /> : <Mail size={13} />)}
-          {segna.saving
-            ? 'Aggiorno…'
-            : segna.saved
-              ? 'Fatto'
-              : nonLetta
-                ? 'Segna come letta'
-                : 'Segna come non letta'}
+          {nonLetta ? <MailOpen size={13} /> : <Mail size={13} />}
+          {nonLetta ? 'Segna come letta' : 'Segna come non letta'}
         </button>
 
         <button

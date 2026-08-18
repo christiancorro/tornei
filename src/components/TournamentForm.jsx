@@ -96,7 +96,7 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
 
   const inputStyle = {
     color: INK,
-    backgroundColor: '#fffcf8',
+    backgroundColor: '#ffffff',
   };
 
   const labelClass = 'text-xs font-semibold mb-1 block';
@@ -108,7 +108,11 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
 
   return (
     <div
-      className={`fixed inset-0 flex items-center justify-center p-4 z-[9999] modal-backdrop ${closing ? 'is-closing' : ''
+      /* items-end + p-0 su mobile: il form è un bottom-sheet
+         fullscreen (senza margini ai lati e sotto), esattamente
+         come la card di dettaglio del torneo. Su desktop
+         (sm:items-center sm:p-4) torna una sheet centrata. */
+      className={`fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[9999] modal-backdrop ${closing ? 'is-closing' : ''
         }`}
       style={{
         backgroundColor: 'rgba(20, 19, 18, 0.93)',
@@ -117,21 +121,25 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
       onClick={chiudiSePossibile}
     >
       <div
-        className={`rounded-2xl w-full max-w-xl overflow-y-auto modal-panel ${closing ? 'is-closing' : ''
+        /* Dimensioni/altezza/border-radius vivono in
+           `.tournament-form-panel` (styles.css): fullscreen su
+           mobile con angoli arrotondati solo in alto, sheet
+           centrata da 90vh + max-w-xl su desktop. */
+        className={`w-full overflow-y-auto modal-panel tournament-form-panel ${closing ? 'is-closing' : ''
           }`}
         style={{
-          maxHeight: '90vh',
-          backgroundColor: '#fffcf8',
+          backgroundColor: '#ffffff',
           position: 'relative',
           zIndex: 10000,
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* HEADER */}
+        {/* HEADER — solo top-corner arrotondati su mobile
+            (il fondo del pannello è a filo dello schermo). */}
         <div
-          className="sticky top-0 border-b-2 px-6 py-4 flex items-center justify-between rounded-t-2xl"
+          className="sticky top-0 border-b-2 px-6 py-4 flex items-center justify-between rounded-t-2xl sm:rounded-t-2xl"
           style={{
-            backgroundColor: '#fffcf8',
+            backgroundColor: '#ffffff',
             borderColor: 'rgba(34,48,31,0.1)',
             zIndex: 10,
           }}
@@ -154,10 +162,13 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
           </button>
         </div>
 
-        {/* FORM */}
+        {/* FORM — .tournament-form-content aggiunge
+            padding-bottom con env(safe-area-inset-bottom), così
+            l'ultimo pulsante non finisce sotto l'home-indicator
+            iOS quando il form è fullscreen. */}
         <form
           onSubmit={handleSubmit}
-          className="p-6 space-y-4"
+          className="p-6 space-y-4 tournament-form-content"
         >
           {/* NOME TORNEO */}
           <div>
@@ -498,7 +509,7 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
               style={{
                 borderColor: 'rgba(34,48,31,0.25)',
                 color: INK,
-                backgroundColor: '#fffcf8',
+                backgroundColor: '#ffffff',
               }}
             >
               Annulla

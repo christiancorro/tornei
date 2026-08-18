@@ -111,12 +111,12 @@ function Thread({ conv, profile, onBack, readOnly, onDelete }) {
           fuori come pulsante a parte: non si può annidare un
           <button> dentro un altro (HTML non valido, e il click
           verrebbe intercettato dall'esterno). */}
-      <div className="flex items-center border-b-2" style={{ borderColor: 'rgba(34,48,31,0.1)', backgroundColor: SAND }}>
+      <div className="flex items-center border-b-2" style={{ borderColor: 'rgba(34,48,31,0.1)' }}>
         <button
           type="button"
           onClick={onBack}
           aria-label="Torna ai messaggi"
-          className="flex items-center gap-2 p-3 flex-1 min-w-0 text-left hover:bg-black/5 transition-colors"
+          className="flex items-center gap-2 p-3 flex-1 min-w-0 text-left hover:bg-black/1 transition-colors"
           style={{ color: INK }}
         >
           <ChevronLeft size={20} className="shrink-0" />

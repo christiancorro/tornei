@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapPin, Euro, Pencil, Trash2 } from 'lucide-react';
+import { MapPin, Euro } from 'lucide-react';
 
 import { CARD_BG, INK } from '../theme';
 import { STUB_STYLE } from '../constants';
@@ -21,7 +21,7 @@ import LazyImage from './ui/LazyImage';
    `locandinaThumb` non c'è si ripiega sulla `locandina`
    grande — meglio una preview lenta di nessuna preview.
 --------------------------------------------------------- */
-export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequest, onOpenDetail, eagerImage = false }) {
+export default function TournamentCard({ t, delay, onOpenDetail, eagerImage = false }) {
   const [posterMissing, setPosterMissing] = useState(false);
   const style = STUB_STYLE[t.disciplina] || STUB_STYLE['Green Volley'];
   const stub = formatStubGiorno(t.data, t.dataFine);
@@ -49,10 +49,10 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
         }
       }}
       aria-label={`Vedi dettagli di ${t.nome}`}
-      className="group relative bg-white rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300 flex overflow-hidden border cursor-pointer "
+      className="group relative bg-white rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.21)] hover:shadow-[0_3px_10px_rgba(0,0,0,0.2)] active:scale-[0.99] active:shadow-[0_1px_2px_rgba(0,0,0,0.15)] transition-all duration-150 flex overflow-hidden border cursor-pointer"
       style={{
         backgroundColor: CARD_BG,
-        borderColor: 'rgba(34,48,31,0.1)',
+        borderColor: 'rgba(39, 39, 39, 0.1)',
         animation: 'card-in 0.2s ease-in-out both',
         animationDelay: `${delay}ms`
       }}
@@ -115,36 +115,10 @@ export default function TournamentCard({ t, delay, isAdmin, onEdit, onDeleteRequ
           </div>
         </div>
 
-        {/* L'organizzatore vive solo nel dettaglio: qui la riga in fondo
-            resta per i comandi admin, quindi per tutti gli altri la card
-            finisce con le info e non porta con sé una fascia vuota. */}
-        {isAdmin && (
-          <div className="mt-auto pt-2 border-t border-gray-100 flex items-center justify-end gap-1">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-              className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500 "
-              aria-label={`Modifica ${t.nome}`}
-            >
-              <Pencil size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeleteRequest();
-              }}
-              className="p-1.5 rounded-full hover:bg-gray-100 text-rose-600 "
-              aria-label={`Elimina ${t.nome}`}
-            >
-              <Trash2 size={16} />
-            </button>
-          </div>
-        )}
-
+        {/* Le azioni admin (modifica/elimina) sono state rimosse dalla
+            card: la card ora termina con le info e non porta più la
+            fascia in fondo. La gestione dei tornei resta disponibile
+            dal pannello "I miei tornei" in Account / dall'AdminDashboard. */}
       </div>
       {hasPoster && (
         /* Colonna preview: stretta di proposito. La locandina qui

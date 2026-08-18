@@ -111,7 +111,19 @@ export default function Header({
               </NavTab>
 
               {isAdmin && (
-                <NavTab active={view === 'admin'} onClick={() => setView('admin')}>
+                /* Quando ci sono cose da controllare (pending o
+                   richieste non lette) evidenzio il tab Admin con
+                   un bordo dello stesso colore del badge (SUN), così
+                   il richiamo visivo non si limita al pallino con il
+                   numero: tutto il tab "si accende". Quando il conteggio
+                   è zero il tab torna al comportamento standard. */
+                <NavTab
+                  active={view === 'admin'}
+                  onClick={() => setView('admin')}
+                  highlightColor={
+                    (pendingCount + richiesteAdminNonLette) > 0 ? SUN : undefined
+                  }
+                >
                   <span className="inline-flex items-center gap-1.5">
                     <ShieldCheck size={15} />
                     Admin

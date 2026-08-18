@@ -160,7 +160,7 @@ export default function AccountDashboard({
         {/* I pulsanti a destra vivono in un sotto-flex con shrink-0:
       così il titolo può ridursi (min-w-0 + truncate) mentre Admin
       e Esci restano affiancati e mai spezzati su due righe. */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 mb-2">
 
           <button
             type="button"
@@ -169,26 +169,17 @@ export default function AccountDashboard({
             style={{ backgroundColor: INK, color: SAND }}
           >
             <LogOut size={16} />
-            <span className="hidden sm:inline">Esci</span>
+            <span className="sm:inline">Esci</span>
           </button>
         </div>
       </div>
 
-      <p className="text-sm mb-5" style={{ color: INK, opacity: 0.6 }}>
-        Il tuo ruolo: <strong>{ROLE_LABELS[profile?.role] ?? '—'}</strong>
-      </p>
-
-      {/* Tab su una sola riga, con scroll orizzontale se non ci stanno.
-          Prima era flex-wrap: su mobile i tab andavano a capo creando
-          due righe e "spingendo giù" il contenuto sotto.
-          Ora:
-          • overflow-x-auto → scorre in orizzontale quando serve;
-          • no-scrollbar → nasconde la barra (mantenendo lo scroll);
-          • -mx-4 / px-4 sm:-mx-6 sm:px-6 → estende la riga fino al
-            bordo dello schermo, così l'ultimo tab non viene tagliato
-            dal padding del contenitore e c'è margine per scorrere;
-          • i bottoni Tab hanno shrink-0 e whitespace-nowrap. */}
-      <div className="flex gap-2 mb-5 overflow-x-auto no-scrollbar -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      {/* Tab in flex-wrap come nell'AdminDashboard: quando non ci
+          stanno tutti su una riga vanno a capo. Prima usavamo
+          overflow-x-auto per farli scorrere in orizzontale, ma su
+          mobile era faticoso capire che c'erano altri tab nascosti
+          a destra; con il wrap li vedi tutti in colpo d'occhio. */}
+      <div className="flex gap-2 mb-5 flex-wrap">
         <Tab active={tab === 'tornei'} onClick={() => setTab('tornei')}>
           <CalendarDays size={16} /> I miei tornei
         </Tab>

@@ -453,6 +453,18 @@ export default function App() {
     // per non riscattarlo se l'utente naviga altrove e torna.
   }
 
+  /* Ponte "Vai in Bacheca con il compositore già aperto": scattato
+     dal pulsante "Pubblica un annuncio" in Account → I miei annunci.
+     Bacheca vede `pendingOpenCompositore` a true al mount, apre il
+     compositore e mette il focus sulla textarea; poi chiama
+     onCompositoreOpened → setPendingOpenCompositore(false), così
+     tornando in Bacheca dopo non riapre da solo. */
+  const [pendingOpenCompositore, setPendingOpenCompositore] = useState(false);
+  function apriBachecaConCompositore() {
+    setPendingOpenCompositore(true);
+    setView('bacheca');
+  }
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: SAND }}>
       <Header
@@ -565,6 +577,8 @@ export default function App() {
             canPost={canPostAnnuncio(profile)}
             canDelete={(a) => canDeleteAnnuncio(profile, a)}
             onLoginClick={() => setShowAuth(true)}
+            pendingOpenCompositore={pendingOpenCompositore}
+            onCompositoreOpened={() => setPendingOpenCompositore(false)}
           />
         </div>
       )}
@@ -590,6 +604,7 @@ export default function App() {
             onOpenDetail={setDetailTarget}
             onLogout={signOut}
             onOpenAdmin={() => setView('admin')}
+            onOpenBacheca={apriBachecaConCompositore}
             onDeleted={() => setView('tornei')}
             pendingOpenConv={pendingOpenConv}
             onConvOpened={() => setPendingOpenConv(null)}

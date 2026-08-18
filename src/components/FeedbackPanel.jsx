@@ -123,11 +123,11 @@ export default function FeedbackPanel({ onSendFeedback, mieRichieste = [], profi
 
             {/* --- Cronologia --- */}
             <h3 className="font-black text-sm mb-2" style={{ color: INK, opacity: 0.7 }}>
-                Le tue richieste
+                I tuoi suggerimenti
             </h3>
             {mieRichieste.length === 0 ? (
                 <p className="text-sm text-center py-6" style={{ color: INK, opacity: 0.6 }}>
-                    Non hai ancora inviato richieste.
+                    Non hai ancora inviato suggerimenti.
                 </p>
             ) : (
                 mieRichieste.map((r) => (
@@ -198,7 +198,7 @@ function RichiestaUtenteCard({ richiesta: r, profile, conNovita, onOpenChange })
                     }}
                 >
                     {vista ? <Check size={13} /> : <Clock size={13} />}
-                    {vista ? "Vista dall'admin" : 'In attesa'}
+                    {vista ? "Visto dall'admin" : 'Suggerimento inviato'}
                 </span>
 
                 <div className="flex items-center gap-2 shrink-0">
@@ -253,8 +253,8 @@ function RichiestaUtenteCard({ richiesta: r, profile, conNovita, onOpenChange })
                     onOpenChange={onOpenChange}
                 />
             ) : (
-                <p className="text-xs mt-3" style={{ color: INK, opacity: 0.5 }}>
-                    In attesa della risposta dell'amministratore.
+                <p className="text-xs mt-0" style={{ color: INK, opacity: 0.5 }}>
+
                 </p>
             )}
         </div>

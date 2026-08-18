@@ -193,16 +193,7 @@ function creaImmaginePin(colore) {
   return { imageData: ctx.getImageData(0, 0, w, h), pixelRatio: dpr };
 }
 
-/* Il box bianco per il titolo del torneo, con ombra accentuata
-   e 9-slice pensato per preservare l'ombra durante lo stretching
-   di `icon-text-fit`.
 
-   Trucco chiave del 9-slice qui: le zone stretchX/stretchY stanno
-   DENTRO il box, oltre i corner arrotondati. Così quando il box
-   si allarga per contenere testo lungo, i quattro angoli — con
-   attorno la loro ombra a raggio — restano identici pixel-a-pixel.
-   Solo il centro (dove l'ombra è uniforme lungo il lato) si allunga,
-   quindi visivamente l'ombra rimane pulita anche su titoli lunghi. */
 function creaImmagineBox() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const wCss = 24;   // larghezza box (senza padding-ombra)
@@ -415,7 +406,7 @@ export default function MapView({ tournaments = [], onOpenDetail, active = true 
     const map = new mapboxgl.Map({
       container: containerRef.current,
       // light-v11: base grigia molto neutra. Fa risaltare i pin colorati.
-      style: 'mapbox://styles/christiancorro/cmsda5qdg00e101s91gkwam75',
+      style: 'mapbox://styles/christiancorro/cmsysc3be00c101sedz54at1h',
       center: INITIAL_CENTER,
       zoom: INITIAL_ZOOM,
       attributionControl: true,
@@ -631,22 +622,6 @@ export default function MapView({ tournaments = [], onOpenDetail, active = true 
     };
   }, []);
 
-  /* Aggiorno il source + inquadro la nuova lista.
-
-     Filtro fuori i tornei passati PRIMA di popolare source e bounds:
-     sulla mappa un pin scaduto è solo rumore, la lista ha già la sua
-     sezione "passati".
-
-     fitBounds parte anche quando la mappa è nascosta: mentre stai
-     sulla lista non lo vedi, ma quando apri la mappa la trovi già
-     inquadrata sui pin correnti. Non re-fitto al cambio di `active`
-     perché sennò perderemmo il pan/zoom manuale dell'utente ogni
-     volta che riapre la vista mappa.
-
-     `flyOnEmpty: false` (default) qui: se la lista filtrata va a
-     zero, non spostiamo la vista automaticamente — l'utente potrebbe
-     essere in mezzo a un pan e non aspettarsi un fly. Solo il
-     pulsante manuale usa flyOnEmpty:true. */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !styleReady) return;

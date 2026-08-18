@@ -4,7 +4,7 @@ import {
   UserX, Loader2, Lightbulb, Mail, MailOpen,
 } from 'lucide-react';
 
-import { INK, SAND, SUN, GRASS_DARK, CLAY, CARD_BG } from '../theme';
+import { INK, SAND, SUN, GRASS_DARK, CLAY, CARD_BG, BOARD_A, BOARD_B, NOTE_YELLOW, NOTE_WHITE } from '../theme';
 import {
   ROLE_USER, ROLE_ORGANIZER, ROLE_ADMIN, ROLE_BLOCKED,
   ROLE_LABELS, ROLE_DESCRIPTIONS,
@@ -34,7 +34,7 @@ function Tab({ active, onClick, children, badge }) {
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      className="px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition-colors"
+      className="px-4 py-2 rounded-full text-2sm font-bold flex items-center gap-2 transition-colors"
       style={{
         backgroundColor: active ? INK : 'transparent',
         color: active ? SAND : INK,
@@ -324,10 +324,19 @@ function AdminAnnuncioRow({ annuncio, onDelete }) {
     onError: () => toast('Eliminazione non riuscita.', 'error'),
   });
 
+  // Colore del bordo in base al tipo di annuncio, come nelle
+  // note della bacheca lato utente e nelle card di "I miei
+  // annunci" in Account: BOARD_A per "Cerco squadra" (giallo
+  // brand), BOARD_B per "Cercasi giocatori" (viola). Così a
+  // colpo d'occhio l'admin distingue i due tipi senza dover
+  // leggere la label.
+  const bordoAnnuncio = annuncio.tipo === 'cerca_squadra' ? BOARD_A : BOARD_B;
+  const bgAnnuncio = annuncio.tipo === 'cerca_squadra' ? NOTE_YELLOW : NOTE_WHITE;
+
   return (
     <div
       className="rounded-xl border-2 p-3 mb-2"
-      style={{ backgroundColor: CARD_BG, borderColor: 'rgba(34,48,31,0.15)' }}
+      style={{ backgroundColor: bgAnnuncio, borderColor: bordoAnnuncio }}
     >
       <div className="flex items-center justify-between gap-2 mb-1.5">
         <span className="text-xs font-bold" style={{ color: INK, opacity: 0.7 }}>

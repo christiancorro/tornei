@@ -27,5 +27,11 @@ export async function geocode(citta) {
 
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
 
-  return { lat, lng: lon };
+  // Offset verso nord: circa 55 metri
+  const OFFSET_LAT = 0.0010;
+
+  return {
+    lat: lat + OFFSET_LAT,
+    lng: lon
+  };
 }

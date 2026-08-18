@@ -189,11 +189,12 @@ export function BachecaComposer({
   }, [open]);
 
   /* "Attacca l'annuncio": fire-and-forget, senza useActionState.
-     Prima mostrava lo spinner "Attacco…" e poi il flash verde
-     "Attaccato ✓" per ~700ms — feedback ridondante dato che
-     l'annuncio appena pubblicato cade sulla bacheca con la sua
-     animazione di ingresso, che è già la conferma visiva
-     migliore che si potesse dare. */
+     Niente spinner né flash "Attaccato ✓" in-button. Il
+     compositore NON si chiude al submit — l'utente lo chiude
+     esplicitamente con la X in alto o con "Annulla" quando ha
+     finito. La conferma visiva che l'annuncio è stato pubblicato
+     è la nota che cade sulla bacheca (animazione bacheca-pin-in),
+     visibile scorrendo appena sotto. */
   function handleSubmit() {
     if (!testo.trim()) return;
     onSubmit();
@@ -289,7 +290,7 @@ export function BachecaComposer({
               placeholder="Scrivi il tuo annuncio: torneo, ruolo, ..."
               rows={5}
               maxLength={400}
-              className="w-full rounded-lg border-2 p-3 text-2sm sm:text-2sm outline-none border-black/20 focus:border-black/30 resize-none transition-colors"
+              className="w-full rounded-lg border-2 p-3 text-2sm sm:text-2sm outline-none border-black/20 focus:border-gray-600 resize-none transition-colors"
               style={{
                 color: INK,
                 // borderColor: 'rgba(34,48,31,0.18)',
@@ -397,7 +398,7 @@ export function BachecaNote({ post, onDelete, canDelete, canReply, onReply, isNe
         </button>
       )}
 
-      {canDelete && (
+      {/* {canDelete && (
         <button
           type="button"
           onClick={handleDelete}
@@ -407,7 +408,7 @@ export function BachecaNote({ post, onDelete, canDelete, canReply, onReply, isNe
         >
           <X size={13} />
         </button>
-      )}
+      )} */}
     </div>
   );
 }

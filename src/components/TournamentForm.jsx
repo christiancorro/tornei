@@ -42,39 +42,35 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
 
     setErrore('');
 
-    // Geocode il comune se serve davvero:
-    // • torneo nuovo (nessun lat/lng)
-    // • torneo esistente ma con comune cambiato dopo l'ultimo salvataggio
-    // • torneo esistente senza coordinate (creato prima di questa feature)
+    // Geocode il comune SEMPRE prima del salvataggio (torneo nuovo o
+    // modifica): così le coordinate sono sempre allineate con il
+    // comune corrente, e un'eventuale correzione (typo sistemato,
+    // frazione cambiata, DB del geocoder aggiornato, offset modificato
+    // in utils/geocode.js) si riflette subito sulla mappa.
     //
     // Se il geocoder fallisce (rete, città inesistente, timeout) NON
-    // blocchiamo il salvataggio: il torneo si crea/aggiorna comunque,
-    // non apparirà sulla mappa finché lat/lng non vengono compilati.
-    // È il compromesso giusto: un errore di rete non deve impedire
-    // la pubblicazione di un torneo.
+    // blocchiamo il salvataggio: il torneo si crea/aggiorna comunque.
+    // Comportamento sulle coordinate esistenti quando il geocoder non
+    // trova risultato:
+    // • comune INVARIATO rispetto a `initial` → teniamo le vecchie
+    //   coord (sono ancora valide, il geocoder ha solo fallito ora);
+    // • comune CAMBIATO (o torneo nuovo) → azzeriamo lat/lng, meglio
+    //   invisibile sulla mappa che pinnato nel posto sbagliato.
     //
-    // Confronto normalizzato (trim + lowercase) così "Udine " e "udine"
-    // non sembrano diversi e non scatenano un geocode inutile. La
-    // presenza delle coord si testa con typeof: `lat === 0` è un valore
-    // valido, non "mancante".
+    // Confronto normalizzato (trim + lowercase) così "Udine " e
+    // "udine" non contano come cambio.
     let patch = form;
     const norm = (s) => (s || '').trim().toLowerCase();
     const comuneCambiato = initial
       ? norm(initial.comune) !== norm(form.comune)
       : true;
-    const senzaCoords =
-      typeof form.lat !== 'number' || typeof form.lng !== 'number';
 
-    if (form.comune && (comuneCambiato || senzaCoords)) {
+    if (form.comune) {
       try {
         const coords = await geocode(form.comune);
         if (coords) {
           patch = { ...form, lat: coords.lat, lng: coords.lng };
         } else if (comuneCambiato) {
-          // Città cambiata ma il geocoder non trova la nuova: azzero
-          // le vecchie coord perché erano riferite al comune precedente,
-          // ora sbagliato. Meglio invisibile sulla mappa che geolocalizzato
-          // nel posto sbagliato.
           patch = { ...form, lat: null, lng: null };
         }
       } catch (err) {

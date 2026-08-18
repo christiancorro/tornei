@@ -17,7 +17,7 @@ import {
   Send,
 } from 'lucide-react';
 
-import { INK, SAND, SUN, GRASS_DARK, CLAY, CARD_BG, BOARD_A, BOARD_B } from '../theme';
+import { INK, SAND, SUN, GRASS_DARK, CLAY, CARD_BG, BOARD_A, BOARD_B, NOTE_WHITE, NOTE_YELLOW } from '../theme';
 import {
   STATUS_PENDING,
   STATUS_PUBLISHED,
@@ -27,10 +27,11 @@ import {
   isOrganizer,
   isActive,
 } from '../roles';
-import { formatDataLunga, timeAgo } from '../utils';
+import { timeAgo } from '../utils';
 import MessagesPanel from './MessagesPanel';
 import AccountSettings from './AccountSettings';
 import FeedbackPanel from './FeedbackPanel'
+import TournamentCard from './TournamentCard';
 import { markRichiesteLetteDaUtente } from '../services/richieste';
 
 const STATUS_STYLE = {
@@ -160,7 +161,7 @@ export default function AccountDashboard({
         {/* I pulsanti a destra vivono in un sotto-flex con shrink-0:
       così il titolo può ridursi (min-w-0 + truncate) mentre Admin
       e Esci restano affiancati e mai spezzati su due righe. */}
-        <div className="flex items-center gap-2 shrink-0 mb-2">
+        <div className="flex items-center gap-2 shrink-0">
 
           <button
             type="button"
@@ -169,10 +170,14 @@ export default function AccountDashboard({
             style={{ backgroundColor: INK, color: SAND }}
           >
             <LogOut size={16} />
-            <span className="sm:inline">Esci</span>
+            <span className="hidden sm:inline">Esci</span>
           </button>
         </div>
       </div>
+
+      <p className="text-sm mb-5" style={{ color: INK, opacity: 0.6 }}>
+        Il tuo ruolo: <strong>{ROLE_LABELS[profile?.role] ?? '—'}</strong>
+      </p>
 
       {/* Tab in flex-wrap come nell'AdminDashboard: quando non ci
           stanno tutti su una riga vanno a capo. Prima usavamo
@@ -249,40 +254,40 @@ export default function AccountDashboard({
                 Non hai ancora pubblicato tornei.
               </p>
             ) : (
+              /* Ogni "mio torneo" è racchiuso in un contenitore
+                 leggermente rientrato con sfondo tenue, così barra
+                 di gestione (StatusBadge, Modifica, Elimina) +
+                 card (la stessa della lista pubblica) si leggono
+                 come UN'unità. La barra sta SOPRA la card, separata
+                 da un divisore tratteggiato: la testata dice "cosa
+                 stai per fare / stato attuale", la card sotto è il
+                 torneo a cui si riferisce. */
               mieiTornei.map((t) => (
                 <div
                   key={t.id}
-                  className="rounded-xl border-2 p-4 mb-3"
-                  style={{ backgroundColor: CARD_BG, borderColor: 'rgba(34,48,31,0.15)' }}
+                  className="rounded-2xl p-3 mb-8"
+                  style={{
+                    backgroundColor: 'rgba(34,48,31,0.045)',
+                    border: '1px solid rgba(34,48,31,0.08)',
+                  }}
                 >
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <button type="button" onClick={() => onOpenDetail(t)} className="text-left min-w-0">
-                      <h4 className="font-black text-base truncate" style={{ color: INK }}>
-                        {t.nome}
-                      </h4>
-                      <p className="text-xs" style={{ color: INK, opacity: 0.6 }}>
-                        {formatDataLunga(t.data)} · {t.comune}
-                      </p>
-                    </button>
-
+                  <div
+                    className="flex items-center gap-2 mb-3 pb-3 flex-wrap"
+                    style={{ borderBottom: '1px dashed rgba(34,48,31,0.15)' }}
+                  >
                     <StatusBadge status={t.status} />
-                  </div>
 
-                  {t.status === STATUS_REJECTED && t.motivoRifiuto && (
-                    <p
-                      className="text-xs mb-2 px-2 py-1.5 rounded"
-                      style={{ backgroundColor: '#FBE3DC', color: '#8C3520' }}
-                    >
-                      Motivo: {t.motivoRifiuto}
-                    </p>
-                  )}
+                    <div className="flex-1" />
 
-                  <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => onEditTorneo(t)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
-                      style={{ border: '1px solid rgba(34,48,31,0.25)', color: INK }}
+                      style={{
+                        border: '1px solid rgba(34,48,31,0.25)',
+                        color: INK,
+                        backgroundColor: CARD_BG,
+                      }}
                     >
                       <Pencil size={14} /> Modifica
                     </button>
@@ -291,11 +296,26 @@ export default function AccountDashboard({
                       type="button"
                       onClick={() => onDeleteTorneo(t)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
-                      style={{ border: `1px solid ${CLAY}`, color: CLAY }}
+                      style={{
+                        border: `1px solid ${CLAY}`,
+                        color: CLAY,
+                        backgroundColor: CARD_BG,
+                      }}
                     >
                       <Trash2 size={14} /> Elimina
                     </button>
                   </div>
+
+                  <TournamentCard t={t} delay={0} onOpenDetail={onOpenDetail} />
+
+                  {t.status === STATUS_REJECTED && t.motivoRifiuto && (
+                    <p
+                      className="text-xs mt-3 px-2 py-1.5 rounded"
+                      style={{ backgroundColor: '#FBE3DC', color: '#8C3520' }}
+                    >
+                      Motivo: {t.motivoRifiuto}
+                    </p>
+                  )}
                 </div>
               ))
             )}
@@ -337,7 +357,7 @@ export default function AccountDashboard({
                   key={a.id}
                   className="rounded-xl border-2 p-4 mb-3"
                   style={{
-                    backgroundColor: CARD_BG,
+                    backgroundColor: a.tipo === 'cerca_squadra' ? NOTE_YELLOW : NOTE_WHITE,
                     borderColor: a.tipo === 'cerca_squadra' ? BOARD_A : BOARD_B,
                   }}
                 >

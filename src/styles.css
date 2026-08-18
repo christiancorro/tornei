@@ -279,7 +279,7 @@ html {
        lo riporto al valore che aveva prima insieme all'altezza. Su
        desktop la card è una sheet centrata, quindi tornano tutti e
        quattro gli angoli arrotondati. */
-    max-width: 36rem;
+    max-width: 40rem;
     max-height: 90vh;
     height: auto;
     border-radius: 1rem;
@@ -323,7 +323,7 @@ html {
 
 @media (min-width: 640px) {
   .tournament-form-panel {
-    max-width: 36rem; /* max-w-xl */
+    max-width: 40rem; /* max-w-xl */
     max-height: 90vh;
     height: auto;
     border-radius: 1rem;

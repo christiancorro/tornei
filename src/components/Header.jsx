@@ -125,7 +125,7 @@ export default function Header({
                   }
                 >
                   <span className="inline-flex items-center gap-1.5">
-                    <ShieldCheck size={15} />
+                    <ShieldCheck size={10} />
                     Admin
                     {(pendingCount + richiesteAdminNonLette) > 0 && (
                       <span

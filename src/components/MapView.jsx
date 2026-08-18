@@ -424,14 +424,14 @@ export default function MapView({ tournaments = [], onOpenDetail, active = true 
       showAccuracyCircle: false,
     });
 
-    geolocateControl.on('geolocate', () => {
-      map.easeTo({
-        zoom: 9,
-        duration: 800,
-      });
-    });
-
     map.addControl(geolocateControl, 'top-right');
+
+    // Vogliamo SOLO il pallino blu della posizione utente, senza che
+    // la mappa si sposti/zoomi. GeolocateControl chiama internamente
+    // `_updateCamera` per centrarsi sull'utente (sia al primo fix,
+    // sia ad ogni aggiornamento in tracking): sovrascrivendolo con
+    // un no-op la camera resta esattamente dov'era.
+    geolocateControl._updateCamera = () => { };
 
     // map.once('load', () => {
     //   geolocateControl.trigger();

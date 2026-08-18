@@ -181,7 +181,7 @@ export function BachecaComposer({
       // elemento con altezza 0 e la tastiera mobile non compare.
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          textareaRef.current?.focus();
+          // textareaRef.current?.focus();
         });
       });
     }

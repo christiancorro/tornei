@@ -34,7 +34,7 @@ function Tab({ active, onClick, children, badge }) {
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      className="px-4 py-2 rounded-full text-2sm font-bold flex items-center gap-2 transition-colors"
+      className="px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition-colors"
       style={{
         backgroundColor: active ? INK : 'transparent',
         color: active ? SAND : INK,

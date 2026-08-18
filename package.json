@@ -17,7 +17,7 @@
     "flatpickr": "^4.6.13",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.28.0",
-    "mapbox-gl": "^3.28.0",
+    "mapbox-gl": "^3.28.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-flatpickr": "^4.0.11",

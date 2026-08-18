@@ -52,9 +52,18 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
     // non apparirà sulla mappa finché lat/lng non vengono compilati.
     // È il compromesso giusto: un errore di rete non deve impedire
     // la pubblicazione di un torneo.
+    //
+    // Confronto normalizzato (trim + lowercase) così "Udine " e "udine"
+    // non sembrano diversi e non scatenano un geocode inutile. La
+    // presenza delle coord si testa con typeof: `lat === 0` è un valore
+    // valido, non "mancante".
     let patch = form;
-    const comuneCambiato = initial ? initial.comune !== form.comune : true;
-    const senzaCoords = !form.lat || !form.lng;
+    const norm = (s) => (s || '').trim().toLowerCase();
+    const comuneCambiato = initial
+      ? norm(initial.comune) !== norm(form.comune)
+      : true;
+    const senzaCoords =
+      typeof form.lat !== 'number' || typeof form.lng !== 'number';
 
     if (form.comune && (comuneCambiato || senzaCoords)) {
       try {

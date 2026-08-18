@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './app.jsx'
 import { FeedbackProvider } from './components/FeedbackProvider.jsx'
-import 'leaflet/dist/leaflet.css';
+import 'mapbox-gl/dist/mapbox-gl.css';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

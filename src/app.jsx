@@ -499,24 +499,55 @@ export default function App() {
         </div>
       )}
 
-      {/* key={viewMode} rimonta il blocco a ogni cambio, così l'animazione riparte */}
+      {/* MapView sta sempre montata dentro la vista tornei: appena
+         entri qui, la mappa inizia a caricare stile e tile in
+         background. Quando poi passi a 'mappa' non c'è attesa,
+         l'istanza è già viva.
+
+         La lista invece si rimonta col key={viewMode} così la sua
+         animazione di ingresso riparte ad ogni toggle. */}
       {view === 'tornei' && !loadingTornei && (
-        <div key={viewMode} className="view-swap">
+        <div className="relative">
           {viewMode === 'lista' && (
-            <TournamentList
-              grouped={grouped}
-              gruppiPassati={gruppiPassati}
-              isAdmin={isAdmin}
-              onEdit={(t) => setFormState(t)}
-              onDeleteRequest={(t) => setDeleteTarget(t)}
-              onOpenDetail={setDetailTarget}
-              onResetFilters={resetFilters}
-            />
+            <div key="lista" className="view-swap">
+              <TournamentList
+                grouped={grouped}
+                gruppiPassati={gruppiPassati}
+                isAdmin={isAdmin}
+                onEdit={(t) => setFormState(t)}
+                onDeleteRequest={(t) => setDeleteTarget(t)}
+                onOpenDetail={setDetailTarget}
+                onResetFilters={resetFilters}
+              />
+            </div>
           )}
 
-          {viewMode === 'mappa' && (
-            <MapView tournaments={filtered} onOpenDetail={setDetailTarget} />
-          )}
+          {/* Il wrapper della mappa esce dal flow quando non è attivo
+             (position:absolute + visibility:hidden) invece di essere
+             smontato o messo in display:none. Motivo: display:none
+             fa partire l'init di Mapbox con container 0x0, e nessun
+             tile verrebbe scaricato in background. Visibility+absolute
+             mantiene le dimensioni reali, la mappa lavora nascosta. */}
+          <div
+            className={viewMode === 'mappa' ? 'view-swap' : ''}
+            style={
+              viewMode === 'mappa'
+                ? undefined
+                : {
+                  position: 'absolute',
+                  inset: 0,
+                  visibility: 'hidden',
+                  pointerEvents: 'none',
+                }
+            }
+            aria-hidden={viewMode !== 'mappa'}
+          >
+            <MapView
+              tournaments={filtered}
+              onOpenDetail={setDetailTarget}
+              active={viewMode === 'mappa'}
+            />
+          </div>
 
           {/* Calendario nascosto per ora — il toggle ciclo lista ⇄ mappa
              non ci passa. Lascio il blocco commentato così riattivarlo

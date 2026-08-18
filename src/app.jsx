@@ -278,6 +278,28 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPop);
   }, [tournaments]);
 
+  /* MapView è pesante da inizializzare: Mapbox GL crea il canvas,
+     registra le icone dei pin, scarica lo stile e aggiunge i layer,
+     tutto sincrono al mount. Prima la montavamo insieme al resto
+     della vista tornei ("warmup in background"), ma quel lavoro
+     cadeva nei frame subito dopo il click sul tab Tornei e si
+     sentiva come lag.
+
+     Ora la mappa viene montata SOLO al primo ingresso in
+     viewMode === 'mappa', e da quel momento in poi resta viva per
+     tutta la sessione. Il wrapper è renderizzato al top-level
+     dell'App (fuori dal blocco `view === 'tornei'`) e nascosto con
+     visibility:hidden quando non serve, così cambiare vista non lo
+     smonta e riaprire la mappa dopo essere passati da Bacheca /
+     Account / Admin è istantaneo. */
+  const [mapMounted, setMapMounted] = useState(false);
+  useEffect(() => {
+    if (view === 'tornei' && viewMode === 'mappa' && !mapMounted) {
+      setMapMounted(true);
+    }
+  }, [view, viewMode, mapMounted]);
+  const mappaVisibile = view === 'tornei' && viewMode === 'mappa';
+
   /* Blocca lo scroll della pagina quando un modale è aperto.
 
      Il lock va su <html>, non su <body>: siccome in styles.css
@@ -499,64 +521,34 @@ export default function App() {
         </div>
       )}
 
-      {/* MapView sta sempre montata dentro la vista tornei: appena
-         entri qui, la mappa inizia a caricare stile e tile in
-         background. Quando poi passi a 'mappa' non c'è attesa,
-         l'istanza è già viva.
+      {/* La LISTA vive dentro il blocco `view === 'tornei'` come
+         prima: monta/smonta col cambio vista, è leggera. La MAPPA
+         invece è renderizzata più sotto al top-level dell'App: una
+         volta montata ci resta, e il cambio vista la nasconde solo
+         via CSS. Vedi il blocco `{mapMounted && …}` più giù.
 
-         La lista invece si rimonta col key={viewMode} così la sua
+         La lista si rimonta col key={viewMode} così la sua
          animazione di ingresso riparte ad ogni toggle. */}
-      {view === 'tornei' && !loadingTornei && (
-        <div className="relative">
-          {viewMode === 'lista' && (
-            <div key="lista" className="view-swap">
-              <TournamentList
-                grouped={grouped}
-                gruppiPassati={gruppiPassati}
-                isAdmin={isAdmin}
-                onEdit={(t) => setFormState(t)}
-                onDeleteRequest={(t) => setDeleteTarget(t)}
-                onOpenDetail={setDetailTarget}
-                onResetFilters={resetFilters}
-              />
-            </div>
-          )}
-
-          {/* Il wrapper della mappa esce dal flow quando non è attivo
-             (position:absolute + visibility:hidden) invece di essere
-             smontato o messo in display:none. Motivo: display:none
-             fa partire l'init di Mapbox con container 0x0, e nessun
-             tile verrebbe scaricato in background. Visibility+absolute
-             mantiene le dimensioni reali, la mappa lavora nascosta. */}
-          <div
-            className={viewMode === 'mappa' ? 'view-swap' : ''}
-            style={
-              viewMode === 'mappa'
-                ? undefined
-                : {
-                  position: 'absolute',
-                  inset: 0,
-                  visibility: 'hidden',
-                  pointerEvents: 'none',
-                }
-            }
-            aria-hidden={viewMode !== 'mappa'}
-          >
-            <MapView
-              tournaments={filtered}
-              onOpenDetail={setDetailTarget}
-              active={viewMode === 'mappa'}
-            />
-          </div>
-
-          {/* Calendario nascosto per ora — il toggle ciclo lista ⇄ mappa
-             non ci passa. Lascio il blocco commentato così riattivarlo
-             è di nuovo una riga. */}
-          {/* {viewMode === 'calendario' && (
-            <CalendarView tournaments={filtered} onOpenDetail={setDetailTarget} />
-          )} */}
+      {view === 'tornei' && !loadingTornei && viewMode === 'lista' && (
+        <div key="lista" className="view-swap">
+          <TournamentList
+            grouped={grouped}
+            gruppiPassati={gruppiPassati}
+            isAdmin={isAdmin}
+            onEdit={(t) => setFormState(t)}
+            onDeleteRequest={(t) => setDeleteTarget(t)}
+            onOpenDetail={setDetailTarget}
+            onResetFilters={resetFilters}
+          />
         </div>
       )}
+
+      {/* Calendario nascosto per ora — il toggle ciclo lista ⇄ mappa
+         non ci passa. Lascio il blocco commentato così riattivarlo
+         è di nuovo una riga. */}
+      {/* {view === 'tornei' && !loadingTornei && viewMode === 'calendario' && (
+        <CalendarView tournaments={filtered} onOpenDetail={setDetailTarget} />
+      )} */}
 
       {view === 'bacheca' && (
         <div className="view-swap">
@@ -625,6 +617,39 @@ export default function App() {
             richieste={richieste}
             onMarkRichiestaRead={handleMarkRichiestaRead}
             onDeleteRichiesta={handleDeleteRichiesta}
+          />
+        </div>
+      )}
+
+      {/* Wrapper della MAPPA al top-level dell'App: una volta montata
+         resta viva anche quando l'utente va su Bacheca/Account/Admin,
+         così riaprire Tornei→Mappa è istantaneo (nessun re-init di
+         Mapbox GL). Quando non è visibile, esce dal flow con
+         position:absolute + visibility:hidden — il container mantiene
+         dimensioni reali (necessarie a Mapbox: con display:none o 0x0
+         il resize non funziona bene) ma è invisibile e non riceve
+         click. La rendiamo solo dopo il primo ingresso in mappa
+         (mapMounted === true), altrimenti non occuperebbe nulla ma
+         inutilmente aggiungerebbe DOM. */}
+      {mapMounted && (
+        <div
+          className={mappaVisibile ? 'view-swap' : ''}
+          style={
+            mappaVisibile
+              ? undefined
+              : {
+                position: 'absolute',
+                inset: 0,
+                visibility: 'hidden',
+                pointerEvents: 'none',
+              }
+          }
+          aria-hidden={!mappaVisibile}
+        >
+          <MapView
+            tournaments={filtered}
+            onOpenDetail={setDetailTarget}
+            active={mappaVisibile}
           />
         </div>
       )}

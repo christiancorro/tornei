@@ -323,7 +323,7 @@ function fitToTournaments(map, tournaments, { flyOnEmpty = false } = {}) {
   const geo = toGeoJSON(tournaments);
   if (geo.features.length === 0) {
     if (flyOnEmpty) {
-      map.flyTo({
+      map.easeTo({
         center: INITIAL_CENTER,
         zoom: INITIAL_ZOOM,
         duration: 800,
@@ -433,9 +433,9 @@ export default function MapView({ tournaments = [], onOpenDetail, active = true 
 
     map.addControl(geolocateControl, 'top-right');
 
-    map.once('load', () => {
-      geolocateControl.trigger();
-    });
+    // map.once('load', () => {
+    //   geolocateControl.trigger();
+    // });
 
     // Pulsante custom per ricentrare la vista sui tornei correnti.
     // Uso tournamentsRef così il click prende sempre la lista attuale

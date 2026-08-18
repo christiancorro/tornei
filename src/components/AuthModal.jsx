@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
 
-import { INK, GRASS_DARK, CLAY } from '../theme';
+import { INK, GRASS_DARK, CLAY, SUN } from '../theme';
 import { authErrorMessage } from '../services/auth';
 
 /* Logo Google ufficiale: le linee guida del brand lo richiedono,
@@ -48,10 +48,10 @@ export default function AuthModal({ onGoogle, onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="font-black text-lg mb-1" style={{ color: INK }}>
-          Accedi a TorneyFVG
+          Accedi a volley<span style={{ color: SUN }}>FVG</span>
         </h3>
         <p className="text-sm text-gray-500 mb-5">
-          È necessario solo se vuoi proporre un torneo, scrivere e rispondere agli annunci in bacheca. Serve per evitare spam e bot.
+          È necessario solo se vuoi proporre un torneo e scrivere e rispondere agli annunci in bacheca.
         </p>
 
         <button

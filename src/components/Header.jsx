@@ -73,7 +73,7 @@ export default function Header({
     <>
       {/* NAV + HEADER */}
       <div style={{ borderColor: 'rgba(34,48,31,0.12)' }}>
-        <div className="max-w-[70rem] mx-auto px-4 sm:px-6 lg:px-9 py-2.5">
+        <div className="max-w-[70rem] mx-auto px-4 sm:px-6 lg:px-9 py-2.5 ">
           {/* Mobile: il logo occupa solo lo spazio che gli serve e i tab
                 si centrano in quello che resta, quindi scivolano a destra.
                 Da sm in su torna la griglia a 3 colonne uguali. */}
@@ -213,8 +213,8 @@ export default function Header({
         <>
           {/* SEARCH + FILTERS */}
           <div className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: SAND, borderColor: 'rgba(34,48,31,0.15)', }}>
-            <div className="max-w-[69rem] mx-auto px-4 sm:px-6 lg:px-8 py-3.5 space-y-3">
-              <div ref={rowRef} className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-2">
+            <div className="max-w-[69rem] mx-auto px-4 sm:px-6 lg:px-8 py-2 space-y-3">
+              <div ref={rowRef} className="flex items-center gap-2 overflow-x-auto no-scrollbar">
                 {/* Ricerca a scomparsa: da icona a campo, spingendo i filtri a destra */}
                 <div
                   className="flex items-center h-9 rounded-full border-2 shrink-0 overflow-hidden transition-all duration-300"

@@ -437,3 +437,7 @@ html {
 .mapboxgl-user-location-dot:before {
   display: none !important;
 }
+
+.mapboxgl-user-location-dot {
+  scale: 0.8;
+}

@@ -39,7 +39,7 @@ const COLORI_DISCIPLINA = {
   'Beach Volley': '#f5b958',
   Pallavolo: '#3949AB',
 };
-const COLORE_DEFAULT = '#757575';
+const COLORE_DEFAULT = '#1f1f1f';
 
 const TEXT_FONT = [
   'Poppins Medium',
@@ -517,7 +517,7 @@ export default function MapView({ tournaments = [], onOpenDetail, active = true 
           'text-offset': [0, -3.1],
         },
         paint: {
-          'text-color': '#333',
+          'text-color': '#131313',
         },
       });
 
@@ -550,7 +550,7 @@ export default function MapView({ tournaments = [], onOpenDetail, active = true 
           'text-ignore-placement': true,
         },
         paint: {
-          'text-color': '#333',
+          'text-color': '#131313',
         },
       });
 

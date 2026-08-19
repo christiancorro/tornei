@@ -1,0 +1,7 @@
+# robots.txt di torneiFVG
+# Permetti l'indicizzazione di tutto e indica dove trovare la sitemap
+# (percorso assoluto: Googlebot ignora sitemap con URL relativi).
+User-agent: *
+Allow: /
+
+Sitemap: https://volleyfvg.it/sitemap.xml

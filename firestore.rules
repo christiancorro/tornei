@@ -70,6 +70,12 @@ service cloud.firestore {
                         && request.resource.data.role in ['user', 'organizer', 'admin', 'blocked']);
 
       allow delete: if isOwner(uid) || isAdmin();
+   
+    match /trofei/{torneoId} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create, update, delete: if isOwner(uid);
+}
+    
     }
 
     /* ---------- tornei ---------- */

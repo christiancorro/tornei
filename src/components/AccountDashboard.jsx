@@ -17,6 +17,7 @@ import {
   Send,
   ChevronDown,
   ChevronRight,
+  Trophy,
 } from 'lucide-react';
 
 import { INK, SAND, SUN, GRASS_DARK, CLAY, CARD_BG, BOARD_A, BOARD_B, NOTE_WHITE, NOTE_YELLOW } from '../theme';
@@ -34,6 +35,7 @@ import MessagesPanel from './MessagesPanel';
 import AccountSettings from './AccountSettings';
 import FeedbackPanel from './FeedbackPanel'
 import TournamentCard from './TournamentCard';
+import TrofeiPanel from './TrofeiPanel';
 import { useFeedback } from './FeedbackProvider';
 import { markRichiesteLetteDaUtente } from '../services/richieste';
 
@@ -249,15 +251,19 @@ export default function AccountDashboard({
           a destra; con il wrap li vedi tutti in colpo d'occhio. */}
       <div className="flex gap-2 mb-5 flex-wrap">
         <Tab active={tab === 'tornei'} onClick={() => setTab('tornei')}>
-          <CalendarDays size={16} /> I miei tornei
+          <CalendarDays size={16} /> Tornei pubblicati
         </Tab>
 
         <Tab active={tab === 'annunci'} onClick={() => setTab('annunci')}>
-          <StickyNote size={16} /> I miei annunci
+          <StickyNote size={16} /> Annunci pubblicati
         </Tab>
 
         <Tab active={tab === 'messaggi'} onClick={apriMessaggi} badge={unreadTotal}>
           <MessageCircle size={16} /> Messaggi
+        </Tab>
+
+        <Tab active={tab === 'trofei'} onClick={() => setTab('trofei')}>
+          <Trophy size={16} /> Tornei giocati
         </Tab>
 
         <Tab active={tab === 'impostazioni'} onClick={() => setTab('impostazioni')}>
@@ -532,6 +538,10 @@ export default function AccountDashboard({
               ))
             )}
           </>
+        )}
+
+        {tab === 'trofei' && (
+          <TrofeiPanel uid={profile?.uid} onOpenDetail={onOpenDetail} />
         )}
 
         {tab === 'messaggi' && (

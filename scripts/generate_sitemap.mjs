@@ -25,10 +25,11 @@
      mancanti), lo script NON blocca il build: stampa un warning e
      lascia in piedi la sitemap statica esistente. Meglio un indice
      un po' stale che nessun deploy.
-   - Non serve firebase-admin: la config web + le regole di lettura
-     pubbliche (`allow read: if resource.data.status == "pubblicato"`)
-     bastano. Se il tuo firestore.rules è più restrittivo, converti
-     lo script a firebase-admin col service account.
+   - Non serve firebase-admin: le rules del progetto autorizzano la
+     lettura dei tornei con `status == 'published'` senza login
+     (`allow read: if ... || resource.data.status == 'published'`),
+     e lo script filtra proprio su quel valore. Se in futuro la
+     rule cambiasse, converti a firebase-admin col service account.
 --------------------------------------------------------- */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -135,7 +136,12 @@ async function main() {
     try {
       const app = initializeApp(firebaseConfig);
       const db = getFirestore(app);
-      const q = query(collection(db, 'tornei'), where('status', '==', 'pubblicato'));
+      // Il campo `status` in Firestore è la stringa inglese 'published'
+      // (vedi STATUS_PUBLISHED in src/roles.js e firestore.rules).
+      // Filtrare per la stringa esatta è ANCHE il modo con cui le rules
+      // ci autorizzano a leggere: Firestore accetta la query solo se
+      // il where garantisce che tutti i doc restituiti siano leggibili.
+      const q = query(collection(db, 'tornei'), where('status', '==', 'published'));
       const snap = await getDocs(q);
       let contati = 0;
       snap.forEach((docSnap) => {

@@ -11,9 +11,11 @@ import {
   PIN_COLOR,
   NOTE_YELLOW,
   NOTE_WHITE,
+  CLAY,
 } from '../theme';
 import { formatDataBreve, timeAgo } from '../utils';
 import Chip from './ui/Chip';
+import { useFeedback } from './FeedbackProvider';
 
 /* ---------------------------------------------------------
    Motion — the note falls onto the cork, over-rotates on
@@ -342,9 +344,24 @@ export function BachecaNote({ post, onDelete, canDelete, canReply, onReply, isNe
   const [removing, setRemoving] = useState(false);
   const isSquadra = post.tipo === 'cerca_squadra';
   const accent = isSquadra ? BOARD_A : BOARD_B;
+  const { confirm } = useFeedback();
 
-  const handleDelete = () => {
+  /* Cancellazione con conferma (modalità "legacy" di useFeedback,
+     senza onConfirm): il dialog restituisce true/false e si chiude
+     subito al click. Nessuno spinner né "Eliminato ✓" dentro il
+     bottone del dialog — l'utente clicca Elimina, il dialog sparisce
+     e la nota parte con l'animazione peel-out. Il feedback visivo di
+     avvenuta cancellazione è proprio quella animazione + la nota
+     che scompare dalla bacheca. */
+  const handleDelete = async () => {
     if (removing) return;
+    const ok = await confirm({
+      title: 'Eliminare questo annuncio?',
+      message:
+        "L'annuncio verrà rimosso dalla bacheca. Non è recuperabile.",
+      confirmLabel: 'Elimina',
+    });
+    if (!ok) return;
     setRemoving(true);
     setTimeout(() => onDelete(post.id), EXIT_MS);
   };
@@ -398,17 +415,23 @@ export function BachecaNote({ post, onDelete, canDelete, canReply, onReply, isNe
         </button>
       )}
 
-      {/* {canDelete && (
+      {/* Elimina annuncio: visibile solo se `canDelete(post)` ha
+          detto "sì" (in pratica: admin o autore dell'annuncio —
+          la logica sta in app.jsx, questo componente si fida).
+          La conferma è dentro handleDelete, gestita da useFeedback:
+          l'utente non può eliminare "per sbaglio" con un tap. */}
+      {canDelete && (
         <button
           type="button"
           onClick={handleDelete}
-          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-200"
-          style={{ color: INK, opacity: 0.45 }}
-          aria-label="Rimuovi annuncio"
+          className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full flex items-center justify-center hover:bg-black/5"
+          style={{ color: INK, opacity: 0.75 }}
+          aria-label="Elimina annuncio"
+          title="Elimina annuncio"
         >
-          <X size={13} />
+          <X size={15} strokeWidth={2.5} />
         </button>
-      )} */}
+      )}
     </div>
   );
 }

@@ -9,9 +9,10 @@
 import {
   collection,
   doc,
-  addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
+  getDoc,
   onSnapshot,
   query,
   where,
@@ -83,6 +84,85 @@ function listen(q, onData, onError) {
   );
 }
 
+/* ---------------------------------------------------------
+   Slug ID: usato come ID del documento in Firestore per rendere
+   l'URL /?torneo=<id> leggibile da umani e migliore in SERP.
+
+   Formato: <nome-slug>-<gg>-<mm>-<aaaa>
+     es. "finale-serie-c-15-06-2026"
+
+   Su collisione (stesso nome + stessa data) appendo -2, -3, ...
+   La verifica esistenza usa getDoc: perché funzioni per doc
+   inesistenti, firestore.rules deve avere `|| resource == null`
+   nella allow read di /tornei (vedi firestore.rules.patch.txt).
+
+   Lo slug è immutabile dopo la creazione: se l'utente cambia
+   nome o data del torneo, l'URL resta stabile. È una scelta
+   deliberata — rinominare doc Firestore vuol dire copy+delete,
+   e cambiare URL già indicizzati romperebbe i backlink.
+--------------------------------------------------------- */
+function slugify(s) {
+  return String(s || '')
+    .toLowerCase()
+    // Rimuovi accenti/diacritici (é → e, ò → o, ecc.).
+    // Il range ̀-ͯ copre i combining marks Unicode
+    // che NFD stacca dalle lettere accentate.
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    // Qualsiasi carattere non alfanumerico diventa trattino.
+    .replace(/[^a-z0-9]+/g, '-')
+    // Trim dei trattini in testa/coda.
+    .replace(/^-+|-+$/g, '')
+    // Cap sulla lunghezza per non avere ID enormi.
+    .slice(0, 80);
+}
+
+/* Mesi in italiano abbreviati (3 lettere, minuscole). Coerente con
+   MESI_BREVI usato altrove nella UI. Preferisco l'array hard-coded
+   a toLocaleDateString('it-IT', {month:'short'}) perché su alcuni
+   browser/runtime quest'ultimo stampa un puntino finale (`gen.`)
+   o il mese completo — la stringa dell'ID deve essere stabile. */
+const MESI_SLUG = [
+  'gen', 'feb', 'mar', 'apr', 'mag', 'giu',
+  'lug', 'ago', 'set', 'ott', 'nov', 'dic',
+];
+
+function slugTorneo(nome, dataISO) {
+  const base = slugify(nome) || 'torneo';
+  if (typeof dataISO === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dataISO)) {
+    const [y, m, d] = dataISO.split('-');
+    const mese = MESI_SLUG[parseInt(m, 10) - 1] || m;
+    // Rimuovo lo zero iniziale del giorno per un ID più leggibile:
+    // "5-giu-2026" invece di "05-giu-2026". Zero-padding lo mantengo
+    // solo se hai bisogno di sort alfabetico, che qui non serve.
+    const giorno = String(parseInt(d, 10));
+    return `${base}-${giorno}-${mese}-${y}`;
+  }
+  return base;
+}
+
+async function slugUnivoco(base) {
+  let candidato = base;
+  let n = 2;
+  // Cap difensivo: nessuna collision-chain dovrebbe mai arrivare a 50,
+  // ma se qualcosa va storto ripiego su un suffisso timestamp per non
+  // ciclare all'infinito.
+  while (n <= 50) {
+    let esiste;
+    try {
+      const snap = await getDoc(doc(db, COL_TORNEI, candidato));
+      esiste = snap.exists();
+    } catch {
+      // permission-denied → assumo "esiste ma non lo posso leggere"
+      // (es. torneo pending di un altro utente con lo stesso slug).
+      esiste = true;
+    }
+    if (!esiste) return candidato;
+    candidato = `${base}-${n}`;
+    n += 1;
+  }
+  return `${base}-${Date.now()}`;
+}
+
 /* Il filtro status è obbligatorio, non decorativo: le regole
    rifiutano una query che possa restituire documenti non
    leggibili, quindi senza where() l'intera lettura fallisce. */
@@ -111,7 +191,12 @@ export function subscribeMine(uid, onData, onError) {
 }
 
 export async function createTournament(t, profile) {
-  const ref_ = await addDoc(tourneysRef, {
+  // Costruisco lo slug ID prima della scrittura: la rule create
+  // non pone vincoli sull'ID, quindi qualunque stringa che passi
+  // la collision-check va bene.
+  const base = slugTorneo(t.nome, t.data);
+  const id = await slugUnivoco(base);
+  await setDoc(doc(db, COL_TORNEI, id), {
     ...toFirestore(t),
     status: statusForNewTournament(profile),
     authorId: profile.uid,
@@ -120,10 +205,14 @@ export async function createTournament(t, profile) {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-  return ref_.id;
+  return id;
 }
 
 export async function updateTournament(id, t) {
+  // NB: l'update NON rinomina il doc. Se l'utente cambia nome o
+  // data, l'ID (e quindi l'URL) resta quello originario. Ne parlo
+  // nel comment block dello slug: scelta deliberata per non
+  // rompere URL già indicizzati.
   await updateDoc(doc(db, COL_TORNEI, id), {
     ...toFirestore(t),
     updatedAt: serverTimestamp(),
@@ -205,6 +294,11 @@ export async function rejectTournament(torneo, adminUid, motivo = '') {
    `onProgress` riceve 0–100: senza, su una connessione lenta
    l'utente non sa se sta succedendo qualcosa e ripreme il
    bottone. Il progresso è la media pesata dei due upload.
+
+   NB: i path Storage usano un base random (Date.now() +
+   random string), non l'ID del torneo. Questo li rende
+   indipendenti dall'ID: se un giorno cambi ID (come nella
+   migrazione slug), i file restano dove sono senza spostamenti.
 --------------------------------------------------------- */
 export const MAX_LOCANDINA_MB = 20;
 

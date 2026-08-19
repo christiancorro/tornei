@@ -123,8 +123,8 @@ export default function TournamentList({
             >
               <History size={17} />
               {mostraPassati
-                ? 'Nascondi tornei precedenti'
-                : `Mostra tornei precedenti (${totalePassati})`}
+                ? 'Nascondi tornei passati'
+                : `Mostra tornei passati (${totalePassati})`}
               {mostraPassati ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </button>
           </div>

@@ -89,9 +89,10 @@ service cloud.firestore {
     }
 
     match /tornei/{torneoId} {
-      allow read: if isAdmin()
-        || resource.data.status == 'published'
-        || (isSignedIn() && resource.data.authorId == request.auth.uid);
+      allow read: if resource == null
+  || isAdmin()
+  || resource.data.status == 'published'
+  || (isSignedIn() && resource.data.authorId == request.auth.uid);
 
       allow create: if isActive()
         && validTorneo(request.resource.data)

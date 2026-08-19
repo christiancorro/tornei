@@ -229,7 +229,7 @@ export default function AccountDashboard({
           <button
             type="button"
             onClick={onLogout}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold mb-2"
             style={{ backgroundColor: INK, color: SAND }}
           >
             <LogOut size={16} />
@@ -238,9 +238,9 @@ export default function AccountDashboard({
         </div>
       </div>
 
-      <p className="text-sm mb-5" style={{ color: INK, opacity: 0.6 }}>
+      {/* <p className="text-sm mb-5" style={{ color: INK, opacity: 0.6 }}>
         Il tuo ruolo: <strong>{ROLE_LABELS[profile?.role] ?? '—'}</strong>
-      </p>
+      </p> */}
 
       {/* Tab in flex-wrap come nell'AdminDashboard: quando non ci
           stanno tutti su una riga vanno a capo. Prima usavamo
@@ -306,7 +306,7 @@ export default function AccountDashboard({
               >
                 <Info size={18} className="shrink-0 mt-0.5" />
                 <span>
-                  Il tuo primo torneo deve essere revisionato dall'amministratore per evitare un'invasione di bot.
+                  Il tuo primo torneo deve essere revisionato dall'amministratore per evitare l'intrusione di bot.
                   Una volta approvato diventerai organizzatore e i successivi tornei verranno pubblicati subito.
                 </span>
               </div>

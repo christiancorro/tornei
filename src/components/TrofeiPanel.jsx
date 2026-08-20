@@ -40,10 +40,13 @@ const TROFEO_HOLO_CSS = `
   }
 }
 
+/* Cornice oro per i preferiti: avvolge la polaroid bianca. Il raggio
+   è più contenuto di prima (10px invece di 18px) così segue il bordo
+   quasi squadrato della polaroid senza sbordare agli angoli. */
 .trofeo-gold-frame {
   position: relative;
   padding: 3px;
-  border-radius: 18px;
+  border-radius: 10px;
   background: linear-gradient(
     135deg,
     #a3720a 0%,
@@ -59,6 +62,86 @@ const TROFEO_HOLO_CSS = `
   box-shadow:
     0 12px 26px -10px rgba(212, 160, 23, 0.55),
     0 0 0 1px rgba(140, 100, 8, 0.28);
+}
+
+/* ---- Polaroid -------------------------------------------------
+   Cornice bianca attorno alla foto, con la classica fascia bassa
+   più alta dove vive la didascalia scritta a mano. La foto sta
+   nel riquadro in alto (.trofeo-photo), la didascalia sotto. */
+.trofeo-polaroid {
+  background: #fdfdfb;
+  padding: 10px 10px 0;
+  border-radius: 6px;
+}
+
+.trofeo-photo {
+  position: relative;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #efefe9;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.trofeo-caption {
+  padding: 12px 8px 16px;
+  text-align: center;
+}
+
+/* Font "scritto a mano" per la didascalia. Se il progetto carica
+   Caveat (Google Fonts) si vede quella; altrimenti si ripiega su
+   un corsivo di sistema, così l'effetto polaroid regge comunque. */
+.trofeo-caption-title {
+  font-family: 'Caveat', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive;
+  font-size: 1.4rem;
+  line-height: 1.02;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.trofeo-caption-date {
+  font-family: 'Caveat', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive;
+  font-size: 0.95rem;
+  line-height: 1;
+  margin-top: 3px;
+}
+
+/* Griglia delle polaroid. Su mobile le card sono più piccole (colonne
+   da 120px, così ne stanno 2-3 per riga) con spazi ridotti; da 640px
+   in su si torna alla misura piena di prima (180px). Sta in una classe
+   e non inline perché serve una media query. */
+.trofeo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  column-gap: 0.7rem;
+  row-gap: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .trofeo-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    column-gap: 1.25rem;
+    row-gap: 1.75rem;
+  }
+}
+
+/* Su schermi piccoli anche cornice e didascalia si rimpiccioliscono,
+   così restano in proporzione con la card più compatta. */
+@media (max-width: 639px) {
+  .trofeo-polaroid {
+    padding: 7px 7px 0;
+  }
+
+  .trofeo-caption {
+    padding: 8px 5px 11px;
+  }
+
+  .trofeo-caption-title {
+    font-size: 1.1rem;
+  }
+
+  .trofeo-caption-date {
+    font-size: 0.8rem;
+  }
 }
 
 .trofeo-holo-overlay {
@@ -433,15 +516,7 @@ export default function TrofeiPanel({ uid, onOpenDetail }) {
               </button>
 
               {!chiuso && (
-                <div
-                  className="grid"
-                  style={{
-                    gridTemplateColumns:
-                      'repeat(auto-fill, minmax(180px, 1fr))',
-                    columnGap: '1.25rem',
-                    rowGap: '1.75rem',
-                  }}
-                >
+                <div className="trofeo-grid">
                   {trofeiAnno.map((t) => (
                     <TrofeoCard
                       key={t.torneoId}
@@ -484,7 +559,7 @@ function TrofeoCard({
     <div
       className="relative group"
       style={{
-        paddingTop: 10,
+        paddingTop: 12,
         transform: `rotate(${rotBase}deg)`,
         transformOrigin: 'center top',
         transition:
@@ -499,6 +574,8 @@ function TrofeoCard({
           `rotate(${rotBase}deg) translateY(0)`;
       }}
     >
+      {/* Nastro adesivo (washi tape) che "attacca" la polaroid
+          all'album: leggermente trasparente e inclinato. */}
       <div
         aria-hidden="true"
         className="absolute z-20 pointer-events-none"
@@ -507,6 +584,7 @@ function TrofeoCard({
           left: '50%',
           width: 64,
           height: 20,
+          opacity: 0.72,
           background: `linear-gradient(
             90deg,
             transparent 0%,
@@ -516,7 +594,6 @@ function TrofeoCard({
           )`,
           transform:
             'translateX(-50%) rotate(-3deg)',
-
         }}
       />
 
@@ -526,37 +603,36 @@ function TrofeoCard({
         }
       >
         <div
-          className="trofeo-card relative rounded-2xl overflow-hidden"
+          className="trofeo-card trofeo-polaroid relative"
           style={{
-            backgroundColor: '#fff',
             border: isPref
               ? 'none'
-              : '1px solid rgba(34,48,31,0.08)',
+              : '1px solid rgba(34,48,31,0.06)',
             boxShadow: isPref
-              ? '0 10px 24px -10px rgba(184, 134, 11, 0.45), 0 2px 6px rgba(0,0,0,0.08)'
-              : '0 6px 14px -8px rgba(0,0,0,0.22), 0 1px 3px rgba(0,0,0,0.06)',
+              ? '0 10px 24px -10px rgba(184, 134, 11, 0.45), 0 2px 6px rgba(0,0,0,0.10)'
+              : '0 8px 18px -8px rgba(0,0,0,0.28), 0 2px 5px rgba(0,0,0,0.10)',
             transition:
               'box-shadow 340ms cubic-bezier(0.2, 0.9, 0.3, 1)',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.boxShadow =
               isPref
-                ? '0 14px 32px -10px rgba(184, 134, 11, 0.6), 0 3px 8px rgba(0,0,0,0.12)'
-                : '0 12px 24px -10px rgba(0,0,0,0.28), 0 3px 8px rgba(0,0,0,0.10)';
+                ? '0 14px 32px -10px rgba(184, 134, 11, 0.6), 0 3px 8px rgba(0,0,0,0.14)'
+                : '0 14px 26px -10px rgba(0,0,0,0.32), 0 3px 8px rgba(0,0,0,0.12)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.boxShadow =
               isPref
-                ? '0 10px 24px -10px rgba(184, 134, 11, 0.45), 0 2px 6px rgba(0,0,0,0.08)'
-                : '0 6px 14px -8px rgba(0,0,0,0.22), 0 1px 3px rgba(0,0,0,0.06)';
+                ? '0 10px 24px -10px rgba(184, 134, 11, 0.45), 0 2px 6px rgba(0,0,0,0.10)'
+                : '0 8px 18px -8px rgba(0,0,0,0.28), 0 2px 5px rgba(0,0,0,0.10)';
           }}
         >
+          {/* Riquadro foto della polaroid: aspetto ritratto ~4:5.
+              Tutti gli overlay e i pulsanti vivono qui dentro, così
+              restano sopra la foto e non invadono la cornice bianca. */}
           <div
-            className="w-full relative overflow-hidden"
-            style={{
-              paddingTop: '133.33%',
-              backgroundColor: '#ffffff',
-            }}
+            className="trofeo-photo w-full"
+            style={{ paddingTop: '125%' }}
           >
             {isPref && (
               <div
@@ -670,7 +746,7 @@ function TrofeoCard({
               type="button"
               onClick={stop(onRemove)}
               aria-label="Rimuovi dalla collezione"
-              className="absolute bottom-2 left-2 w-8 h-8 rounded-full flex items-center justify-center sm:hidden active:scale-90 z-10"
+              className="absolute top-2 left-2 w-8 h-8 rounded-full flex items-center justify-center sm:hidden active:scale-90 z-10"
               style={{
                 backgroundColor:
                   'rgba(255,255,255,0.88)',
@@ -683,29 +759,19 @@ function TrofeoCard({
             </button>
           </div>
 
+          {/* Didascalia polaroid: nome + data scritti a mano nella
+              fascia bianca bassa. Per i preferiti l'inchiostro vira
+              sul marrone dorato per intonarsi alla cornice. */}
           <div
-            className="px-3 pt-2.5 pb-2 text-center"
-            style={{
-              background: isPref
-                ? 'linear-gradient(180deg, rgba(255,236,150,0.8), rgba(240,196,80,0.28))'
-                : 'linear-gradient(180deg, rgba(0,0,0,0.01), rgba(0,0,0,0.02))',
-              borderTop: isPref
-                ? '1px solid rgba(184,134,11,0.35)'
-                : '1px solid rgba(34,48,31,0.08)',
-              boxShadow:
-                'inset 0 1px 0 rgba(255,255,255,0.55)',
-            }}
+            className="trofeo-caption"
             title={trofeo.nome}
           >
             <h4
-              className="font-black text-lg leading-tight line-clamp-2"
+              className="trofeo-caption-title line-clamp-2"
               style={{
                 color: isPref
-                  ? '#3d2907'
+                  ? '#7a5306'
                   : INK,
-                letterSpacing: '0.005em',
-                textShadow:
-                  '0 1px 0 rgba(255,255,255,0.55)',
               }}
             >
               {trofeo.nome || '—'}
@@ -713,18 +779,12 @@ function TrofeoCard({
 
             {trofeo.data && (
               <p
-                className="text-[10px] font-bold mt-1"
+                className="trofeo-caption-date"
                 style={{
                   color: isPref
-                    ? '#4a3208'
+                    ? '#8a6208'
                     : INK,
-                  opacity: isPref
-                    ? 0.75
-                    : 0.5,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  textShadow:
-                    '0 1px 0 rgba(255,255,255,0.35)',
+                  opacity: isPref ? 0.85 : 0.55,
                 }}
               >
                 {formatDataLunga(trofeo.data)}

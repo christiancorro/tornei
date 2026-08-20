@@ -691,6 +691,7 @@ export default function App() {
           lista={listaDettaglio}
           onNavigate={setDetailTarget}
           onClose={() => setDetailTarget(null)}
+          uid={uid}
         />
       )}
       {replyTarget && (

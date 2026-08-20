@@ -1,13 +1,14 @@
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { Calendar, Info, MapPin, Euro, Globe, Share2, X } from 'lucide-react';
+import { Calendar, Check, Info, MapPin, Euro, Globe, Images, Share2, X } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
 import { useSwipeDown } from '../hooks/useSwipeDown';
 import { useFeedback } from './FeedbackProvider';
 import { FaFacebook, FaInstagram } from 'react-icons/fa';
 
-import { INK, SAND } from '../theme';
+import { INK, SAND, SUN } from '../theme';
 import { STUB_STYLE } from '../constants';
 import { getMapsUrl, formatDataRange } from '../utils';
+import { subscribeMyTrofei, addTrofeo, removeTrofeo } from '../services/trofei';
 import ZoomableLocandina from './ZoomableLocandina';
 
 /* ---------------------------------------------------------
@@ -19,10 +20,35 @@ import ZoomableLocandina from './ZoomableLocandina';
    fila su una pista larga tre schermate. Trascinando di
    lato si vede arrivare la scheda vicina invece del solo
    sfondo, e a fine gesto la pista si assesta sulla nuova.
+
+   `uid` (opzionale): se presente c'è un utente loggato, e
+   ogni scheda mostra il pulsante per aggiungere/togliere la
+   locandina dai tornei giocati (la collezione dei trofei).
 --------------------------------------------------------- */
-export default function TournamentDetail({ tournament, onClose, lista = [], onNavigate }) {
+export default function TournamentDetail({ tournament, onClose, lista = [], onNavigate, uid }) {
   const { closing, close } = useModalClose(onClose);
   const scrollRef = useRef(null);
+
+  /* Insieme degli id dei tornei già in collezione. Una sola
+     sottoscrizione qui, condivisa dalle tre schede: così il pulsante
+     "giocato" sa da subito se mostrarsi in stato aggiunto o meno.
+     Se non c'è utente loggato non ci si abbona proprio. */
+  const [collezione, setCollezione] = useState(() => new Set());
+
+  useEffect(() => {
+    if (!uid) {
+      setCollezione(new Set());
+      return undefined;
+    }
+
+    const unsub = subscribeMyTrofei(
+      uid,
+      (lista) => setCollezione(new Set(lista.map((x) => x.torneoId))),
+      (err) => console.warn('[detail/trofei] subscribe fallito:', err.message),
+    );
+
+    return unsub;
+  }, [uid]);
 
   /* Vicini nella stessa lista da cui si è aperto il dettaglio: così
      si sfoglia nell'ordine che si aveva sotto gli occhi. */
@@ -95,6 +121,8 @@ export default function TournamentDetail({ tournament, onClose, lista = [], onNa
                 closing={closing}
                 grabbed={grabbed}
                 onClose={close}
+                uid={uid}
+                inCollezione={collezione.has(scheda.id)}
               />
             )}
           </div>
@@ -107,9 +135,10 @@ export default function TournamentDetail({ tournament, onClose, lista = [], onNa
 /* Una singola scheda. Sta in un componente suo perché ne vivono tre
    alla volta e ognuna si tiene i suoi stati — per esempio la locandina
    rotta, che altrimenti si porterebbe dietro anche sulle altre. */
-const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, onClose }) {
+const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, onClose, uid, inCollezione }) {
   const [posterOk, setPosterOk] = useState(true);
   const [fileLocandina, setFileLocandina] = useState(null);
+  const [salvaBusy, setSalvaBusy] = useState(false);
   const { toast } = useFeedback();
   const style = STUB_STYLE[t.disciplina] || STUB_STYLE['Green Volley'];
   const showPoster = Boolean(t.locandina) && posterOk;
@@ -148,6 +177,32 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
       stop.abort();
     };
   }, [attivo, t.locandina, t.nome]);
+
+  /* Aggiungi / togli questa locandina dai tornei giocati. È un toggle:
+     se non è in collezione la aggiunge, se c'è la rimuove. Il pulsante
+     compare solo con un utente loggato (uid presente). `salvaBusy`
+     evita doppi tap mentre la scrittura è in volo. */
+  async function toggleGiocato(e) {
+    e.stopPropagation();
+    if (!uid || salvaBusy) return;
+
+    setSalvaBusy(true);
+    try {
+      if (inCollezione) {
+        await removeTrofeo(uid, t.id);
+      } else {
+        await addTrofeo(uid, t);
+      }
+      // Nessun toast di conferma: lo stato del pulsante (aggiunto/da
+      // aggiungere) è già il feedback. Il toast d'errore resta, così
+      // se il salvataggio non riesce l'utente se ne accorge.
+    } catch (err) {
+      console.warn('[detail/giocato] toggle fallito:', err.message);
+      toast('Non riesco a salvare adesso, riprova.', 'error');
+    } finally {
+      setSalvaBusy(false);
+    }
+  }
 
   /* Tre tentativi in scaletta, dal più bello al più sicuro:
      1. il menù di sistema (telefoni, e comunque solo in https);
@@ -426,6 +481,29 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
                 </a>
               )}
             </div>
+          )}
+
+          {/* Aggiungi ai tornei giocati: in fondo, dopo descrizione e link.
+             Compare solo con utente loggato. Toggle vero e proprio —
+             pieno quando già in collezione, contornato quando da aggiungere. */}
+          {uid && (
+            <button
+              type="button"
+              onClick={toggleGiocato}
+              disabled={salvaBusy}
+              tabIndex={attivo ? 0 : -1}
+              aria-pressed={inCollezione}
+              className="w-full inline-flex items-center justify-center gap-2 cursor-pointer
+              rounded-full border-2 transition-all
+              px-4 py-2.5 text-sm sm:text-base font-semibold whitespace-nowrap
+              disabled:opacity-60 disabled:cursor-default active:scale-[0.99]"
+              style={inCollezione
+                ? { backgroundColor: 'rgba(34,48,31,0.06)', borderColor: 'rgba(34,48,31,0.18)', color: INK }
+                : { backgroundColor: SUN, borderColor: 'transparent', color: INK }}
+            >
+              {inCollezione ? <Check size={18} /> : <Images size={18} />}
+              {inCollezione ? 'Nei tornei giocati' : 'Aggiungi ai tornei giocati'}
+            </button>
           )}
 
           {/* Riga di chiusura: la firma di chi organizza da una parte, la

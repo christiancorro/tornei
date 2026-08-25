@@ -511,7 +511,6 @@ export default function App() {
         profile={profile}
         authReady={authReady}
         unreadTotal={notificheTotali}
-        pendingCount={pending.length}
         onLoginClick={() => setShowAuth(true)}
         onLogout={signOut}
         search={search}
@@ -620,11 +619,8 @@ export default function App() {
             mieiAnnunci={mieiAnnunci}
             conversations={conversations}
             unreadTotal={unreadTotal}
-
             mieRichieste={mieRichieste}
             onSendFeedback={handleSendFeedback}
-            mieRichieste={mieRichieste}
-
             onNuovoTorneo={() => setFormState('new')}
             onEditTorneo={(t) => setFormState(t)}
             onDeleteTorneo={(t) => setDeleteTarget(t)}

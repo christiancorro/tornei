@@ -1,13 +1,13 @@
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { Calendar, Check, Info, MapPin, Euro, Globe, Images, Share2, X } from 'lucide-react';
+import { Calendar, Check, Info, MapPin, Euro, Globe, Images, Share2, X, Pencil, Trash2 } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
 import { useSwipeDown } from '../hooks/useSwipeDown';
 import { useFeedback } from './FeedbackProvider';
 import { FaFacebook, FaInstagram } from 'react-icons/fa';
 
-import { INK, SAND, SUN } from '../theme';
+import { INK, SAND, SUN, CLAY } from '../theme';
 import { STUB_STYLE } from '../constants';
-import { getMapsUrl, formatDataRange } from '../utils';
+import { getMapsUrl, formatDataRange, luogoDi } from '../utils';
 import { subscribeMyTrofei, addTrofeo, removeTrofeo } from '../services/trofei';
 import ZoomableLocandina from './ZoomableLocandina';
 
@@ -25,9 +25,22 @@ import ZoomableLocandina from './ZoomableLocandina';
    ogni scheda mostra il pulsante per aggiungere/togliere la
    locandina dai tornei giocati (la collezione dei trofei).
 --------------------------------------------------------- */
-export default function TournamentDetail({ tournament, onClose, lista = [], onNavigate, uid }) {
+export default function TournamentDetail({ tournament, onClose, lista = [], onNavigate, uid, isAdmin = false, onEdit, onDeleteRequest }) {
   const { closing, close } = useModalClose(onClose);
   const scrollRef = useRef(null);
+
+  /* Modifica / elimina dal dettaglio: apro il form o la conferma di
+     eliminazione (che vivono al top-level dell'App) e chiudo la scheda,
+     così non restano due modali sovrapposti né una scheda che mostra un
+     torneo appena cambiato o cancellato. */
+  const handleEdit = useCallback((t) => {
+    onEdit?.(t);
+    close();
+  }, [onEdit, close]);
+  const handleDelete = useCallback((t) => {
+    onDeleteRequest?.(t);
+    close();
+  }, [onDeleteRequest, close]);
 
   /* Insieme degli id dei tornei già in collezione. Una sola
      sottoscrizione qui, condivisa dalle tre schede: così il pulsante
@@ -122,6 +135,9 @@ export default function TournamentDetail({ tournament, onClose, lista = [], onNa
                 grabbed={grabbed}
                 onClose={close}
                 uid={uid}
+                isAdmin={isAdmin}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
                 inCollezione={collezione.has(scheda.id)}
               />
             )}
@@ -135,7 +151,9 @@ export default function TournamentDetail({ tournament, onClose, lista = [], onNa
 /* Una singola scheda. Sta in un componente suo perché ne vivono tre
    alla volta e ognuna si tiene i suoi stati — per esempio la locandina
    rotta, che altrimenti si porterebbe dietro anche sulle altre. */
-const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, onClose, uid, inCollezione }) {
+const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, onClose, uid, isAdmin, onEdit, onDelete, inCollezione }) {
+  // Modifica/elimina visibili solo al proprietario del torneo o all'admin.
+  const canManage = isAdmin || (!!uid && t.authorId === uid);
   const [posterOk, setPosterOk] = useState(true);
   const [fileLocandina, setFileLocandina] = useState(null);
   const [salvaBusy, setSalvaBusy] = useState(false);
@@ -249,14 +267,13 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
        e cade se il campo è vuoto — così non si leggono "Quota: " senza
        importo o righe vuote. */
     const formatiRiga = t.formati?.length ? ` · ${t.formati.join(', ')}` : '';
-    const dataRiga = formatDataRange(t.data, t.dataFine, { giornoEsteso: true })
-      + (t.ora ? ` · ${t.ora}` : '');
+    const dataRiga = formatDataRange(t.data, t.dataFine, { giornoEsteso: true });
     const righe = [
       t.nome,
       t.disciplina ? `${t.disciplina}${formatiRiga}` : null,
       t.modalita || null,
       dataRiga,
-      t.comune ? `${t.comune}` : null,
+      luogoDi(t) ? `${luogoDi(t)}` : null,
       t.costo ? `€ ${t.costo}` : null,
     ].filter(Boolean);
     const testo = righe.join('\n');
@@ -339,12 +356,41 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
           <h2 className="font-black text-2xl sm:text-3xl" style={{ color: INK }}>
             {t.nome}
           </h2>
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-4 shrink-0">
+            {canManage && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onDelete?.(t)}
+                  tabIndex={attivo ? 0 : -1}
+                  className="p-1.5 rounded-full hover:bg-gray-100"
+                  style={{ color: CLAY }}
+                  aria-label="Elimina torneo"
+                  title="Elimina"
+                >
+                  <Trash2 size={19} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onEdit?.(t)}
+                  tabIndex={attivo ? 0 : -1}
+                  className="p-1.5 rounded-full hover:bg-gray-100"
+                  style={{ color: INK }}
+                  aria-label="Modifica torneo"
+                  title="Modifica"
+                >
+                  <Pencil size={19} />
+                </button>
+
+              </>
+            )}
+            {/* Extra margine a sinistra della X quando ci sono anche i
+                pulsanti gestione, così la chiusura resta distanziata. */}
             <button
               type="button"
               onClick={onClose}
               tabIndex={attivo ? 0 : -1}
-              className="p-1.5 rounded-full hover:bg-gray-100 "
+              className={`p-1.5 rounded-full hover:bg-gray-100 ${canManage ? 'ml-3' : ''}`}
               style={{ color: INK }}
               aria-label="Chiudi"
             >
@@ -402,7 +448,6 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
               <Calendar size={20} className="mt-0.5 shrink-0" style={{ opacity: 0.5 }} />
               <span className="font-semibold">
                 {formatDataRange(t.data, t.dataFine, { giornoEsteso: true })}
-                {t.ora && <span className="font-normal"> · {t.ora}</span>}
               </span>
             </div>
             <div className="flex items-start gap-2.5">
@@ -413,7 +458,7 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
                 tabIndex={attivo ? 0 : -1}
                 className="cursor-pointer hover:underline"
               >
-                {t.comune}
+                {luogoDi(t)}
               </a>
             </div>
             <div className="flex items-start gap-2.5">

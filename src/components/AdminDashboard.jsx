@@ -9,7 +9,7 @@ import {
   ROLE_USER, ROLE_ORGANIZER, ROLE_ADMIN, ROLE_BLOCKED,
   ROLE_LABELS, ROLE_DESCRIPTIONS,
 } from '../roles';
-import { formatDataLunga, timeAgo } from '../utils';
+import { formatDataLunga, timeAgo, luogoDi } from '../utils';
 import { useActionState } from '../hooks/useActionState';
 import MessagesPanel from './MessagesPanel';
 import RichiestaThread from './RichiestaThread';
@@ -81,7 +81,7 @@ function PendingCard({ torneo, onApprove, onReject }) {
             {torneo.disciplina} · {torneo.formati?.join(', ')} · {formatDataLunga(torneo.data)}
           </p>
           <p className="text-xs" style={{ color: INK, opacity: 0.6 }}>
-            {torneo.comune}
+            {luogoDi(torneo)}
           </p>
         </div>
         {torneo.locandina && (

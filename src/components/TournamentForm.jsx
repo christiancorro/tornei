@@ -5,7 +5,7 @@ import { useActionState } from '../hooks/useActionState';
 
 import { INK, SUN, GRASS_DARK } from '../theme';
 import { DISCIPLINE, DISCIPLINE_COLORS, FORMATI } from '../constants';
-import { emptyTournament, toggleValue } from '../utils';
+import { emptyTournament, toggleValue, nextDayISO } from '../utils';
 import { geocode } from '../utils/geocode';
 import Chip from './ui/Chip';
 import LocandinaField from './LocandinaField';
@@ -14,8 +14,18 @@ import LocandinaField from './LocandinaField';
    Admin form (add / edit)
 --------------------------------------------------------- */
 export default function TournamentForm({ initial, onSave, onCancel }) {
-  const { closing, close } = useModalClose(onCancel);
-  const [form, setForm] = useState(initial || emptyTournament());
+  // closeOnEsc:false + niente click sul backdrop (vedi sotto): il
+  // modale del form si chiude solo con la X o con "Annulla", così non
+  // si perde per sbaglio quanto compilato.
+  const { closing, close } = useModalClose(onCancel, { closeOnEsc: false });
+  // Aprendo un torneo vecchio (che teneva il posto in `comune`),
+  // travaso il valore in `luogo` così il campo lo mostra e, al
+  // salvataggio, il torneo migra sul campo nuovo.
+  const [form, setForm] = useState(
+    initial
+      ? { ...initial, luogo: initial.luogo || initial.comune || '' }
+      : emptyTournament()
+  );
   const [errore, setErrore] = useState('');
   const isEdit = Boolean(initial);
 
@@ -42,39 +52,41 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
 
     setErrore('');
 
-    // Geocode il comune SEMPRE prima del salvataggio (torneo nuovo o
+    // Geocode il luogo SEMPRE prima del salvataggio (torneo nuovo o
     // modifica): così le coordinate sono sempre allineate con il
-    // comune corrente, e un'eventuale correzione (typo sistemato,
+    // luogo corrente, e un'eventuale correzione (typo sistemato,
     // frazione cambiata, DB del geocoder aggiornato, offset modificato
     // in utils/geocode.js) si riflette subito sulla mappa.
     //
-    // Se il geocoder fallisce (rete, città inesistente, timeout) NON
+    // Se il geocoder fallisce (rete, luogo inesistente, timeout) NON
     // blocchiamo il salvataggio: il torneo si crea/aggiorna comunque.
     // Comportamento sulle coordinate esistenti quando il geocoder non
     // trova risultato:
-    // • comune INVARIATO rispetto a `initial` → teniamo le vecchie
+    // • luogo INVARIATO rispetto a `initial` → teniamo le vecchie
     //   coord (sono ancora valide, il geocoder ha solo fallito ora);
-    // • comune CAMBIATO (o torneo nuovo) → azzeriamo lat/lng, meglio
+    // • luogo CAMBIATO (o torneo nuovo) → azzeriamo lat/lng, meglio
     //   invisibile sulla mappa che pinnato nel posto sbagliato.
     //
     // Confronto normalizzato (trim + lowercase) così "Udine " e
-    // "udine" non contano come cambio.
+    // "udine" non contano come cambio. Sul torneo vecchio il valore
+    // di partenza è `comune` (poi migrato in `luogo`).
     let patch = form;
     const norm = (s) => (s || '').trim().toLowerCase();
-    const comuneCambiato = initial
-      ? norm(initial.comune) !== norm(form.comune)
+    const luogoIniziale = initial ? (initial.luogo || initial.comune) : '';
+    const luogoCambiato = initial
+      ? norm(luogoIniziale) !== norm(form.luogo)
       : true;
 
-    if (form.comune) {
+    if (form.luogo) {
       try {
-        const coords = await geocode(form.comune);
+        const coords = await geocode(form.luogo);
         if (coords) {
           patch = { ...form, lat: coords.lat, lng: coords.lng };
-        } else if (comuneCambiato) {
+        } else if (luogoCambiato) {
           patch = { ...form, lat: null, lng: null };
         }
       } catch (err) {
-        console.warn('[form] geocoding fallito per', form.comune, err);
+        console.warn('[form] geocoding fallito per', form.luogo, err);
       }
     }
 
@@ -114,7 +126,6 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
         backgroundColor: 'rgba(20, 19, 18, 0.93)',
         isolation: 'isolate',
       }}
-      onClick={chiudiSePossibile}
     >
       <div
         /* Dimensioni/altezza/border-radius vivono in
@@ -300,29 +311,13 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
                 onChange={(e) =>
                   update('dataFine', e.target.value)
                 }
-                min={form.data || undefined}
+                /* min = giorno DOPO la data inizio: un torneo "su più
+                   giorni" finisce almeno il giorno successivo, e il
+                   picker (campo vuoto) si apre centrato lì invece che
+                   sul mese corrente. */
+                min={form.data ? nextDayISO(form.data) : undefined}
               />
             </div>
-          </div>
-
-          {/* ORA INIZIO */}
-          <div>
-            <label
-              className={labelClass}
-              style={labelStyle}
-            >
-              Ora inizio
-            </label>
-
-            <input
-              type="time"
-              className={inputClass}
-              style={inputStyle}
-              value={form.ora}
-              onChange={(e) =>
-                update('ora', e.target.value)
-              }
-            />
           </div>
 
           {/* CITTÀ / COSTO */}
@@ -332,18 +327,18 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
                 className={labelClass}
                 style={labelStyle}
               >
-                Città
+                Luogo
               </label>
 
               <input
                 required
                 className={inputClass}
                 style={inputStyle}
-                value={form.comune}
+                value={form.luogo}
                 onChange={(e) =>
-                  update('comune', e.target.value)
+                  update('luogo', e.target.value)
                 }
-                placeholder="Es. Udine"
+                placeholder="Luogo (Provincia)"
               />
             </div>
 

@@ -15,7 +15,7 @@ import { useState, useCallback, useEffect } from 'react';
 --------------------------------------------------------- */
 const DURATA = 180; // deve combaciare con modal-fade-out in styles.css
 
-export function useModalClose(onClose) {
+export function useModalClose(onClose, { closeOnEsc = true } = {}) {
   const [closing, setClosing] = useState(false);
 
   const close = useCallback(() => {
@@ -26,14 +26,17 @@ export function useModalClose(onClose) {
     });
   }, [onClose]);
 
-  // Esc chiude, come ci si aspetta da qualsiasi finestra.
+  // Esc chiude, come ci si aspetta da qualsiasi finestra — a meno che
+  // il chiamante non lo disabiliti (closeOnEsc: false), come fa il
+  // form del torneo dove l'unica chiusura sono la X e "Annulla".
   useEffect(() => {
+    if (!closeOnEsc) return;
     function onKey(e) {
       if (e.key === 'Escape') close();
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [close]);
+  }, [close, closeOnEsc]);
 
   return { closing, close };
 }

@@ -3,7 +3,7 @@ import { MapPin, Euro } from 'lucide-react';
 
 import { CARD_BG, INK } from '../theme';
 import { STUB_STYLE } from '../constants';
-import { formatStubGiorno } from '../utils';
+import { formatStubGiorno, luogoDi } from '../utils';
 import LazyImage from './ui/LazyImage';
 
 /* ---------------------------------------------------------
@@ -106,7 +106,7 @@ export default function TournamentCard({ t, delay, onOpenDetail, eagerImage = fa
           <div className="flex items-center gap-2">
             <MapPin size={18} className="text-gray-400 shrink-0" />
             <span className="truncate">
-              {t.comune}
+              {luogoDi(t)}
             </span>
           </div>
           <div className=" flex items-center gap-2">

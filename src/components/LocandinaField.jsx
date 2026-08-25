@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ImagePlus, Loader2, Trash2, Link2, Upload } from 'lucide-react';
+import { ImagePlus, Loader2, Trash2 } from 'lucide-react';
 
-import { INK, SUN, CLAY, GRASS_DARK, SAND } from '../theme';
+import { INK, SUN, CLAY, GRASS_DARK } from '../theme';
 import { uploadLocandina, deleteLocandina, MAX_LOCANDINA_MB } from '../services/tournaments';
 
 function formatSize(bytes) {
@@ -65,10 +65,9 @@ function AnteprimaLocandina({ src, className = '' }) {
 }
 
 /* ---------------------------------------------------------
-   Campo locandina: carica un file (compresso) oppure incolla
-   un URL. Le due modalità scrivono sullo stesso campo `locandina`,
-   ma solo il file valorizza `locandinaPath` — che è ciò che
-   permette di cancellare il file da Storage insieme al torneo.
+   Campo locandina: carica un file (compresso). Solo l'upload
+   valorizza `locandinaPath` — che è ciò che permette di
+   cancellare il file da Storage insieme al torneo.
 
    Da quando l'upload produce anche una preview piccola, il
    campo scrive quattro chiavi in un colpo unico:
@@ -77,15 +76,10 @@ function AnteprimaLocandina({ src, className = '' }) {
    Anche "Sostituisci" passa da qui, quindi grande e thumb
    restano sempre in coppia: non può capitare di ritrovarsi
    con la locandina nuova e il thumb vecchio.
-
-   In modalità "URL" resta valorizzato solo il grande: chi
-   incolla un link esterno non ci fa una preview server-side,
-   e la card ripiega sul grande.
 --------------------------------------------------------- */
 export default function LocandinaField({
   value, path, thumbPath, onChange, labelClass, labelStyle, inputClass, inputStyle,
 }) {
-  const [mode, setMode] = useState(path || !value ? 'file' : 'url');
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
@@ -151,50 +145,15 @@ export default function LocandinaField({
     if (inputRef.current) inputRef.current.value = '';
   }
 
-  const TabBtn = ({ id, icon: Icon, children }) => (
-    <button
-      type="button"
-      onClick={() => setMode(id)}
-      className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all"
-      style={{
-        backgroundColor: mode === id ? INK : 'transparent',
-        color: mode === id ? SAND : INK,
-        border: mode === id ? '2px solid transparent' : '2px solid rgba(34,48,31,0.2)',
-      }}
-    >
-      <Icon size={13} /> {children}
-    </button>
-  );
-
   return (
     <div>
-      <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+      <div className="mb-2">
         <label className={labelClass} style={{ ...labelStyle, marginBottom: 0 }}>
           Locandina
         </label>
-        <div className="flex gap-1.5">
-          <TabBtn id="file" icon={Upload}>Carica</TabBtn>
-          <TabBtn id="url" icon={Link2}>Link</TabBtn>
-        </div>
       </div>
 
-      {mode === 'url' ? (
-        <input
-          className={inputClass}
-          style={inputStyle}
-          value={value ?? ''}
-          onChange={(e) => onChange({
-            locandina: e.target.value,
-            locandinaPath: '',
-            // Un link esterno non ha una preview separata: azzero il
-            // thumb così la card ripiega sull'URL grande e non tenta
-            // di caricare un thumb vecchio ormai orfano.
-            locandinaThumb: '',
-            locandinaThumbPath: '',
-          })}
-          placeholder="https://..."
-        />
-      ) : value ? (
+      {value ? (
         <div
           className="flex items-center gap-3 p-3 rounded-lg border-2"
           style={{ borderColor: 'rgba(34,48,31,0.2)' }}

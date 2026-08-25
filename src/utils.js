@@ -1,7 +1,15 @@
 import { MESI, MESI_BREVI, GIORNI_BREVI, GIORNI } from './constants';
 
+/* Il luogo del torneo. I tornei nuovi lo salvano in `luogo` (che può
+   essere un comune, una frazione, un parco, un impianto...); quelli
+   vecchi lo tenevano in `comune`. Fallback così i vecchi continuano a
+   mostrarsi e a essere cercabili senza migrazione dei dati. */
+export function luogoDi(t) {
+  return (t && (t.luogo || t.comune)) || '';
+}
+
 export function getMapsUrl(t) {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.comune)}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(luogoDi(t))}`;
 }
 
 export function emptyTournament() {
@@ -13,7 +21,14 @@ export function emptyTournament() {
     modalita: '',
     data: '',
     dataFine: '',
-    ora: '',
+    // L'ora di inizio non è più chiesta nel form: i tornei nuovi
+    // partono con un default alle 09:00 (ora di Roma) nel caso serva
+    // a valle. Non viene mostrata da nessuna parte.
+    ora: '09:00',
+    // `luogo` sostituisce `comune`: può essere un comune ma anche un
+    // parco, un impianto, una frazione. `comune` resta a '' solo per
+    // compatibilità di lettura con i tornei vecchi.
+    luogo: '',
     comune: '',
     costo: '',
     organizzatore: '',
@@ -69,6 +84,16 @@ export function formatDataLunga(iso, { giornoEsteso = false } = {}) {
   return `${giorno} ${d} ${MESI[m - 1]}`;
 }
 
+/* Solo numero del giorno, mese e anno — senza il nome del giorno.
+   Es. "6 Agosto 2026". Usata nelle didascalie delle polaroid dei
+   trofei, dove il nome del giorno non serve. Con `conAnno: false`
+   torna "6 Agosto". */
+export function formatGiornoMeseAnno(iso, { conAnno = false } = {}) {
+  if (!iso) return '—';
+  const [y, m, d] = iso.split('-').map((n) => parseInt(n, 10));
+  return conAnno ? `${d} ${MESI[m - 1]} ${y}` : `${d} ${MESI[m - 1]}`;
+}
+
 export function formatDataRange(inizio, fine, { giornoEsteso = false } = {}) {
   if (!inizio) return '—';
   if (!fine || fine === inizio) return formatDataLunga(inizio, { giornoEsteso });
@@ -101,6 +126,19 @@ export function formatStubGiorno(inizio, fine) {
       ? `${GIORNI_BREVI[new Date(y1, m1 - 1, d1).getDay()]}-${GIORNI_BREVI[new Date(y2, m2 - 1, d2).getDay()]}`
       : '',
   };
+}
+
+/* Giorno successivo a una data ISO (YYYY-MM-DD), in ISO.
+   `new Date` normalizza da solo i riporti di mese/anno (es. il
+   giorno dopo il 31 gennaio è il 1 febbraio). */
+export function nextDayISO(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map((n) => parseInt(n, 10));
+  const dt = new Date(y, m - 1, d + 1);
+  const yyyy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 export function dayOfWeek(iso) {

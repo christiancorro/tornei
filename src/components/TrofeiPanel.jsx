@@ -12,7 +12,7 @@ import {
 import { doc, getDoc } from 'firebase/firestore';
 
 import { INK, SAND, SUN, CLAY, CARD_BG } from '../theme';
-import { formatDataLunga, todayISO } from '../utils';
+import { formatGiornoMeseAnno, formatDataLunga, todayISO, luogoDi } from '../utils';
 import { db, COL_TORNEI } from '../firebase';
 import { subscribePublished } from '../services/tournaments';
 import {
@@ -24,6 +24,8 @@ import {
 import { useFeedback } from './FeedbackProvider';
 
 const TROFEO_HOLO_CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&display=swap');
+
 @keyframes trofeo-gold-shift {
   0%, 100% { background-position: 0% 0%; }
   50% { background-position: 100% 100%; }
@@ -92,17 +94,17 @@ const TROFEO_HOLO_CSS = `
    un corsivo di sistema, così l'effetto polaroid regge comunque. */
 .trofeo-caption-title {
   font-family: 'Caveat', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive;
-  font-size: 1.4rem;
+  font-size: 1.6rem;
   line-height: 1.02;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.01em;
 }
 
 .trofeo-caption-date {
   font-family: 'Caveat', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive;
-  font-size: 0.95rem;
+  font-size: 1.15rem;
   line-height: 1;
-  margin-top: 3px;
+  margin-top: 8px;
 }
 
 /* Griglia delle polaroid. Su mobile le card sono più piccole (colonne
@@ -197,9 +199,66 @@ const TROFEO_HOLO_CSS = `
 @media (prefers-reduced-motion: reduce) {
   .trofeo-gold-frame,
   .trofeo-holo-overlay,
-  .trofeo-card:hover .trofeo-shine {
+  .trofeo-card:hover .trofeo-shine,
+  .trofeo-balloon {
     animation: none !important;
   }
+}
+
+/* ---- Album "libro delle avventure" (ispirato ai titoli di coda di
+   Up): le polaroid sono incollate su una pagina di carta calda e un
+   po' invecchiata, con una punta di texture. Le foto, che hanno già
+   la loro ombra, "staccano" bene dalla pagina. ---- */
+.trofeo-album {
+  position: relative;
+  border-radius: 20px;
+  padding: 22px 16px 12px;
+  background:
+    radial-gradient(120% 80% at 15% 0%, rgba(255,255,255,0.55), rgba(255,255,255,0) 55%),
+    radial-gradient(140% 100% at 100% 100%, rgba(248, 239, 221, 0.16), rgba(248, 236, 214, 0) 60%),
+    box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.75),
+    inset 0 0 44px rgba(150,115,50,0.06),
+    0 14px 34px -22px rgba(90,66,20,0.5);
+ overflow: hidden;
+}
+
+/* Palloncino filigrana nell'angolo: il cuore visivo di Up, tenuto
+   discreto così accompagna le foto senza rubare la scena. */
+
+
+/* ---- Titolo del capitolo (l'anno): scritto a mano, con accanto una
+   scia tratteggiata da mappa dell'avventura e un palloncino. ---- */
+.trofeo-chapter {
+  font-weight: 600;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: #2c2c2c;
+}
+
+.trofeo-chapter-count {
+  font-weight: 500;
+  font-size: 1rem;
+  line-height: 1;
+  color: #303030;
+  opacity: 0.65;
+  white-space: nowrap;
+}
+
+.trofeo-trail {
+  flex: 1 1 auto;
+  min-width: 18px;
+  height: 0;
+  border-top: 1px dotted rgba(196, 196, 196, 0.42);
+  margin: 0 4px;
+}
+
+
+
+@media (max-width: 639px) {
+  .trofeo-chapter { font-size: 1.7rem; }
+  .trofeo-chapter-count { font-size: 1.05rem; }
+  .trofeo-album { padding: 16px 10px 8px; border-radius: 16px; }
 }
 `;
 
@@ -379,7 +438,7 @@ export default function TrofeiPanel({ uid, onOpenDetail }) {
     <div>
       <style>{TROFEO_HOLO_CSS}</style>
 
-      <div className="flex items-center gap-3 mb-4 flex-wrap">
+      <div className="flex items-center gap-3 mb-4 flex-wrap ml-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <Images
@@ -406,12 +465,12 @@ export default function TrofeiPanel({ uid, onOpenDetail }) {
             }}
           >
             {trofei.length === 0
-              ? 'Nessuna locandina in collezione.'
+              ? 'Ancora nessun torneo'
               : `${trofei.length} ${trofei.length === 1
-                ? 'locandina'
-                : 'locandine'
+                ? 'toreno'
+                : 'tornei'
               }${preferiti > 0
-                ? ` · ${preferiti} preferit${preferiti === 1 ? 'a' : 'e'
+                ? ` · ${preferiti} preferit${preferiti === 1 ? 'o' : 'i'
                 }`
                 : ''
               }`}
@@ -456,85 +515,75 @@ export default function TrofeiPanel({ uid, onOpenDetail }) {
       )}
 
       {trofei.length === 0 && !addOpen ? (
-        <div
-          className="text-center py-16 px-4 rounded-2xl"
-          style={{
-            backgroundColor: 'rgba(34,48,31,0.04)',
-          }}
-        >
-          <div className="text-5xl mb-3">
-            🖼️
-          </div>
+        <div className="trofeo-album text-center py-16 px-4">
 
           <p
-            className="text-sm"
+            className="text-sm max-w-sm mx-auto"
             style={{
-              color: INK,
-              opacity: 0.7,
+              color: '#5c4a29',
+              opacity: 0.85,
             }}
           >
-            Clicca <strong>Aggiungi locandina</strong> per
-            iniziare la tua collezione dei tornei giocati.
+            Clicca <strong>Aggiungi locandina</strong> e aggiungi
+            alla tua collezione i tornei che hai giocato.
           </p>
         </div>
       ) : (
-        perAnno.map(([anno, trofeiAnno]) => {
-          const chiuso = anniChiusi.has(anno);
+        <div className="trofeo-album">
+          {perAnno.map(([anno, trofeiAnno]) => {
+            const chiuso = anniChiusi.has(anno);
 
-          return (
-            <section
-              key={anno}
-              className="mb-8"
-            >
-              <button
-                type="button"
-                onClick={() => toggleAnno(anno)}
-                aria-expanded={!chiuso}
-                className="w-full flex items-center gap-2 px-3 py-2 mb-4 rounded-xl text-2xl font-semibold"
-                style={{
-                  backgroundColor:
-                    'rgba(34,48,31,0.01)',
-                  color: INK,
-                  border:
-                    '1px solid rgba(34,48,31,0.1)',
-                }}
+            return (
+              <section
+                key={anno}
+                className="mb-8"
               >
-                {chiuso ? (
-                  <ChevronRight size={16} />
-                ) : (
-                  <ChevronDown size={16} />
-                )}
-
-                <span>{anno}</span>
-
-                <span
-                  className="text-sm font-semibold"
-                  style={{ opacity: 0.6 }}
+                <button
+                  type="button"
+                  onClick={() => toggleAnno(anno)}
+                  aria-expanded={!chiuso}
+                  className="w-full flex items-center gap-2 mb-4 px-1 py-1 text-left"
+                  style={{ background: 'transparent' }}
                 >
-                  ({trofeiAnno.length})
-                </span>
-              </button>
+                  {chiuso ? (
+                    <ChevronRight size={20} style={{ color: '#5c4a29' }} />
+                  ) : (
+                    <ChevronDown size={20} style={{ color: '#5c4a29' }} />
+                  )}
 
-              {!chiuso && (
-                <div className="trofeo-grid">
-                  {trofeiAnno.map((t) => (
-                    <TrofeoCard
-                      key={t.torneoId}
-                      trofeo={t}
-                      onOpen={() => apriDettaglio(t)}
-                      onToggleFav={() =>
-                        handleTogglePreferito(t)
-                      }
-                      onRemove={() =>
-                        handleRimuovi(t)
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-          );
-        })
+                  <span className="trofeo-chapter">{anno}</span>
+
+                  <span className="trofeo-chapter-count">
+                    · {trofeiAnno.length} {trofeiAnno.length === 1 ? 'torneo' : 'tornei'}
+                  </span>
+
+                  {/* Scia tratteggiata da mappa dell'avventura + palloncino,
+                    come i tragitti disegnati nel libro di Ellie in Up. */}
+                  <span className="trofeo-trail" aria-hidden="true" />
+
+                </button>
+
+                {!chiuso && (
+                  <div className="trofeo-grid">
+                    {trofeiAnno.map((t) => (
+                      <TrofeoCard
+                        key={t.torneoId}
+                        trofeo={t}
+                        onOpen={() => apriDettaglio(t)}
+                        onToggleFav={() =>
+                          handleTogglePreferito(t)
+                        }
+                        onRemove={() =>
+                          handleRimuovi(t)
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            );
+          })}
+        </div>
       )}
     </div>
   );
@@ -565,14 +614,7 @@ function TrofeoCard({
         transition:
           'transform 320ms cubic-bezier(0.2, 0.9, 0.3, 1.05)',
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform =
-          `rotate(${rotBase * 0.01}deg) translateY(-4px)`;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform =
-          `rotate(${rotBase}deg) translateY(0)`;
-      }}
+
     >
       {/* Nastro adesivo (washi tape) che "attacca" la polaroid
           all'album: leggermente trasparente e inclinato. */}
@@ -588,9 +630,9 @@ function TrofeoCard({
           background: `linear-gradient(
             90deg,
             transparent 0%,
-            ${nastro} 8%,
-            ${nastro} 92%,
-            transparent 95%
+            ${nastro} 2%,
+            ${nastro} 100%,
+            transparent 90%
           )`,
           transform:
             'translateX(-50%) rotate(-3deg)',
@@ -696,7 +738,7 @@ function TrofeoCard({
                 'absolute bottom-2 right-2 w-8 h-8 rounded-full flex items-center justify-center active:scale-90 z-10',
                 isPref
                   ? ''
-                  : 'opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100',
+                  : 'sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100',
               ].join(' ')}
               style={{
                 backgroundColor: isPref
@@ -787,7 +829,7 @@ function TrofeoCard({
                   opacity: isPref ? 0.85 : 0.55,
                 }}
               >
-                {formatDataLunga(trofeo.data)}
+                {formatGiornoMeseAnno(trofeo.data)}
               </p>
             )}
           </div>
@@ -825,7 +867,7 @@ function AggiungiTrofeoPicker({
         (t.nome || '')
           .toLowerCase()
           .includes(q) ||
-        (t.comune || '')
+        luogoDi(t)
           .toLowerCase()
           .includes(q) ||
         (t.disciplina || '')
@@ -871,7 +913,7 @@ function AggiungiTrofeoPicker({
           onChange={(e) =>
             setQuery(e.target.value)
           }
-          placeholder="Cerca torneo per nome, comune o disciplina..."
+          placeholder="Cerca torneo per nome, luogo o disciplina..."
           className="w-full bg-transparent outline-none text-sm"
           style={{ color: INK }}
         />
@@ -953,8 +995,8 @@ function AggiungiTrofeoPicker({
                     {t.data
                       ? formatDataLunga(t.data)
                       : '—'}
-                    {t.comune
-                      ? ` · ${t.comune}`
+                    {luogoDi(t)
+                      ? ` · ${luogoDi(t)}`
                       : ''}
                   </p>
                 </div>

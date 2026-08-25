@@ -1,24 +1,38 @@
-export async function geocode(citta) {
-  if (!citta || typeof citta !== 'string') return null;
-  const clean = citta.trim();
+export async function geocode(luogo) {
+  if (!luogo || typeof luogo !== 'string') return null;
+  let clean = luogo.trim();
   if (!clean) return null;
 
-  const url = 'https://nominatim.openstreetmap.org/search'
-    + `?q=${encodeURIComponent(clean + ', Italia')}`
-    + '&format=json'
-    + '&limit=1'
-    + '&countrycodes=it';
+  // "Mels (UD)" → "Mels, UD": Nominatim interpreta la provincia meglio
+  // se separata da virgola che tra parentesi.
+  clean = clean.replace(/\s*\(([^)]+)\)\s*$/, ', $1');
 
-  const res = await fetch(url, {
-    headers: {
-      'Accept-Language': 'it'
-    }
-  });
+  async function query(q) {
+    const url = 'https://nominatim.openstreetmap.org/search'
+      + `?q=${encodeURIComponent(q)}`
+      + '&format=json'
+      + '&limit=1'
+      + '&countrycodes=it';
 
-  if (!res.ok) throw new Error(`geo HTTP ${res.status}`);
+    const res = await fetch(url, {
+      headers: {
+        'Accept-Language': 'it'
+      }
+    });
 
-  const data = await res.json();
-  const result = data?.[0];
+    if (!res.ok) throw new Error(`geo HTTP ${res.status}`);
+
+    const data = await res.json();
+    return data?.[0] ?? null;
+  }
+
+  // Il luogo non è per forza un comune: può essere un parco, un
+  // impianto, un indirizzo. La ricerca free-text di Nominatim li trova
+  // tutti. Primo tentativo con ", Italia" per disambiguare; se non
+  // trova nulla (capita con nomi di parchi già abbastanza specifici)
+  // riprovo senza il suffisso, che a volte restringe troppo.
+  let result = await query(clean + ', Italia');
+  if (!result) result = await query(clean);
 
   if (!result) return null;
 
@@ -28,7 +42,7 @@ export async function geocode(citta) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
 
   // Offset verso nord: circa 55 metri
-  const OFFSET_LAT = 0.0010;
+  const OFFSET_LAT = 0.0005;
 
   return {
     lat: lat + OFFSET_LAT,

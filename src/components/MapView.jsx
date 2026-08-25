@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { isPassato, todayISO } from '../utils';
+import { isPassato, todayISO, luogoDi } from '../utils';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 if (MAPBOX_TOKEN) {
@@ -286,11 +286,14 @@ function toGeoJSON(tournaments) {
   tournaments
     .filter((t) => typeof t.lat === 'number' && typeof t.lng === 'number')
     .forEach((t) => {
-      const idx = contatore[t.comune] || 0;
-      contatore[t.comune] = idx + 1;
+      const chiaveLuogo = luogoDi(t);
+      const idx = contatore[chiaveLuogo] || 0;
+      contatore[chiaveLuogo] = idx + 1;
 
+      // Nome completo sull'etichetta: niente troncamento. Se è lungo,
+      // `text-max-width` nel layer lo manda a capo su più righe invece
+      // di tagliarlo con i puntini.
       const nome = t.nome || '';
-      const nomeBreve = nome.length > 24 ? `${nome.substring(0, 24)}…` : nome;
 
       features.push({
         type: 'Feature',
@@ -301,7 +304,7 @@ function toGeoJSON(tournaments) {
         },
         properties: {
           id: t.id,
-          nome: nomeBreve,
+          nome: nome,
           disciplina: t.disciplina || '',
         },
       });

@@ -285,14 +285,43 @@ export default function App() {
      cadeva nei frame subito dopo il click sul tab Tornei e si
      sentiva come lag.
 
-     Ora la mappa viene montata SOLO al primo ingresso in
-     viewMode === 'mappa', e da quel momento in poi resta viva per
-     tutta la sessione. Il wrapper è renderizzato al top-level
-     dell'App (fuori dal blocco `view === 'tornei'`) e nascosto con
-     visibility:hidden quando non serve, così cambiare vista non lo
-     smonta e riaprire la mappa dopo essere passati da Bacheca /
-     Account / Admin è istantaneo. */
+     Ora la mappa viene PRECARICATA appena si accede al sito (ma non
+     durante il primo paint, vedi sotto) e da quel momento in poi
+     resta viva per tutta la sessione. Il wrapper è renderizzato al
+     top-level dell'App (fuori dal blocco `view === 'tornei'`) e
+     nascosto con visibility:hidden quando non serve, così cambiare
+     vista non lo smonta e aprire la mappa è istantaneo. */
   const [mapMounted, setMapMounted] = useState(false);
+
+  /* Precarico la mappa appena si accede al sito, ma SENZA introdurre
+     lag. Mapbox GL è pesante e sincrono al mount (canvas, stile, layer),
+     quindi il warmup deve cadere solo quando il main thread è davvero
+     libero. Due accorgimenti:
+       1. aspetto che i tornei abbiano finito di caricare, così la mappa
+          non compete col primo render della lista;
+       2. uso requestIdleCallback SENZA `timeout`: la mappa si scalda
+          solo in un vero momento di idle, mai forzata dentro un frame
+          occupato (è il `timeout` che, scadendo, causerebbe il jank).
+     Se l'utente apre la mappa prima che l'idle l'abbia scaldata, ci
+     pensa la rete di sicurezza qui sotto. Una volta montata non viene
+     più smontata (mapMounted resta true per tutta la sessione). */
+  useEffect(() => {
+    if (mapMounted || loadingTornei || typeof window === 'undefined') {
+      return undefined;
+    }
+    const warmup = () => setMapMounted(true);
+    if ('requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(warmup);
+      return () => window.cancelIdleCallback(id);
+    }
+    // Safari non ha requestIdleCallback: un timeout dopo il primo paint
+    // stabile è il miglior proxy di "thread libero" disponibile.
+    const id = window.setTimeout(warmup, 1500);
+    return () => window.clearTimeout(id);
+  }, [mapMounted, loadingTornei]);
+
+  /* Rete di sicurezza: se l'utente apre la mappa prima che l'idle
+     l'abbia già scaldata, la montiamo comunque subito. */
   useEffect(() => {
     if (view === 'tornei' && viewMode === 'mappa' && !mapMounted) {
       setMapMounted(true);
@@ -692,6 +721,9 @@ export default function App() {
           onNavigate={setDetailTarget}
           onClose={() => setDetailTarget(null)}
           uid={uid}
+          isAdmin={isAdmin}
+          onEdit={(t) => setFormState(t)}
+          onDeleteRequest={(t) => setDeleteTarget(t)}
         />
       )}
       {replyTarget && (

@@ -41,7 +41,10 @@ const tourneysRef = collection(db, COL_TORNEI);
 
 const FIELDS = [
   'nome', 'disciplina', 'formati', 'modalita', 'data', 'dataFine', 'ora',
-  'comune', 'costo', 'organizzatore', 'descrizioneOrganizzatore',
+  // `luogo` è il campo nuovo (comune, frazione, parco, impianto...);
+  // `comune` resta whitelisted solo per non perdere il valore dei
+  // tornei vecchi quando vengono ri-salvati.
+  'luogo', 'comune', 'costo', 'organizzatore', 'descrizioneOrganizzatore',
   'instagram', 'facebook', 'sitoWeb',
   // Coordinate geografiche del comune, risolte al momento del
   // salvataggio dal form (utils/geocode.js). Se un torneo ne è

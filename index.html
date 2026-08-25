@@ -3,31 +3,24 @@
 
 <head>
   <meta charset="UTF-8" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#1a3a7a" />
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon32.png" />
-  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon48.png" />
+  <link rel="apple-touch-icon" href="/icons/appletouchicon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="volleyFVG" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tornei Volley FVG</title>
+  <title>Volley FVG - Tornei di green volley, beach volley e pallavolo in FVG e dintorni. </title>
   <meta name="description"
-    content="Trova tornei di green volley, beach volley e pallavolo in Friuli-Venezia Giulia e dintorni." />
+    content="Trova tornei di green volley, beach volley e pallavolo in Friuli-Venezia Giulia e dintorni, e usa la bacheca per cercare una squadra o giocatori." />
 
-  <!--
-    Open Graph di default per la homepage.
-    Quando qualcuno condivide un torneo specifico su Telegram/WhatsApp/
-    Facebook, il link va a /torneo/<id>, servito dalla Cloud Function
-    `torneoOg` che sovrascrive questi meta con i dati del torneo (con
-    la sua locandina). Questi qui coprono la homepage e i link "puliti"
-    (senza /torneo/<id>).
-
-    L'immagine `/og-image.png` va messa in `public/og-image.png` — così
-    Vite la copia verbatim in dist/. Dimensione consigliata: 1200×630.
-    Se non la hai ancora, ne basta una temporanea (logo su sfondo) o
-    puoi togliere le due righe con og:image / twitter:image.
-  -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Tornei Volley FVG" />
   <meta property="og:title" content="Tornei Volley FVG" />
   <meta property="og:description"
-    content="Trova tornei di beach volley, green volley e volley in Friuli-Venezia Giulia." />
+    content="Trova tornei di beach volley, green volley e volley in Friuli-Venezia Giulia e usa la bacheca per cercare una squadra o giocatori." />
   <meta property="og:locale" content="it_IT" />
   <meta property="og:image" content="/og-image.png" />
   <meta property="og:image:alt" content="Tornei Volley FVG" />
@@ -35,7 +28,7 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Tornei Volley FVG" />
   <meta name="twitter:description"
-    content="Trova tornei di beach volley, green volley e volley in Friuli-Venezia Giulia." />
+    content="Trova tornei di beach volley, green volley e volley in Friuli-Venezia Giulia e usa la bacheca per cercare una squadra o giocatori." />
   <meta name="twitter:image" content="/og-image.png" />
 </head>
 

@@ -13,7 +13,12 @@
    riceverebbe comunque il sito completo. Non c'è un ramo in cui
    sbagliare costa la pagina.
 --------------------------------------------------------- */
-import { formatData, formatLuogo, troncaTesto } from './format.js';
+import {
+  formatData,
+  formatLuogo,
+  formatCosto,
+  troncaTesto,
+} from './format.js';
 
 const DESCRIZIONE_GENERICA =
   'Tornei di green volley, beach volley e pallavolo in Friuli-Venezia Giulia e dintorni.';
@@ -67,10 +72,11 @@ export function safeHttpsUrl(value) {
    Dal documento Firestore ai quattro valori che servono:
    titolo, descrizione, immagine, URL.
 
-   La descrizione è "data · luogo", che è quello che serve
-   sapere guardando un link in chat. Se mancano entrambi si
-   ripiega sulla frase generica del sito — mai una descrizione
-   vuota, che alcuni client rendono come uno spazio bianco.
+   La descrizione è "data · luogo · costo", cioè
+   quello che serve sapere guardando un link in chat. Se manca
+   tutto si ripiega sulla frase generica del sito — mai una
+   descrizione vuota, che alcuni client rendono come uno spazio
+   bianco.
 
    Nota: authorEmail / authorId / authorName non arrivano
    nemmeno qui dentro. La field mask in firebase.js non li
@@ -82,9 +88,14 @@ export function buildPreview(torneo, slug, env) {
 
   const nome = troncaTesto(torneo.nome, 110) || 'Torneo';
 
-  const data = formatData(torneo.data, torneo.dataFine, torneo.ora);
-  const luogo = formatLuogo(torneo);
-  const parti = [data, luogo].filter(Boolean);
+  /* Data, luogo, disciplina, costo. Ogni pezzo cade da solo se il
+     campo manca, quindi un torneo senza costo non produce un " · "
+     penzolante in fondo alla riga. */
+  const parti = [
+    formatData(torneo.data, torneo.dataFine),
+    formatLuogo(torneo),
+    formatCosto(torneo.costo),
+  ].filter(Boolean);
   const descrizione = parti.length
     ? troncaTesto(parti.join(' · '), 200)
     : String(env.FALLBACK_DESCRIPTION || DESCRIZIONE_GENERICA);

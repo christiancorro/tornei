@@ -155,46 +155,10 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
   // Modifica/elimina visibili solo al proprietario del torneo o all'admin.
   const canManage = isAdmin || (!!uid && t.authorId === uid);
   const [posterOk, setPosterOk] = useState(true);
-  const [fileLocandina, setFileLocandina] = useState(null);
   const [salvaBusy, setSalvaBusy] = useState(false);
   const { toast } = useFeedback();
   const style = STUB_STYLE[t.disciplina] || STUB_STYLE['Green Volley'];
   const showPoster = Boolean(t.locandina) && posterOk;
-
-  /* La locandina si scarica appena la scheda è in primo piano, non al
-     click: Safari concede navigator.share() solo mentre il tocco è
-     "fresco", e un await di mezzo glielo fa scadere. Se il download
-     non riesce (tipicamente CORS) resta null e si condivide il testo. */
-  useEffect(() => {
-    if (!attivo || !t.locandina) {
-      setFileLocandina(null);
-      return undefined;
-    }
-
-    let vivo = true;
-    const stop = new AbortController();
-
-    (async () => {
-      try {
-        const risposta = await fetch(t.locandina, { mode: 'cors', signal: stop.signal });
-        if (!risposta.ok) return;
-        const blob = await risposta.blob();
-        if (!vivo || !blob.type.startsWith('image/')) return;
-        const estensione = blob.type.split('/')[1]?.split('+')[0] || 'jpg';
-        const nome = `${t.nome.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'locandina'}.${estensione}`;
-        setFileLocandina(new File([blob], nome, { type: blob.type }));
-      } catch (err) {
-        if (err?.name !== 'AbortError') {
-          console.warn('[condividi torneo] locandina non scaricabile', err);
-        }
-      }
-    })();
-
-    return () => {
-      vivo = false;
-      stop.abort();
-    };
-  }, [attivo, t.locandina, t.nome]);
 
   /* Aggiungi / togli questa locandina dai tornei giocati. È un toggle:
      se non è in collezione la aggiunge, se c'è la rimuove. Il pulsante
@@ -262,35 +226,18 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
       return u.toString();
     })();
 
-    /* Testo di condivisione più ricco: disciplina + formati, data
-       estesa con ora, luogo, quota, organizzatore. Ogni riga è opzionale
-       e cade se il campo è vuoto — così non si leggono "Quota: " senza
-       importo o righe vuote. */
-    const formatiRiga = t.formati?.length ? ` · ${t.formati.join(', ')}` : '';
-    const dataRiga = formatDataRange(t.data, t.dataFine, { giornoEsteso: true });
-    const righe = [
-      t.nome,
-      t.disciplina ? `${t.disciplina}${formatiRiga}` : null,
-      t.modalita || null,
-      dataRiga,
-      luogoDi(t) ? `${luogoDi(t)}` : null,
-      t.costo ? `€ ${t.costo}` : null,
-    ].filter(Boolean);
-    const testo = righe.join('\n');
-    // Nel fallback appunti serve un pacchetto autonomo con anche il link.
-    const contenuto = `${testo}\n\n${url}`;
+    /* Si condivide SOLO l'URL. Nome, data, luogo, costo e locandina li
+       mette il Cloudflare Worker nei meta tag Open Graph, quindi
+       WhatsApp e Telegram costruiscono da soli l'anteprima ricca a
+       partire dal link (vedi docs/social-preview.md).
 
+       Allegare anche il file della locandina sarebbe controproducente:
+       i client che ricevono un'immagine la mostrano come allegato e
+       smettono di generare la card del link. Un URL nudo fa una figura
+       migliore. */
     if (navigator.share) {
-      /* Non tutti i sistemi accettano i file: canShare() lo dice prima
-         di provarci, così non si perde anche la condivisione del testo.
-         Passo sempre `url` come campo separato: WhatsApp, Telegram e
-         Messaggi lo riconoscono come link e generano l'anteprima. */
-      const conLocandina = fileLocandina && navigator.canShare?.({ files: [fileLocandina] });
-      const dati = { title: t.nome, text: testo, url };
-      if (conLocandina) dati.files = [fileLocandina];
-
       try {
-        await navigator.share(dati);
+        await navigator.share({ url });
         return;
       } catch (err) {
         // Annullare la condivisione non è un errore: non dico niente.
@@ -301,21 +248,20 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
 
     try {
       if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(contenuto);
-        toast('Torneo copiato negli appunti.', 'success');
+        await navigator.clipboard.writeText(url);
+        toast('Link copiato negli appunti.', 'success');
         return;
       }
     } catch (err) {
       console.warn('[condividi torneo] appunti non disponibili', err);
     }
 
-    if (copiaAllaVecchia(contenuto)) {
-      toast('Torneo copiato negli appunti.', 'success');
+    if (copiaAllaVecchia(url)) {
+      toast('Link copiato negli appunti.', 'success');
     } else {
       toast('Non riesco a condividere da qui: copia il link dalla barra degli indirizzi.', 'error', 6000);
     }
   }
-
   return (
     <div
       /* Wrapper esterno: tiene border-radius + overflow:hidden per

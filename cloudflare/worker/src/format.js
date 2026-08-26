@@ -13,13 +13,15 @@ const MESI = [
   'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre',
 ];
 
+/* Maiuscoli: il giorno della settimana apre la descrizione, e in
+   apertura di frase ci va la maiuscola. I mesi restano minuscoli,
+   come vuole l'italiano. */
 const GIORNI = [
-  'domenica', 'lunedì', 'martedì', 'mercoledì',
-  'giovedì', 'venerdì', 'sabato',
+  'Domenica', 'Lunedì', 'Martedì', 'Mercoledì',
+  'Giovedì', 'Venerdì', 'Sabato',
 ];
 
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
-const ORA = /^(\d{1,2}):(\d{2})$/;
 
 /* Le date dei tornei sono stringhe "YYYY-MM-DD" senza fuso.
    Le interpreto sempre a mezzanotte UTC: così il giorno della
@@ -47,28 +49,19 @@ function parseISO(value) {
   return date;
 }
 
-function normalizzaOra(value) {
-  if (typeof value !== 'string') return '';
-  const m = ORA.exec(value.trim());
-  if (!m) return '';
-  const h = Number(m[1]);
-  const min = Number(m[2]);
-  if (h > 23 || min > 59) return '';
-  return `${String(h).padStart(2, '0')}:${m[2]}`;
-}
-
 /* ---------------------------------------------------------
-   formatData(data, dataFine, ora)
+   formatData(data, dataFine)
 
-   Un giorno solo        → "domenica 6 settembre 2026, ore 09:00"
+   Un giorno solo          → "Sabato 29 agosto 2026"
    Due giorni, stesso mese → "6 - 7 settembre 2026"
-   Mesi diversi          → "30 agosto - 1 settembre 2026"
-   Anni diversi          → "30 dicembre 2026 - 1 gennaio 2027"
+   Mesi diversi            → "30 agosto - 1 settembre 2026"
+   Anni diversi            → "30 dicembre 2026 - 1 gennaio 2027"
 
-   Sul range non stampo l'ora: "dal 6 al 7 settembre, ore 09:00"
-   sarebbe ambiguo (l'ora di quale giorno?).
+   L'ora di inizio non compare: in una preview conta il quando
+   in senso largo, e "ore 09:00" rubava spazio alla riga senza
+   aggiungere granché. Chi apre il link la trova nella card.
 --------------------------------------------------------- */
-export function formatData(data, dataFine, ora) {
+export function formatData(data, dataFine) {
   const inizio = parseISO(data);
   if (!inizio) return '';
 
@@ -78,10 +71,7 @@ export function formatData(data, dataFine, ora) {
   const ai = inizio.getUTCFullYear();
 
   if (!fine || fine.getTime() <= inizio.getTime()) {
-    const giornoSettimana = GIORNI[inizio.getUTCDay()];
-    const base = `${giornoSettimana} ${gi} ${MESI[mi]} ${ai}`;
-    const oraOk = normalizzaOra(ora);
-    return oraOk ? `${base}, ore ${oraOk}` : base;
+    return `${GIORNI[inizio.getUTCDay()]} ${gi} ${MESI[mi]} ${ai}`;
   }
 
   const gf = fine.getUTCDate();
@@ -98,6 +88,25 @@ export function formatData(data, dataFine, ora) {
 export function formatLuogo(torneo) {
   const v = torneo.luogo || torneo.comune || '';
   return typeof v === 'string' ? v.trim() : '';
+}
+
+/* ---------------------------------------------------------
+   formatCosto(costo)
+
+   Il campo è testo libero: a volte "15", a volte
+   "10 (pranzo + maglietta)", a volte "gratuito".
+
+   Metto il simbolo € solo davanti a un valore che inizia con
+   una cifra. Così "15" diventa "€ 15" e "10 (pranzo +
+   maglietta)" diventa "€ 10 (pranzo + maglietta)", ma
+   "gratuito" resta "gratuito" e non "€ gratuito".
+--------------------------------------------------------- */
+export function formatCosto(costo) {
+  const v = String(costo ?? '').replace(/\s+/g, ' ').trim();
+  if (!v) return '';
+  if (/^[€$]/.test(v)) return v;      // simbolo già scritto dall'utente
+  if (/^\d/.test(v)) return `€ ${v}`; // "15", "10 (pranzo…)"
+  return v;                            // "gratuito", "offerta libera"
 }
 
 /* Riduce a una riga sola e taglia su confine di parola. Le

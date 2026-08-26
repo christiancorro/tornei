@@ -1,15 +1,12 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-
   "name": "volleyfvg-social-preview",
   "main": "src/index.js",
   "compatibility_date": "2026-08-01",
-
   // Niente URL *.workers.dev in produzione: il Worker si raggiunge
   // solo attraverso la Route sul dominio. Un secondo indirizzo
   // pubblico che serve lo stesso sito confonderebbe Google.
   "workers_dev": false,
-
   /* -----------------------------------------------------------
      Route, non Custom Domain.
 
@@ -23,10 +20,15 @@
      docs/social-preview.md.
   ----------------------------------------------------------- */
   "routes": [
-    { "pattern": "volleyfvg.it/*", "zone_name": "volleyfvg.it" },
-    { "pattern": "www.volleyfvg.it/*", "zone_name": "volleyfvg.it" }
+    {
+      "pattern": "volleyfvg.it/*",
+      "zone_name": "volleyfvg.it"
+    },
+    {
+      "pattern": "www.volleyfvg.it/*",
+      "zone_name": "volleyfvg.it"
+    }
   ],
-
   /* -----------------------------------------------------------
      Tutte variabili pubbliche: nessun segreto, ne' qui ne' altrove.
 
@@ -41,23 +43,18 @@
     // progetto, mai volleyfvg.it: puntarlo al dominio pubblico
     // farebbe chiamare il Worker da se stesso.
     "ORIGIN": "https://christiancorro.github.io/tornei",
-
     // Dominio pubblico, usato per costruire og:url e canonical.
     "SITE_URL": "https://volleyfvg.it",
-    "SITE_NAME": "Tornei Volley FVG",
-
+    "SITE_NAME": "volleyFVG",
     // www.volleyfvg.it -> volleyfvg.it con un 301, come fa oggi
     // GitHub Pages. Lascia vuoto per disattivare il redirect.
     "CANONICAL_HOST": "volleyfvg.it",
-
     // Firestore, in lettura anonima.
     "FIREBASE_PROJECT_ID": "volleyfvg-6ad3e",
     "FIRESTORE_COLLECTION": "tornei",
-
     // Secondi di cache al bordo per una preview gia' costruita.
     // 300 = una modifica al torneo si vede entro 5 minuti.
     "PREVIEW_TTL": "300",
-
     /* Immagine usata quando il torneo non ha locandina.
        NB: /og-image.png citata in index.html non esiste nel
        repository, quindi qui punto a un file che c'e' davvero.
@@ -66,12 +63,11 @@
     "FALLBACK_IMAGE": "https://volleyfvg.it/icons/icon512.png",
     "FALLBACK_IMAGE_WIDTH": "512",
     "FALLBACK_IMAGE_HEIGHT": "512",
-
     "FALLBACK_DESCRIPTION": "Tornei di green volley, beach volley e pallavolo in Friuli-Venezia Giulia e dintorni."
   },
-
-  "observability": { "enabled": true },
-
+  "observability": {
+    "enabled": true
+  },
   /* -----------------------------------------------------------
      Ambiente `staging` — da usare PRIMA del passaggio in
      produzione.
@@ -94,7 +90,7 @@
       "vars": {
         "ORIGIN": "https://volleyfvg.it",
         "SITE_URL": "https://volleyfvg.it",
-        "SITE_NAME": "Tornei Volley FVG",
+        "SITE_NAME": "volleyFVG",
         "CANONICAL_HOST": "",
         "FIREBASE_PROJECT_ID": "volleyfvg-6ad3e",
         "FIRESTORE_COLLECTION": "tornei",

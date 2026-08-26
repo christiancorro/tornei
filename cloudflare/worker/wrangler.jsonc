@@ -1,0 +1,109 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  "name": "volleyfvg-social-preview",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-01",
+
+  // Niente URL *.workers.dev in produzione: il Worker si raggiunge
+  // solo attraverso la Route sul dominio. Un secondo indirizzo
+  // pubblico che serve lo stesso sito confonderebbe Google.
+  "workers_dev": false,
+
+  /* -----------------------------------------------------------
+     Route, non Custom Domain.
+
+     Cloudflare distingue i due casi cosi': Custom Domain quando il
+     Worker E' l'origine, Route quando il Worker sta DAVANTI a
+     un'origine che esiste gia'. Qui l'origine e' GitHub Pages,
+     quindi Route.
+
+     Perche' la Route funzioni servono record DNS *proxied*
+     (nuvoletta arancione) per volleyfvg.it e www. Vedi
+     docs/social-preview.md.
+  ----------------------------------------------------------- */
+  "routes": [
+    { "pattern": "volleyfvg.it/*", "zone_name": "volleyfvg.it" },
+    { "pattern": "www.volleyfvg.it/*", "zone_name": "volleyfvg.it" }
+  ],
+
+  /* -----------------------------------------------------------
+     Tutte variabili pubbliche: nessun segreto, ne' qui ne' altrove.
+
+     Il project ID di Firebase e' gia' dentro il bundle JS del
+     frontend (src/firebase.js lo legge da VITE_FIREBASE_PROJECT_ID
+     e Vite lo inlinea al build), quindi non c'e' niente da
+     nascondere. Se in futuro servisse una credenziale, va messa
+     con `wrangler secret put NOME` e MAI in questo file.
+  ----------------------------------------------------------- */
+  "vars": {
+    // Origin reale del sito. DEVE essere l'URL github.io del
+    // progetto, mai volleyfvg.it: puntarlo al dominio pubblico
+    // farebbe chiamare il Worker da se stesso.
+    "ORIGIN": "https://christiancorro.github.io/tornei",
+
+    // Dominio pubblico, usato per costruire og:url e canonical.
+    "SITE_URL": "https://volleyfvg.it",
+    "SITE_NAME": "Tornei Volley FVG",
+
+    // www.volleyfvg.it -> volleyfvg.it con un 301, come fa oggi
+    // GitHub Pages. Lascia vuoto per disattivare il redirect.
+    "CANONICAL_HOST": "volleyfvg.it",
+
+    // Firestore, in lettura anonima.
+    "FIREBASE_PROJECT_ID": "volleyfvg-6ad3e",
+    "FIRESTORE_COLLECTION": "tornei",
+
+    // Secondi di cache al bordo per una preview gia' costruita.
+    // 300 = una modifica al torneo si vede entro 5 minuti.
+    "PREVIEW_TTL": "300",
+
+    /* Immagine usata quando il torneo non ha locandina.
+       NB: /og-image.png citata in index.html non esiste nel
+       repository, quindi qui punto a un file che c'e' davvero.
+       Quando aggiungi una vera immagine 1200x630 in public/,
+       cambia questi tre valori. */
+    "FALLBACK_IMAGE": "https://volleyfvg.it/icons/icon512.png",
+    "FALLBACK_IMAGE_WIDTH": "512",
+    "FALLBACK_IMAGE_HEIGHT": "512",
+
+    "FALLBACK_DESCRIPTION": "Tornei di green volley, beach volley e pallavolo in Friuli-Venezia Giulia e dintorni."
+  },
+
+  "observability": { "enabled": true },
+
+  /* -----------------------------------------------------------
+     Ambiente `staging` — da usare PRIMA del passaggio in
+     produzione.
+
+     Gira su un URL *.workers.dev, senza Route e senza toccare il
+     DNS, e punta l'origin al sito pubblico volleyfvg.it. Fuori
+     dalla zona non c'e' nessun anello: e' il modo per vedere le
+     preview vere, sui tornei veri, mentre il sito continua a
+     essere servito da GitHub Pages come sempre.
+
+         npx wrangler deploy --env staging
+
+     Nota: in Wrangler `vars` non si eredita fra ambienti, quindi
+     qui va ripetuto tutto.
+  ----------------------------------------------------------- */
+  "env": {
+    "staging": {
+      "workers_dev": true,
+      "routes": [],
+      "vars": {
+        "ORIGIN": "https://volleyfvg.it",
+        "SITE_URL": "https://volleyfvg.it",
+        "SITE_NAME": "Tornei Volley FVG",
+        "CANONICAL_HOST": "",
+        "FIREBASE_PROJECT_ID": "volleyfvg-6ad3e",
+        "FIRESTORE_COLLECTION": "tornei",
+        "PREVIEW_TTL": "60",
+        "FALLBACK_IMAGE": "https://volleyfvg.it/icons/icon512.png",
+        "FALLBACK_IMAGE_WIDTH": "512",
+        "FALLBACK_IMAGE_HEIGHT": "512",
+        "FALLBACK_DESCRIPTION": "Tornei di green volley, beach volley e pallavolo in Friuli-Venezia Giulia e dintorni."
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+# Copia in `.dev.vars` per `npm run dev`. NON committare .dev.vars.
+#
+# In locale l'origin punta al sito pubblico: `wrangler dev` non gira
+# dietro una Route, quindi non c'e' nessun anello, e si testa la
+# preview contro l'HTML e i dati veri prima ancora di toccare il DNS.
+#
+# In produzione questo valore e' quello in wrangler.jsonc
+# (https://christiancorro.github.io/tornei) e NON va cambiato:
+# puntare il Worker a volleyfvg.it lo farebbe chiamare da se stesso.
+ORIGIN="https://volleyfvg.it"

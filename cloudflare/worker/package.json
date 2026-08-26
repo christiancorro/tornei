@@ -1,0 +1,20 @@
+{
+  "name": "volleyfvg-social-preview",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Worker che genera le preview social dei tornei davanti a GitHub Pages.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "node --test test/unit.test.js",
+    "test:runtime": "node --test test/runtime.test.js",
+    "test:all": "npm test && npm run test:runtime",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "miniflare": "^4.20260730.0",
+    "wrangler": "^4.126.0"
+  }
+}

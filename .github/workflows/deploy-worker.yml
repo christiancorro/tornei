@@ -1,0 +1,86 @@
+# ---------------------------------------------------------
+# Deploy del Cloudflare Worker delle preview social.
+#
+# FACOLTATIVO. Il Worker si puo' benissimo pubblicare a mano con
+#   cd cloudflare/worker && npx wrangler deploy
+#
+# Questo workflow parte SOLO su richiesta esplicita (Actions ->
+# Deploy Cloudflare Worker -> Run workflow). Niente `push`: il
+# deploy del frontend su GitHub Pages resta l'unico automatismo
+# del repository e questo file non puo' interferirci.
+#
+# PRIMA DI USARLO servono due secret in
+# Settings -> Secrets and variables -> Actions:
+#
+#   CLOUDFLARE_API_TOKEN   token con permesso "Edit Cloudflare Workers"
+#   CLOUDFLARE_ACCOUNT_ID  ID account, visibile nella dashboard
+#
+# Finche' non ci sono, il workflow si ferma al primo step con un
+# messaggio chiaro invece di fallire in modo oscuro a meta' deploy.
+# ---------------------------------------------------------
+name: Deploy Cloudflare Worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Quale ambiente pubblicare"
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+
+# Gruppo dedicato: non tocca la concurrency "pages" del deploy frontend.
+concurrency:
+  group: worker-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloudflare/worker
+
+    steps:
+      - name: Controlla che i secret ci siano
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          mancanti=""
+          [ -z "$TOKEN" ]   && mancanti="$mancanti CLOUDFLARE_API_TOKEN"
+          [ -z "$ACCOUNT" ] && mancanti="$mancanti CLOUDFLARE_ACCOUNT_ID"
+          if [ -n "$mancanti" ]; then
+            echo "::error::Secret mancanti:$mancanti"
+            echo "Aggiungili in Settings -> Secrets and variables -> Actions,"
+            echo "oppure pubblica a mano con: cd cloudflare/worker && npx wrangler deploy"
+            exit 1
+          fi
+        working-directory: .
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: cloudflare/worker/package-lock.json
+
+      - run: npm ci
+
+      - name: Test
+        run: npm run test:all
+
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            npx wrangler deploy
+          else
+            npx wrangler deploy --env staging
+          fi

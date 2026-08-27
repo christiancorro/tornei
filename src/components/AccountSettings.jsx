@@ -6,6 +6,7 @@ import { ROLE_LABELS } from '../roles';
 import { updateDisplayName, deleteAccount, accountFootprint } from '../services/account';
 import { authErrorMessage } from '../services/auth';
 import { useActionState } from '../hooks/useActionState';
+import NotificheSettings from './NotificheSettings';
 
 const CONFERMA = 'ELIMINA';
 
@@ -115,6 +116,9 @@ export default function AccountSettings({ profile, onDeleted }) {
               : 'Salva'}
         </button>
       </div>
+
+      {/* --- Notifiche --- */}
+      <NotificheSettings profile={profile} />
 
       {/* --- Zona pericolosa --- */}
       <div className="rounded-xl border-2 p-4" style={{ backgroundColor: CARD_BG, borderColor: `${CLAY}55` }}>

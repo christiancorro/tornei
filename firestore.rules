@@ -228,6 +228,58 @@ service cloud.firestore {
   }
 }
 
+    /* ---------- pushTokens (notifiche) ---------- */
+
+    /* Un documento per browser, indirizzato dal token FCM.
+
+       Il token è una stringa lunga e imprevedibile che il browser
+       riceve da Google: chi non ce l'ha non può indovinarla. È
+       questo che permette di far registrare anche i visitatori NON
+       loggati senza aprire la collection a chiunque — si scrive solo
+       sul proprio documento, e il proprio documento lo si conosce
+       solo se il browser te l'ha dato.
+
+       Dentro non c'è niente di sensibile: tre booleani, il nome del
+       dispositivo e, per chi è loggato, il proprio uid.
+
+       L'unico controllo che conta davvero è quello sull'uid: senza,
+       chiunque potrebbe registrare un token con l'uid di un altro e
+       farsi recapitare i suoi messaggi privati. */
+
+    match /pushTokens/{token} {
+
+      function tokenPlausibile() {
+        return token.size() >= 100 && token.size() <= 512;
+      }
+
+      function preferenzeValide(p) {
+        return p.keys().hasOnly(['tornei', 'annunci', 'messaggi'])
+          && p.tornei is bool
+          && p.annunci is bool
+          && p.messaggi is bool;
+      }
+
+      function datiValidi() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['uid', 'prefs', 'dispositivo', 'updatedAt'])
+          && (d.uid == null || (isSignedIn() && d.uid == request.auth.uid))
+          && preferenzeValide(d.prefs)
+          && (!('dispositivo' in d.keys())
+              || (d.dispositivo is string && d.dispositivo.size() <= 40));
+      }
+
+      // Leggere il proprio documento serve al client per ritrovare
+      // le preferenze; per elencarli tutti bisogna essere loggati e
+      // chiedere solo i propri.
+      allow get: if true;
+      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+
+      allow create, update: if tokenPlausibile() && datiValidi();
+
+      // Chi ha il token può spegnere le notifiche su quel browser.
+      allow delete: if true;
+    }
+
     /* Tutto il resto è chiuso. */
     match /{document=**} {
       allow read, write: if false;

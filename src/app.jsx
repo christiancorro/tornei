@@ -30,8 +30,10 @@ import AuthModal from './components/AuthModal';
 import AdminDashboard from './components/AdminDashboard';
 import AccountDashboard from './components/AccountDashboard';
 import ReplyModal from './components/ReplyModal';
+import NotificheBanner from './components/NotificheBanner';
 import { useFeedback } from './components/FeedbackProvider';
 import { sendRichiesta } from './services/richieste';
+import { collegaToken } from './services/notifiche';
 
 /* ---------------------------------------------------------
 App
@@ -383,6 +385,47 @@ export default function App() {
     setTidDaAprire(null); // consumato: da qui in poi l'URL riflette detailTarget
   }, [loadingTornei, tournaments, tidDaAprire]);
 
+  /* Deep link delle notifiche: ?vista=bacheca, oppure
+     ?vista=messaggi&conv=<id> per aprire il thread giusto. Il click
+     su una notifica deve atterrare dove serve, non sempre sulla
+     lista tornei. Letto una volta sola al mount, come il ?torneo=. */
+  const [destinazioneIniziale] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    const vista = params.get('vista');
+    if (!vista) return null;
+    return { vista, conv: params.get('conv') };
+  });
+
+  useEffect(() => {
+    if (!destinazioneIniziale || typeof window === 'undefined') return;
+
+    if (destinazioneIniziale.vista === 'bacheca') {
+      setView('bacheca');
+    } else if (destinazioneIniziale.vista === 'messaggi' || destinazioneIniziale.vista === 'account') {
+      setView('account');
+      if (destinazioneIniziale.conv) setPendingOpenConv(destinazioneIniziale.conv);
+    }
+
+    /* Ripulisco l'indirizzo: il parametro ha fatto il suo lavoro, e
+       lasciarlo lì lo riapplicherebbe ad ogni ricarica — chi
+       aggiorna la pagina si ritroverebbe sbattuto nei messaggi. */
+    const url = new URL(window.location.href);
+    url.searchParams.delete('vista');
+    url.searchParams.delete('conv');
+    window.history.replaceState(null, '', url.pathname + (url.search || '') + url.hash);
+  }, [destinazioneIniziale]);
+
+  /* Il token delle notifiche segue l'account: appena si entra lo
+     colleghiamo (i messaggi privati devono sapere dove arrivare),
+     appena si esce lo scolleghiamo — le notifiche di sistema non
+     devono continuare ad arrivare a chi si è disconnesso. Tornei e
+     annunci invece continuano: non hanno bisogno di un account. */
+  useEffect(() => {
+    if (!authReady) return;
+    collegaToken(profile?.uid ?? null);
+  }, [authReady, profile?.uid]);
+
   // Tasto Indietro del browser: sincronizza la card con l'URL corrente.
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -659,6 +702,8 @@ export default function App() {
         activeFilterCount={activeFilterCount}
         resetFilters={resetFilters}
       />
+
+      {view === 'tornei' && <NotificheBanner uid={uid} />}
 
       {view === 'tornei' && (
         <ResultsBar

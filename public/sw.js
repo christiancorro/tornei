@@ -93,3 +93,82 @@ self.addEventListener('fetch', (event) => {
   // Cross-origin (Firebase, Mapbox, font, geocoder): niente cache,
   // lascio passare la richiesta normalmente.
 });
+
+/* ---------------------------------------------------------
+   NOTIFICHE PUSH
+
+   Il service worker è l'unico pezzo di sito che il browser
+   risveglia quando la pagina è chiusa: è qui, e solo qui, che una
+   notifica può essere mostrata.
+
+   Le Cloud Functions inviano messaggi di soli dati (niente blocco
+   `notification`), così la notifica la disegniamo noi: icona,
+   raggruppamento e link restano decisi dal sito invece che dal
+   server. In cambio siamo obbligati a chiamare showNotification ad
+   ogni push — se un push non mostrasse niente, Chrome ci metterebbe
+   del suo un avviso generico tipo "questo sito è stato aggiornato
+   in background".
+--------------------------------------------------------- */
+
+function datiNotifica(event) {
+  if (!event.data) return {};
+
+  try {
+    const payload = event.data.json();
+    // FCM impacchetta i dati sotto `data`; teniamo anche il caso
+    // `notification` per un eventuale invio fatto in altro modo.
+    return payload.data || payload.notification || payload;
+  } catch (err) {
+    // Payload non JSON: meglio una notifica scarna che nessuna.
+    return { corpo: event.data.text() };
+  }
+}
+
+self.addEventListener('push', (event) => {
+  const d = datiNotifica(event);
+
+  const titolo = d.titolo || d.title || 'volleyFVG';
+  const tag = d.tag || 'volleyfvg';
+
+  const opzioni = {
+    body: d.corpo || d.body || '',
+    icon: '/icons/icon192.png',
+    badge: '/icons/favicon48.png',
+    tag,
+    // Stesso tag = la notifica nuova sostituisce la vecchia (due
+    // messaggi nella stessa conversazione non fanno due righe).
+    // renotify vuole che il dispositivo avvisi comunque, se no la
+    // sostituzione avverrebbe in silenzio.
+    renotify: true,
+    data: { url: d.url || '/' },
+  };
+
+  event.waitUntil(self.registration.showNotification(titolo, opzioni));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const url = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    (async () => {
+      const finestre = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      });
+
+      /* Se il sito è già aperto da qualche parte lo riuso: portare
+         a fuoco quella scheda e navigarla è meglio che aprirne una
+         nuova ogni volta che arriva una notifica. */
+      for (const finestra of finestre) {
+        if (new URL(finestra.url).origin !== self.location.origin) continue;
+        await finestra.focus();
+        if ('navigate' in finestra) await finestra.navigate(url);
+        return;
+      }
+
+      await self.clients.openWindow(url);
+    })(),
+  );
+});

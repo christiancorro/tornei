@@ -158,7 +158,7 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
           if (!salvaSenzaCoordinateRef.current) {
             salvaSenzaCoordinateRef.current = true;
             setErrore(
-              `Luogo non trovato: il torneo non comparirà sulla mappa. Prova a scrivere solo Città e provincia (es. "Mels, UD"). Se il luogo è giusto così, premi di nuovo ${isEdit ? '"Modifica torneo"' : '"Crea torneo"'} per salvarlo lo stesso.`,
+              `Luogo non trovato: il torneo non comparirà sulla mappa. Prova a scrivere solo Città e provincia. Se il luogo è giusto così, premi di nuovo ${isEdit ? '"Modifica torneo"' : '"Crea torneo"'} per salvarlo lo stesso.`,
             );
             return;
           }
@@ -665,7 +665,7 @@ function EsitoLuogo({ stato }) {
     },
     notfound: {
       icona: <AlertTriangle size={12} className="shrink-0 mt-0.5" />,
-      testo: 'Luogo non trovato. Prova a scrivere solo Città e provincia, es. "Mels, UD".',
+      testo: 'Luogo non trovato. Prova a scrivere solo Città e provincia, es. "Mels (UD)".',
       colore: CLAY_DARK,
       opacita: 1,
     },

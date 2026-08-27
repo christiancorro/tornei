@@ -196,11 +196,54 @@ const TROFEO_HOLO_CSS = `
   animation: trofeo-shine-sweep 900ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
 }
 
+/* ---- Ingresso delle polaroid ---------------------------------
+   Le foto non compaiono tutte insieme: entrano una dopo l'altra,
+   come se qualcuno le stesse sistemando sulla pagina. Il ritardo
+   sta sul contenitore e non sulla card, perche' la card ha gia'
+   una sua rotazione e un'animazione sullo stesso elemento gliela
+   porterebbe via. */
+.trofeo-entra {
+  animation: trofeo-entra 380ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+@keyframes trofeo-entra {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- Scheletro del caricamento -------------------------------
+   Al posto del vuoto (che sembrava "non hai nessun torneo" un
+   attimo prima di riempirsi di colpo) l'album mostra subito la
+   forma di quello che sta arrivando. */
+.trofeo-skeleton {
+  animation: trofeo-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.trofeo-skeleton-riga {
+  display: block;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: rgba(34, 48, 31, 0.10);
+}
+
+@keyframes trofeo-skeleton-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.85; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .trofeo-gold-frame,
   .trofeo-holo-overlay,
   .trofeo-card:hover .trofeo-shine,
-  .trofeo-balloon {
+  .trofeo-balloon,
+  .trofeo-entra,
+  .trofeo-skeleton {
     animation: none !important;
   }
 }
@@ -290,11 +333,35 @@ export default function TrofeiPanel({ uid, onOpenDetail }) {
   const [addOpen, setAddOpen] = useState(false);
   const { confirm, toast } = useFeedback();
 
-  useEffect(() => {
-    if (!uid) return undefined;
+  /* Finché la collezione non è arrivata da Firestore non so se è
+     vuota o piena: senza questo flag il pannello mostrava per un
+     istante "Ancora nessun torneo" e poi si riempiva di colpo. Con
+     il flag mostra invece lo scheletro dell'album, che ha già la
+     forma giusta. */
+  const [caricato, setCaricato] = useState(false);
 
-    const unsub = subscribeMyTrofei(uid, setTrofei, (err) =>
-      console.warn('[trofei] subscribe fallito:', err.message),
+  useEffect(() => {
+    if (!uid) {
+      setTrofei([]);
+      setCaricato(true);
+      return undefined;
+    }
+
+    setCaricato(false);
+
+    const unsub = subscribeMyTrofei(
+      uid,
+      (lista) => {
+        setTrofei(lista);
+        setCaricato(true);
+      },
+      (err) => {
+        console.warn('[trofei] subscribe fallito:', err.message);
+        // Anche se la lettura fallisce esco dallo stato di attesa:
+        // uno scheletro che pulsa all'infinito è peggio di un album
+        // vuoto.
+        setCaricato(true);
+      },
     );
 
     return unsub;
@@ -464,16 +531,18 @@ export default function TrofeiPanel({ uid, onOpenDetail }) {
               opacity: 0.55,
             }}
           >
-            {trofei.length === 0
-              ? 'Ancora nessun torneo'
-              : `${trofei.length} ${trofei.length === 1
-                ? 'toreno'
-                : 'tornei'
-              }${preferiti > 0
-                ? ` · ${preferiti} preferit${preferiti === 1 ? 'o' : 'i'
-                }`
-                : ''
-              }`}
+            {!caricato
+              ? 'Carico la collezione...'
+              : trofei.length === 0
+                ? 'Ancora nessun torneo'
+                : `${trofei.length} ${trofei.length === 1
+                  ? 'torneo'
+                  : 'tornei'
+                }${preferiti > 0
+                  ? ` · ${preferiti} preferit${preferiti === 1 ? 'o' : 'i'
+                  }`
+                  : ''
+                }`}
           </p>
         </div>
 
@@ -514,7 +583,9 @@ export default function TrofeiPanel({ uid, onOpenDetail }) {
         />
       )}
 
-      {trofei.length === 0 && !addOpen ? (
+      {!caricato ? (
+        <CollezioneSkeleton />
+      ) : trofei.length === 0 && !addOpen ? (
         <div className="trofeo-album text-center py-16 px-4">
 
           <p
@@ -565,18 +636,28 @@ export default function TrofeiPanel({ uid, onOpenDetail }) {
 
                 {!chiuso && (
                   <div className="trofeo-grid">
-                    {trofeiAnno.map((t) => (
-                      <TrofeoCard
+                    {trofeiAnno.map((t, i) => (
+                      /* Il ritardo sta sul contenitore: la card ha già
+                         la sua inclinazione e non può ospitare una
+                         seconda transform. Lo cappo a 12 posizioni,
+                         se no una collezione grossa impiegherebbe
+                         secondi solo a comparire. */
+                      <div
                         key={t.torneoId}
-                        trofeo={t}
-                        onOpen={() => apriDettaglio(t)}
-                        onToggleFav={() =>
-                          handleTogglePreferito(t)
-                        }
-                        onRemove={() =>
-                          handleRimuovi(t)
-                        }
-                      />
+                        className="trofeo-entra"
+                        style={{ animationDelay: `${Math.min(i, 12) * 45}ms` }}
+                      >
+                        <TrofeoCard
+                          trofeo={t}
+                          onOpen={() => apriDettaglio(t)}
+                          onToggleFav={() =>
+                            handleTogglePreferito(t)
+                          }
+                          onRemove={() =>
+                            handleRimuovi(t)
+                          }
+                        />
+                      </div>
                     ))}
                   </div>
                 )}
@@ -585,6 +666,56 @@ export default function TrofeiPanel({ uid, onOpenDetail }) {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
+   Scheletro dell'album, mostrato mentre la collezione arriva.
+
+   Non è un semplice spinner: ha la stessa griglia e le stesse
+   proporzioni delle polaroid vere, così quando i dati arrivano
+   il contenuto prende il posto del segnaposto invece di far
+   saltare la pagina. Le polaroid finte entrano scaglionate come
+   quelle vere.
+--------------------------------------------------------- */
+function CollezioneSkeleton({ quante = 6 }) {
+  return (
+    <div className="trofeo-album" aria-hidden="true">
+      <div className="flex items-center gap-2 mb-4 px-1">
+        <span
+          className="trofeo-skeleton trofeo-skeleton-riga"
+          style={{ width: 64, height: 20, margin: 0 }}
+        />
+      </div>
+
+      <div className="trofeo-grid">
+        {Array.from({ length: quante }).map((_, i) => (
+          <div
+            key={i}
+            className="trofeo-entra"
+            style={{ animationDelay: `${i * 45}ms` }}
+          >
+            <div className="trofeo-polaroid trofeo-skeleton">
+              <div
+                className="trofeo-photo w-full"
+                style={{ paddingTop: '125%' }}
+              />
+
+              <div className="trofeo-caption">
+                <span
+                  className="trofeo-skeleton-riga"
+                  style={{ width: '72%', height: 16 }}
+                />
+                <span
+                  className="trofeo-skeleton-riga"
+                  style={{ width: '46%', height: 11, marginTop: 9 }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

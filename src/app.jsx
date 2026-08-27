@@ -130,25 +130,109 @@ export default function App() {
         })();
         const matchesDisciplina = selectedDisciplines.length === 0 || selectedDisciplines.includes(t.disciplina);
         const matchesFormato = selectedFormats.length === 0 || t.formati.some((f) => selectedFormats.includes(f));
-        const matchesFrom = !dateFrom || t.data >= dateFrom;
-        const matchesTo = !dateTo || t.data <= dateTo;
         const durata = !t.dataFine || t.dataFine === t.data ? '1' : '2+';
         const matchesDurata = selectedDurate.length === 0 || selectedDurate.includes(durata);
 
-        return matchesSearch && matchesDisciplina && matchesFormato && matchesFrom && matchesTo && matchesDurata;
+        return matchesSearch && matchesDisciplina && matchesFormato && matchesDurata;
       })
       .sort((a, b) => a.data.localeCompare(b.data));
-  }, [tournaments, search, selectedDisciplines, selectedFormats, selectedDurate, dateFrom, dateTo]);
+  }, [tournaments, search, selectedDisciplines, selectedFormats, selectedDurate]);
 
   /* Splitto in "in programma" (oggi e futuro) e "passati" (ieri e
      indietro). La lista principale mostra solo i primi; i passati
      vivono in una sezione a scomparsa in fondo alla lista, per non
      ingombrare quando l'utente cerca qualcosa a cui iscriversi. */
   const oggi = useMemo(() => todayISO(), []);
-  const { futuri, passati } = useMemo(
+  const { futuri: futuriTutti, passati: passatiTutti } = useMemo(
     () => splitPassatoFuturo(filtered, oggi),
     [filtered, oggi]
   );
+
+  /* ---------------------------------------------------------
+     Periodo (lo slider in "altri filtri").
+
+     `dateFrom`/`dateTo` vuoti = slider mai toccato: vale il valore
+     di riposo, cioè da oggi fino al torneo più lontano.
+
+     Finché l'inizio resta su oggi il filtro non toglie niente ai
+     tornei in programma (sono già tutti da oggi in poi) e la
+     sezione "tornei precedenti" resta piena com'era. Quando invece
+     la maniglia va indietro nel tempo l'utente sta guardando
+     l'archivio: da lì in poi il periodo filtra anche i passati, e
+     la mappa smette di nasconderli.
+
+     I passati restano comunque nella LORO sezione: il periodo
+     decide quali si vedono, non li mescola con quelli in programma.
+  --------------------------------------------------------- */
+  const rangeIncludePassato = Boolean(dateFrom) && dateFrom < oggi;
+
+  /* Un torneo è "nel periodo" se si sovrappone all'intervallo, non
+     se ci sta dentro tutto: confronto il suo ULTIMO giorno con
+     l'inizio del periodo e il suo PRIMO giorno con la fine. Senza,
+     un torneo di più giorni iniziato ieri e ancora in corso oggi
+     sparirebbe dalla lista appena si tocca lo slider (la sua data
+     di inizio è prima di oggi). */
+  const nelPeriodo = (t) =>
+    (!dateFrom || (t.dataFine || t.data) >= dateFrom)
+    && (!dateTo || t.data <= dateTo);
+
+  const futuri = useMemo(
+    () => futuriTutti.filter(nelPeriodo),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [futuriTutti, dateFrom, dateTo],
+  );
+
+  const passati = useMemo(
+    () => (rangeIncludePassato ? passatiTutti.filter(nelPeriodo) : passatiTutti),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [passatiTutti, rangeIncludePassato, dateFrom, dateTo],
+  );
+
+  /* Estremi della pista dello slider.
+
+     Inizio: il torneo più vecchio, ma mai prima del 1° gennaio di
+     quest'anno — più indietro la pista si allungherebbe su stagioni
+     che non interessano più, schiacciando tutti i tornei veri in un
+     angolo. E mai dopo oggi, altrimenti il segnaposto "oggi" (e il
+     valore di riposo) cadrebbero fuori dalla pista.
+
+     Fine: il torneo più lontano; se non ce n'è nessuno nel futuro,
+     un anno da oggi, perché una pista lunga zero non si trascina.
+
+     Calcolati su TUTTI i tornei e non su quelli filtrati: gli
+     estremi devono stare fermi mentre si filtra, se no la pista si
+     accorcerebbe sotto le dita. */
+  const { rangeMinIso, rangeMaxIso } = useMemo(() => {
+    const inizioAnno = `${oggi.slice(0, 4)}-01-01`;
+    let piuVecchio = null;
+    let piuLontano = null;
+
+    for (const t of tournaments) {
+      if (!t.data) continue;
+      const fine = t.dataFine || t.data;
+      if (piuVecchio === null || t.data < piuVecchio) piuVecchio = t.data;
+      if (piuLontano === null || fine > piuLontano) piuLontano = fine;
+    }
+
+    const fraUnAnno = `${Number(oggi.slice(0, 4)) + 1}${oggi.slice(4)}`;
+    const inizio = !piuVecchio || piuVecchio < inizioAnno ? inizioAnno : piuVecchio;
+
+    return {
+      rangeMinIso: inizio > oggi ? oggi : inizio,
+      rangeMaxIso: piuLontano && piuLontano > oggi ? piuLontano : fraUnAnno,
+    };
+  }, [tournaments, oggi]);
+
+  /* Valori di riposo dello slider: da oggi al torneo più lontano.
+     Servono anche a capire se il periodo è un filtro davvero attivo
+     (pallino "azzera") o solo la posizione di partenza. */
+  const dateFromDefault = oggi;
+  const dateToDefault = rangeMaxIso;
+
+  /* Puntini sulla pista: le date dei tornei che passano gli ALTRI
+     filtri (non il periodo, se no i puntini fuori intervallo
+     sparirebbero proprio mentre servono a scegliere l'intervallo). */
+  const dateTornei = useMemo(() => filtered.map((t) => t.data), [filtered]);
   const grouped = useMemo(() => groupByMonth(futuri), [futuri]);
   /* I passati li ordino al contrario: mese più recente in alto,
      giorno più recente in alto dentro il mese. Chi apre "tornei
@@ -158,23 +242,61 @@ export default function App() {
     [passati]
   );
 
-  /* Lista su cui scorre il dettaglio: quella che si aveva davanti
-     quando si è aperta la scheda, non sempre i tornei pubblici.
-     Sui tornei pubblici uso solo i "futuri": lo swipe laterale nel
-     dettaglio non sfoglia mai nel passato, così anche chi apre un
-     torneo di oggi non si ritrova per sbaglio in quello di due
-     settimane fa (che sta nascosto sotto "tornei precedenti").
-     Una card passata aperta dalla sezione a scomparsa finisce fuori
-     dalla lista di navigazione: indice = -1 → nessun precedente né
-     prossimo, lo swipe fa il "rimbalzo" di useSwipeDown senza cambiare
-     scheda, ed è il comportamento giusto per una scheda d'archivio. */
-  const listaDettaglio = view === 'account' ? mieiTornei : futuri;
+  /* I passati nell'ordine in cui si vedono nella sezione a
+     scomparsa: dal più recente al più vecchio. `passati` arriva in
+     ordine crescente, quindi lo rovescio — così lo swipe segue
+     esattamente quello che l'utente aveva sotto gli occhi. */
+  const passatiNavigabili = useMemo(() => [...passati].reverse(), [passati]);
+
+  /* Lista su cui scorre il dettaglio: quella da cui la scheda è
+     stata aperta, non sempre i tornei pubblici.
+     Le due liste restano separate: da un torneo in programma si
+     sfoglia solo fra i tornei in programma, da uno passato solo fra
+     i passati. Così chi apre un torneo di oggi non si ritrova per
+     sbaglio in quello di due settimane fa, e chi sta guardando
+     l'archivio può scorrerlo tutto invece di trovarsi con lo swipe
+     bloccato alla prima scheda. */
+  const listaDettaglio = useMemo(() => {
+    if (view === 'account') return mieiTornei;
+    if (detailTarget && passatiNavigabili.some((t) => t.id === detailTarget.id)) {
+      return passatiNavigabili;
+    }
+    return futuri;
+  }, [view, mieiTornei, detailTarget, passatiNavigabili, futuri]);
+
+  /* Tutti i tornei che passano i filtri E il periodo: quelli in
+     programma, più i passati quando lo slider parte da prima di
+     oggi. Entrambe le liste sono già in ordine di data crescente,
+     quindi concatenarle mantiene l'ordine.
+
+     È la lista che va sulla mappa ed è anche il numero che compare
+     nella barra dei risultati, in tutte e due le viste: il
+     conteggio non deve cambiare passando da lista a mappa: è lo
+     stesso insieme di tornei, cambia solo come lo si guarda. In
+     lista i passati non sono nascosti, stanno nella sezione a
+     scomparsa in fondo (che ha comunque il suo conteggio sul
+     pulsante che la apre).
+
+     Con lo slider da oggi in poi i passati restano fuori e il
+     numero è di nuovo quello dei soli tornei in programma. */
+  const torneiNelPeriodo = useMemo(
+    () => (rangeIncludePassato ? [...passati, ...futuri] : futuri),
+    [rangeIncludePassato, passati, futuri],
+  );
+
   const sortedAnnunci = useMemo(
     () => [...annunci].sort((a, b) => new Date(b.data) - new Date(a.data)),
     [annunci]
   );
 
-  const extraFilterCount = (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
+  /* Il periodo conta come filtro attivo solo se è stato spostato
+     davvero: lo slider fermo sui suoi valori di riposo non nasconde
+     niente e non deve accendere il pulsante "Azzera". */
+  const periodoAttivo =
+    (Boolean(dateFrom) && dateFrom !== dateFromDefault) ||
+    (Boolean(dateTo) && dateTo !== dateToDefault);
+
+  const extraFilterCount = periodoAttivo ? 1 : 0;
   const activeFilterCount = selectedDisciplines.length + selectedFormats.length + selectedDurate.length + extraFilterCount;
 
   /* Se l'admin mi declassa mentre sono su una vista riservata,
@@ -525,6 +647,12 @@ export default function App() {
         setDateFrom={setDateFrom}
         dateTo={dateTo}
         setDateTo={setDateTo}
+        rangeMinIso={rangeMinIso}
+        rangeMaxIso={rangeMaxIso}
+        dateFromDefault={dateFromDefault}
+        dateToDefault={dateToDefault}
+        dateTornei={dateTornei}
+        oggi={oggi}
         showMoreFilters={showMoreFilters}
         setShowMoreFilters={setShowMoreFilters}
         extraFilterCount={extraFilterCount}
@@ -539,7 +667,7 @@ export default function App() {
           canAdd={canProposeTournament(profile) || !profile}
           isOrganizer={isOrganizer(profile)}
           onAdd={() => requireLogin(() => setFormState('new'))}
-          count={filtered.length}
+          count={torneiNelPeriodo.length}
           loading={loadingTornei}
         />
       )}
@@ -687,9 +815,10 @@ export default function App() {
           aria-hidden={!mappaVisibile}
         >
           <MapView
-            tournaments={filtered}
+            tournaments={torneiNelPeriodo}
             onOpenDetail={setDetailTarget}
             active={mappaVisibile}
+            includePassati={rangeIncludePassato}
           />
         </div>
       )}

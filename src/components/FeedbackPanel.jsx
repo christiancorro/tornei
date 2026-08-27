@@ -82,7 +82,7 @@ export default function FeedbackPanel({ onSendFeedback, mieRichieste = [], profi
                     rows={5}
                     maxLength={2000}
                     disabled={sending}
-                    placeholder="Racconta quello che ti è venuto in mente…"
+                    placeholder="Scrivi quello che ti è venuto in mente…"
                     className="w-full px-3 py-2 rounded-lg border-2 text-sm resize-y outline-none"
                     style={{
                         borderColor: 'rgba(34,48,31,0.25)',

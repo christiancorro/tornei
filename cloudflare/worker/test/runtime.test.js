@@ -37,7 +37,7 @@ const INDEX_HTML = `<!doctype html>
 <head>
   <meta charset="UTF-8" />
   <link rel="manifest" href="/manifest.webmanifest" />
-  <title>Volley FVG - Tornei di green volley, beach volley e pallavolo in FVG e dintorni</title>
+  <title>Tornei di green volley, beach volley e pallavolo in FVG e dintorni</title>
   <meta name="description" content="Trova tornei di green volley, beach volley e pallavolo in Friuli-Venezia Giulia." />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Tornei Volley FVG" />

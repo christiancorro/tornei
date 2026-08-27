@@ -12,6 +12,7 @@ import { toggleValue } from '../utils';
 import Chip from './ui/Chip';
 import NavTab from './ui/NavTab';
 import Avatar from './ui/Avatar';
+import DateRangeSlider from './ui/DateRangeSlider';
 
 export default function Header({
   view,
@@ -38,6 +39,12 @@ export default function Header({
   setDateFrom,
   dateTo,
   setDateTo,
+  rangeMinIso,
+  rangeMaxIso,
+  dateFromDefault,
+  dateToDefault,
+  dateTornei = [],
+  oggi,
   showMoreFilters,
   setShowMoreFilters,
   extraFilterCount,
@@ -351,35 +358,29 @@ export default function Header({
               </div>
 
               {showMoreFilters && (
-                <div className="border-2 rounded-xl p-4" style={{ borderColor: 'rgba(34,48,31,0.15)' }}>
-                  <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
-                    <div className="flex flex-wrap items-end gap-3">
-                      <div>
-                        <div className="text-xs font-bold mb-1" style={{ color: INK, opacity: 0.6 }}>
-                          DAL
-                        </div>
-                        <input
-                          type="date"
-                          value={dateFrom}
-                          onChange={(e) => setDateFrom(e.target.value)}
-                          className="w-32 px-2.5 py-2 rounded-lg border-2 text-sm "
-                          style={{ borderColor: 'rgba(34,48,31,0.25)', color: INK }}
-                        />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold mb-1" style={{ color: INK, opacity: 0.6 }}>
-                          AL
-                        </div>
-                        <input
-                          type="date"
-                          value={dateTo}
-                          onChange={(e) => setDateTo(e.target.value)}
-                          className="w-32 px-2.5 py-2 rounded-lg border-2 text-sm "
-                          style={{ borderColor: 'rgba(34,48,31,0.25)', color: INK }}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                /* Il periodo: un solo slider a due maniglie al posto
+                   dei due calendari "DAL / AL". Su un calendario si
+                   sceglie una data alla volta e non si vede dove
+                   cadono i tornei; qui l'intervallo è una cosa sola e
+                   i puntini sulla pista dicono subito dove sono.
+
+                   `dateFrom`/`dateTo` vuoti = slider mai toccato:
+                   passo i valori di riposo (da oggi al torneo più
+                   lontano) così le maniglie partono al posto giusto
+                   senza che questo conti come filtro attivo. */
+                <div className="border-2 rounded-3xl px-1 py-2 sm:px-3" style={{ borderColor: 'rgba(34,48,31,0.15)' }}>
+                  <DateRangeSlider
+                    minIso={rangeMinIso}
+                    maxIso={rangeMaxIso}
+                    fromIso={dateFrom || dateFromDefault}
+                    toIso={dateTo || dateToDefault}
+                    onChange={(da, a) => {
+                      setDateFrom(da);
+                      setDateTo(a);
+                    }}
+                    todayIso={oggi}
+                    dates={dateTornei}
+                  />
                 </div>
               )}
             </div>

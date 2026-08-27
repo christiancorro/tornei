@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { isPassato, todayISO, luogoDi } from '../utils';
 
@@ -77,6 +77,14 @@ const FIT_OPTIONS = {
   maxZoom: 9,
   duration: 800,
 };
+
+/* Quanto la mappa aspetta, dopo l'ultima modifica ai filtri, prima di
+   riquadrare i pin. Mentre si scrive nella ricerca o si trascina lo
+   slider delle date la lista cambia in continuazione: senza questa
+   pausa la mappa si rimetterebbe a fuoco ad ogni carattere e ad ogni
+   pixel di trascinamento. 600ms sono abbastanza da coprire la
+   digitazione normale senza far sembrare la mappa lenta. */
+const FIT_DEBOUNCE_MS = 500;
 
 function iconKey(disciplina) {
   return `pin-${disciplina || 'default'}`;
@@ -389,11 +397,30 @@ class RicentraControl {
   }
 }
 
-export default function MapView({ tournaments = [], onOpenDetail, active = true }) {
+export default function MapView({
+  tournaments = [],
+  onOpenDetail,
+  active = true,
+  /* Quando lo slider delle date parte da prima di oggi l'utente sta
+     guardando anche l'archivio: in quel caso i pin dei tornei passati
+     restano sulla mappa. Di default (slider da oggi in poi) valgono
+     solo i tornei correnti, come prima. */
+  includePassati = false,
+}) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
-  const tournamentsRef = useRef(tournaments);
-  tournamentsRef.current = tournaments;
+
+  /* I tornei che finiscono davvero sulla mappa. useMemo perché questo
+     array è la dipendenza degli effect qui sotto: ricalcolarlo ad ogni
+     render farebbe ripartire il debounce del riposizionamento anche
+     quando i dati non sono cambiati. */
+  const visibili = useMemo(
+    () => (includePassati ? tournaments : soloTorneiCorrenti(tournaments)),
+    [tournaments, includePassati],
+  );
+
+  const tournamentsRef = useRef(visibili);
+  tournamentsRef.current = visibili;
   const onOpenRef = useRef(onOpenDetail);
   onOpenRef.current = onOpenDetail;
   // Traccio l'id dell'ultimo pin hoverato per evitare setFilter
@@ -450,7 +477,7 @@ export default function MapView({ tournaments = [], onOpenDetail, active = true 
         if (!mapRef.current) return;
         fitToTournaments(
           mapRef.current,
-          soloTorneiCorrenti(tournamentsRef.current),
+          tournamentsRef.current,
           { flyOnEmpty: true },
         );
       }),
@@ -625,16 +652,44 @@ export default function MapView({ tournaments = [], onOpenDetail, active = true 
     };
   }, []);
 
+  /* I PIN seguono i filtri senza ritardo: chi scrive nella ricerca
+     vede subito sparire quelli che non c'entrano. */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !styleReady) return;
     const src = map.getSource(SOURCE_ID);
     if (!src) return;
+    src.setData(toGeoJSON(visibili));
+  }, [visibili, styleReady]);
 
-    const correnti = soloTorneiCorrenti(tournaments);
-    src.setData(toGeoJSON(correnti));
-    fitToTournaments(map, correnti);
-  }, [tournaments, styleReady]);
+  /* Il RIPOSIZIONAMENTO invece aspetta. Il timer riparte ad ogni
+     modifica (carattere digitato, maniglia dello slider trascinata) e
+     la mappa si riquadra solo quando le modifiche si fermano per
+     FIT_DEBOUNCE_MS: prima saltellava ad ogni tasto.
+
+     Unica eccezione la primissima inquadratura, quella con cui la
+     mappa si apre: lì non c'è nessuna raffica da assorbire e
+     aspettare sarebbe solo attesa. Finché non c'è niente da
+     inquadrare (dati non ancora arrivati) il flag resta alzato, così
+     il "primo fit" è davvero il primo con dei pin dentro. */
+  const primoFitRef = useRef(true);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !styleReady) return undefined;
+
+    if (primoFitRef.current) {
+      const fatto = fitToTournaments(map, visibili);
+      if (fatto) primoFitRef.current = false;
+      return undefined;
+    }
+
+    const id = window.setTimeout(() => {
+      fitToTournaments(map, visibili);
+    }, FIT_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(id);
+  }, [visibili, styleReady]);
 
   /* Quando la mappa torna visibile forzo un resize: mentre era
      nascosta il container può aver cambiato larghezza. */

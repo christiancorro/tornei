@@ -23,7 +23,7 @@ import { leggiSlug } from '../src/index.js';
 
 const ENV = {
   SITE_URL: 'https://volleyfvg.it',
-  SITE_NAME: 'Tornei Volley FVG',
+  SITE_NAME: 'Volley FVG',
   FALLBACK_IMAGE: 'https://volleyfvg.it/icons/icon512.png',
   FALLBACK_IMAGE_WIDTH: '512',
   FALLBACK_IMAGE_HEIGHT: '512',

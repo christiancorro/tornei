@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
-import { X, Check, Loader2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, Check, Loader2, MapPin, AlertTriangle } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
 import { useActionState } from '../hooks/useActionState';
 
-import { INK, SUN, GRASS_DARK } from '../theme';
+import { INK, SUN, GRASS_DARK, CLAY_DARK } from '../theme';
 import { DISCIPLINE, DISCIPLINE_COLORS, FORMATI } from '../constants';
 import { emptyTournament, toggleValue, nextDayISO } from '../utils';
 import { geocode } from '../utils/geocode';
 import Chip from './ui/Chip';
+import DateField from './ui/DateField';
 import LocandinaField from './LocandinaField';
 
 /* ---------------------------------------------------------
@@ -29,6 +30,55 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
   const [errore, setErrore] = useState('');
   const isEdit = Boolean(initial);
 
+  /* Esito della ricerca del luogo sulla mappa, mostrato sotto al
+     campo: 'idle' (campo vuoto) | 'checking' | 'ok' | 'notfound' |
+     'error' (geocoder irraggiungibile). Serve a non scoprire solo
+     dopo il salvataggio che il torneo non comparirà sulla mappa. */
+  const [luogoStato, setLuogoStato] = useState('idle');
+
+  /* Con un luogo non trovato il primo salvataggio si ferma e lo
+     segnala. Se l'utente ripete il salvataggio senza toccare il
+     luogo vuol dire che gli va bene così: il torneo si salva lo
+     stesso, semplicemente senza pin sulla mappa. Il flag torna
+     giù appena il luogo cambia (vedi l'effect qui sotto). */
+  const salvaSenzaCoordinateRef = useRef(false);
+
+  /* Controllo il luogo mentre si scrive, ma solo quando ci si ferma:
+     700ms dall'ultimo tasto. Senza la pausa partirebbe una richiesta
+     a Nominatim per ogni carattere. Le risposte fuori tempo massimo
+     (l'utente ha già continuato a scrivere) vengono scartate con il
+     flag `annullato`, così non sovrascrivono un esito più recente. */
+  const luogoDigitato = form.luogo;
+
+  useEffect(() => {
+    salvaSenzaCoordinateRef.current = false;
+
+    const q = (luogoDigitato || '').trim();
+    if (!q) {
+      setLuogoStato('idle');
+      return undefined;
+    }
+
+    let annullato = false;
+    setLuogoStato('checking');
+
+    const id = window.setTimeout(async () => {
+      try {
+        const coords = await geocode(q);
+        if (annullato) return;
+        setLuogoStato(coords ? 'ok' : 'notfound');
+      } catch (err) {
+        console.warn('[form] controllo luogo fallito:', err);
+        if (!annullato) setLuogoStato('error');
+      }
+    }, 700);
+
+    return () => {
+      annullato = true;
+      window.clearTimeout(id);
+    };
+  }, [luogoDigitato]);
+
   // Stato del pulsante Salva: idle → saving → saved → chiusura
   const { state: saveState, run, busy } = useActionState({
     savedMs: 700,
@@ -43,6 +93,20 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
     e.preventDefault();
 
     if (busy) return;
+
+    /* Le date non sono più input nativi (il calendario del browser
+       parlava la lingua del browser, non italiano), quindi il
+       controllo "campo obbligatorio" e quello sull'ordine delle due
+       date li facciamo qui, come già si fa per la locandina. */
+    if (!form.data) {
+      setErrore('Scegli la data del torneo.');
+      return;
+    }
+
+    if (form.dataFine && form.dataFine <= form.data) {
+      setErrore('La data di fine deve venire dopo quella di inizio.');
+      return;
+    }
 
     // required non funziona su un input file nascosto
     if (!form.locandina) {
@@ -80,13 +144,32 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
     if (form.luogo) {
       try {
         const coords = await geocode(form.luogo);
+
         if (coords) {
           patch = { ...form, lat: coords.lat, lng: coords.lng };
-        } else if (luogoCambiato) {
-          patch = { ...form, lat: null, lng: null };
+          setLuogoStato('ok');
+        } else {
+          setLuogoStato('notfound');
+
+          /* Prima volta: mi fermo e lo dico, invece di salvare un
+             torneo che poi non si troverebbe sulla mappa senza che
+             nessuno l'abbia detto. Il salvataggio non è bloccato —
+             ripetendolo senza toccare il luogo si procede comunque. */
+          if (!salvaSenzaCoordinateRef.current) {
+            salvaSenzaCoordinateRef.current = true;
+            setErrore(
+              `Luogo non trovato: il torneo non comparirà sulla mappa. Prova a scrivere solo Città e provincia (es. "Mels, UD"). Se il luogo è giusto così, premi di nuovo ${isEdit ? '"Modifica torneo"' : '"Crea torneo"'} per salvarlo lo stesso.`,
+            );
+            return;
+          }
+
+          if (luogoCambiato) {
+            patch = { ...form, lat: null, lng: null };
+          }
         }
       } catch (err) {
         console.warn('[form] geocoding fallito per', form.luogo, err);
+        setLuogoStato('error');
       }
     }
 
@@ -283,15 +366,13 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
                 Data
               </label>
 
-              <input
-                required
-                type="date"
-                className={inputClass}
-                style={inputStyle}
+              <DateField
                 value={form.data}
-                onChange={(e) =>
-                  update('data', e.target.value)
-                }
+                onChange={(iso) => update('data', iso)}
+                inputClass={inputClass}
+                inputStyle={inputStyle}
+                placeholder="Scegli una data"
+                ariaLabel="Data del torneo"
               />
             </div>
 
@@ -303,19 +384,20 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
                 Data fine (se su più giorni)
               </label>
 
-              <input
-                type="date"
-                className={inputClass}
-                style={inputStyle}
+              <DateField
                 value={form.dataFine}
-                onChange={(e) =>
-                  update('dataFine', e.target.value)
-                }
+                onChange={(iso) => update('dataFine', iso)}
                 /* min = giorno DOPO la data inizio: un torneo "su più
                    giorni" finisce almeno il giorno successivo, e il
-                   picker (campo vuoto) si apre centrato lì invece che
-                   sul mese corrente. */
+                   calendario (campo vuoto) si apre lì invece che sul
+                   mese corrente. */
                 min={form.data ? nextDayISO(form.data) : undefined}
+                clearable
+                align="right"
+                inputClass={inputClass}
+                inputStyle={inputStyle}
+                placeholder="Nessuna"
+                ariaLabel="Data di fine del torneo"
               />
             </div>
           </div>
@@ -339,7 +421,11 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
                   update('luogo', e.target.value)
                 }
                 placeholder="Luogo (Provincia)"
+                aria-describedby="esito-luogo"
               />
+
+              {/* Esito della ricerca sulla mappa, sotto al campo. */}
+              <EsitoLuogo stato={luogoStato} />
             </div>
 
             <div>
@@ -550,5 +636,57 @@ export default function TournamentForm({ initial, onSave, onCancel }) {
         </form>
       </div>
     </div>
+  );
+}
+
+/* ---------------------------------------------------------
+   Riga di esito sotto al campo Luogo.
+
+   È il posto dove si scopre, mentre si compila e non dopo aver
+   salvato, se il luogo scritto esiste per il geocoder: da lì
+   dipende il pin sulla mappa. Quando non lo trova suggerisce la
+   forma che funziona quasi sempre — Città e provincia.
+--------------------------------------------------------- */
+function EsitoLuogo({ stato }) {
+  if (stato === 'idle') return null;
+
+  const contenuto = {
+    checking: {
+      icona: <Loader2 size={12} className="animate-spin shrink-0 mt-0.5" />,
+      testo: 'Cerco il luogo sulla mappa...',
+      colore: INK,
+      opacita: 0.55,
+    },
+    ok: {
+      icona: <MapPin size={12} className="shrink-0 mt-0.5" />,
+      testo: 'Luogo trovato: comparirà sulla mappa.',
+      colore: GRASS_DARK,
+      opacita: 1,
+    },
+    notfound: {
+      icona: <AlertTriangle size={12} className="shrink-0 mt-0.5" />,
+      testo: 'Luogo non trovato. Prova a scrivere solo Città e provincia, es. "Mels, UD".',
+      colore: CLAY_DARK,
+      opacita: 1,
+    },
+    error: {
+      icona: <AlertTriangle size={12} className="shrink-0 mt-0.5" />,
+      testo: 'Non riesco a controllare il luogo adesso.',
+      colore: INK,
+      opacita: 0.55,
+    },
+  }[stato];
+
+  if (!contenuto) return null;
+
+  return (
+    <p
+      id="esito-luogo"
+      className="text-xs mt-1.5 flex items-start gap-1.5 leading-snug"
+      style={{ color: contenuto.colore, opacity: contenuto.opacita }}
+    >
+      {contenuto.icona}
+      <span>{contenuto.testo}</span>
+    </p>
   );
 }

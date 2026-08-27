@@ -28,7 +28,7 @@ const VARS = {
   FALLBACK_IMAGE: 'https://volleyfvg.it/icons/icon512.png',
   FALLBACK_IMAGE_WIDTH: '512',
   FALLBACK_IMAGE_HEIGHT: '512',
-  FALLBACK_DESCRIPTION: 'Tornei di green volley, beach volley e pallavolo in Friuli-Venezia Giulia e dintorni.',
+  FALLBACK_DESCRIPTION: 'Tornei di green volley, beach volley e pallavolo in Friuli Venezia Giulia e dintorni.',
 };
 
 /* L'index.html vero del sito, ridotto ai tag che contano. */
@@ -38,7 +38,7 @@ const INDEX_HTML = `<!doctype html>
   <meta charset="UTF-8" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <title>Tornei di green volley, beach volley e pallavolo in FVG e dintorni</title>
-  <meta name="description" content="Trova tornei di green volley, beach volley e pallavolo in Friuli-Venezia Giulia." />
+  <meta name="description" content="Trova tornei di green volley, beach volley e pallavolo in Friuli Venezia Giulia." />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Tornei Volley FVG" />
   <meta property="og:title" content="Tornei Volley FVG" />

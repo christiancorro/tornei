@@ -21,7 +21,7 @@ import {
 } from './format.js';
 
 const DESCRIZIONE_GENERICA =
-  'Tornei di green volley, beach volley e pallavolo in Friuli-Venezia Giulia e dintorni.';
+  'Tornei di green volley, beach volley e pallavolo in Friuli Venezia Giulia e dintorni.';
 
 /* ---------------------------------------------------------
    escapeHtml()

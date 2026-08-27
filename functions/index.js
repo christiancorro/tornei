@@ -127,16 +127,28 @@ async function tokenPerTipo(tipo) {
   return snap.docs.map((d) => d.id);
 }
 
-/* Come sopra, ma di una persona sola: serve ai messaggi, che vanno
-   al destinatario e a nessun altro. */
+/* Come sopra, ma di una persona sola: serve ai messaggi e alle
+   notifiche di servizio, che vanno a qualcuno di preciso.
+
+   Qui la preferenza NON è nella query ma nel filtro in memoria, e
+   la differenza conta: `where('prefs.admin', '==', true)` non
+   trova i documenti in cui quel campo non esiste, e i token
+   registrati prima che la preferenza fosse aggiunta non ce l'hanno.
+   Sarebbero rimasti invisibili per sempre, senza errori, senza
+   log — semplicemente zero destinatari.
+
+   Filtrando qui, una preferenza mancante vale "accesa": è il
+   default con cui verrebbe scritta comunque, e vale per tutte
+   quelle che verranno aggiunte in futuro. Costa una lettura per
+   token della persona, che sono uno o due. */
 async function tokenDiUtente(uid, tipo) {
   if (!uid) return [];
-  const snap = await db
-    .collection(COL_TOKEN)
-    .where('uid', '==', uid)
-    .where(`prefs.${tipo}`, '==', true)
-    .get();
-  return snap.docs.map((d) => d.id);
+
+  const snap = await db.collection(COL_TOKEN).where('uid', '==', uid).get();
+
+  return snap.docs
+    .filter((d) => d.data()?.prefs?.[tipo] !== false)
+    .map((d) => d.id);
 }
 
 /* I token di chi amministra il sito, per le notifiche di servizio

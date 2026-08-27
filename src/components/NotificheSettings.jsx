@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, BellOff, Loader2, Megaphone, MessageCircle, CalendarPlus } from 'lucide-react';
+import { Bell, BellOff, Loader2, Megaphone, MessageCircle, CalendarPlus, ShieldCheck } from 'lucide-react';
 
 import { INK, SUN, CLAY, CARD_BG } from '../theme';
 import {
@@ -46,6 +46,13 @@ const VOCI = [
     icona: MessageCircle,
     titolo: 'Messaggi',
     testo: 'Quando ti scrivono in risposta a un annuncio.',
+  },
+  {
+    chiave: 'admin',
+    icona: ShieldCheck,
+    titolo: 'Da amministratore',
+    testo: 'Tornei in attesa di approvazione e suggerimenti in arrivo.',
+    soloAdmin: true,
   },
 ];
 
@@ -163,6 +170,10 @@ export default function NotificheSettings({ profile }) {
 
   const attive = permesso === 'granted' && prefs !== null;
 
+  /* L'interruttore delle notifiche di servizio lo vede solo chi le
+     riceverebbe: mostrarlo a tutti sarebbe una promessa falsa. */
+  const voci = VOCI.filter((v) => !v.soloAdmin || profile?.role === 'admin');
+
   return (
     <div
       className="rounded-xl border-2 p-4 mb-4"
@@ -213,7 +224,7 @@ export default function NotificheSettings({ profile }) {
       {attive && (
         <>
           <div className="space-y-1">
-            {VOCI.map(({ chiave, icona: Icona, titolo, testo }) => (
+            {voci.map(({ chiave, icona: Icona, titolo, testo }) => (
               <div key={chiave} className="flex items-center gap-3 py-2">
                 <Icona size={17} style={{ color: INK, opacity: 0.55 }} className="shrink-0" />
 

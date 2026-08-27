@@ -14,6 +14,68 @@ import NavTab from './ui/NavTab';
 import Avatar from './ui/Avatar';
 import DateRangeSlider from './ui/DateRangeSlider';
 
+/* Apertura/chiusura di "Altri filtri".
+
+   Il pannello sta incastrato fra la riga dei chip e la lista: farlo
+   comparire di colpo vuol dire far saltare in giù tutta la pagina.
+   Anima quindi l'altezza, con il trucco della griglia da 0fr a 1fr —
+   l'unico modo di animare un'altezza "auto" senza misurarla in
+   JavaScript. Qui basta e avanza perché il contenuto (lo slider) ha
+   un'altezza fissa: non cambia mentre il pannello è aperto. */
+const CSS_FILTRI = `
+.filtri-extra {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  /* Il contenitore ha space-y-3: quel margine ci metterebbe 12px
+     anche a pannello chiuso. Lo spazio lo rimette il pannello
+     interno, così collassa insieme a lui. */
+  margin-top: 0 !important;
+
+  /* visibility è quella che toglie il pannello chiuso dal giro del
+     Tab: altezza zero e overflow nascosto lo rendono invisibile, ma
+     le maniglie dello slider resterebbero raggiungibili da tastiera
+     — si finirebbe a trascinare un filtro che non si vede.
+     Il ritardo di 300ms la fa scattare DOPO la chiusura, se no
+     l'animazione di uscita non si vedrebbe. */
+  visibility: hidden;
+  transition:
+    grid-template-rows 300ms cubic-bezier(0.2, 0.8, 0.3, 1),
+    opacity 200ms ease,
+    visibility 0s linear 300ms;
+}
+
+.filtri-extra.is-aperto {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  /* In apertura è immediata: il contenuto deve esserci fin dal
+     primo frame dell'animazione. */
+  transition:
+    grid-template-rows 300ms cubic-bezier(0.2, 0.8, 0.3, 1),
+    opacity 200ms ease,
+    visibility 0s;
+}
+
+/* min-height:0 è obbligatorio: senza, la riga della griglia non
+   scende mai sotto l'altezza del contenuto e non si vede niente
+   muoversi. overflow:hidden è quello che ritaglia mentre chiude. */
+.filtri-extra-interno {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.filtri-extra-pannello {
+  margin-top: 0.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filtri-extra {
+    transition: none;
+  }
+}
+`;
+
 export default function Header({
   view,
   setView,
@@ -232,6 +294,7 @@ export default function Header({
         <>
           {/* SEARCH + FILTERS */}
           <div className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: SAND, borderColor: 'rgba(34,48,31,0.15)', }}>
+            <style>{CSS_FILTRI}</style>
             <div className="max-w-[69rem] mx-auto px-4 sm:px-6 lg:px-8 py-2 space-y-3">
               <div ref={rowRef} className="flex items-center gap-2 overflow-x-auto no-scrollbar">
                 {/* Ricerca a scomparsa: da icona a campo, spingendo i filtri a destra */}
@@ -357,32 +420,46 @@ export default function Header({
                 )}
               </div>
 
-              {showMoreFilters && (
-                /* Il periodo: un solo slider a due maniglie al posto
-                   dei due calendari "DAL / AL". Su un calendario si
-                   sceglie una data alla volta e non si vede dove
-                   cadono i tornei; qui l'intervallo è una cosa sola e
-                   i puntini sulla pista dicono subito dove sono.
+              {/* Il pannello resta sempre nel DOM, aperto o chiuso:
+                  è quello che permette di animarlo. Da chiuso è alto
+                  zero e invisibile, quindi non si può nemmeno
+                  raggiungere col Tab.
 
-                   `dateFrom`/`dateTo` vuoti = slider mai toccato:
-                   passo i valori di riposo (da oggi al torneo più
-                   lontano) così le maniglie partono al posto giusto
-                   senza che questo conti come filtro attivo. */
-                <div className="border-2 rounded-3xl px-1 py-2 sm:px-3" style={{ borderColor: 'rgba(34,48,31,0.15)' }}>
-                  <DateRangeSlider
-                    minIso={rangeMinIso}
-                    maxIso={rangeMaxIso}
-                    fromIso={dateFrom || dateFromDefault}
-                    toIso={dateTo || dateToDefault}
-                    onChange={(da, a) => {
-                      setDateFrom(da);
-                      setDateTo(a);
-                    }}
-                    todayIso={oggi}
-                    dates={dateTornei}
-                  />
+                  Dentro c'è il periodo: un solo slider a due maniglie
+                  al posto dei due calendari "DAL / AL". Su un
+                  calendario si sceglie una data alla volta e non si
+                  vede dove cadono i tornei; qui l'intervallo è una
+                  cosa sola e i puntini sulla pista dicono subito dove
+                  sono.
+
+                  `dateFrom`/`dateTo` vuoti = slider mai toccato:
+                  passo i valori di riposo (da oggi al torneo più
+                  lontano) così le maniglie partono al posto giusto
+                  senza che questo conti come filtro attivo. */}
+              <div
+                className={`filtri-extra ${showMoreFilters ? 'is-aperto' : ''}`}
+                aria-hidden={!showMoreFilters}
+              >
+                <div className="filtri-extra-interno">
+                  <div
+                    className="filtri-extra-pannello border-2 rounded-xl px-1.5 py-1 sm:px-3"
+                    style={{ borderColor: 'rgba(34,48,31,0.15)' }}
+                  >
+                    <DateRangeSlider
+                      minIso={rangeMinIso}
+                      maxIso={rangeMaxIso}
+                      fromIso={dateFrom || dateFromDefault}
+                      toIso={dateTo || dateToDefault}
+                      onChange={(da, a) => {
+                        setDateFrom(da);
+                        setDateTo(a);
+                      }}
+                      todayIso={oggi}
+                      dates={dateTornei}
+                    />
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </>

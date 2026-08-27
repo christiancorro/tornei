@@ -252,11 +252,15 @@ service cloud.firestore {
         return token.size() >= 100 && token.size() <= 512;
       }
 
+      /* `admin` è opzionale di proposito: i token registrati prima
+         che esistesse non ce l'hanno, e pretenderlo bloccherebbe
+         ogni loro aggiornamento successivo. */
       function preferenzeValide(p) {
-        return p.keys().hasOnly(['tornei', 'annunci', 'messaggi'])
+        return p.keys().hasOnly(['tornei', 'annunci', 'messaggi', 'admin'])
           && p.tornei is bool
           && p.annunci is bool
-          && p.messaggi is bool;
+          && p.messaggi is bool
+          && (!('admin' in p.keys()) || p.admin is bool);
       }
 
       function datiValidi() {

@@ -62,6 +62,11 @@ export const PREFERENZE_DEFAULT = {
   tornei: true,
   annunci: false,
   messaggi: true,
+  /* Roba da amministratori: tornei in coda e suggerimenti. La
+     preferenza sta su tutti i token, ma il server la guarda solo
+     per chi ha davvero il ruolo admin — su chiunque altro è un
+     booleano che non fa succedere niente. */
+  admin: true,
 };
 
 /* Import dinamico: firebase/messaging tira dentro il suo pezzo di

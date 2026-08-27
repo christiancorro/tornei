@@ -147,6 +147,32 @@ const BACHECA_MOTION_CSS = `
     transition-duration: 1ms !important;
   }
 }
+
+/* ---- Scheletro del caricamento -------------------------------
+   La bacheca arriva da Firestore, e per un attimo non c'è niente da
+   appendere. Mostrare "la bacheca è vuota" in quel momento è una
+   bugia che dura mezzo secondo — e a chi ha la connessione lenta
+   sembra vera. Meglio far vedere subito la forma di quello che sta
+   arrivando: la plancia di sughero con sopra dei foglietti ancora
+   in bianco. */
+.bacheca-skel {
+  animation: bacheca-skel-pulse 1.5s ease-in-out infinite;
+}
+
+.bacheca-skel-riga {
+  display: block;
+  border-radius: 999px;
+  background: rgba(34, 48, 31, 0.13);
+}
+
+@keyframes bacheca-skel-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.95; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bacheca-skel { animation: none; }
+}
 `;
 
 const ENTER_MS = 620;
@@ -436,8 +462,62 @@ export function BachecaNote({ post, onDelete, canDelete, canReply, onReply, isNe
   );
 }
 
+/* Lo sfondo della plancia sta qui perché lo usano in due: la
+   bacheca vera e il suo scheletro. Se restasse inline in un posto
+   solo, il caricamento e il contenuto finirebbero su due sfondi
+   diversi e nel passaggio si vedrebbe il cambio. */
+const STILE_PLANCIA = {
+  backgroundColor: CORK,
+  backgroundImage:
+    'radial-gradient(circle at 20% 30%, rgba(0,0,0,0.07) 1px, transparent 1px), radial-gradient(circle at 65% 65%, rgba(0,0,0,0.06) 1.5px, transparent 1.5px), radial-gradient(circle at 85% 15%, rgba(0,0,0,0.05) 1px, transparent 1px), radial-gradient(circle at 40% 85%, rgba(0,0,0,0.05) 1px, transparent 1px)',
+  backgroundSize: '26px 26px, 34px 34px, 30px 30px, 22px 22px',
+  border: `2px solid ${CORK_FRAME}`,
+};
+
+const GRIGLIA_NOTE = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+  gap: '2rem 1.5rem',
+};
+
+/* Foglietti finti, con le stesse misure e la stessa inclinazione di
+   quelli veri: quando i dati arrivano il contenuto prende il posto
+   del segnaposto invece di far saltare la pagina.
+
+   Le inclinazioni sono una lista fissa e non numeri a caso: presi a
+   caso cambierebbero ad ogni render e lo scheletro tremolerebbe. */
+const INCLINAZIONI = [-2.4, 1.8, -1.2, 2.6, -3, 1.1];
+
+function SchelettroBacheca({ quanti = 6 }) {
+  return (
+    <div className="rounded-2xl p-5 sm:p-6 shadow" style={STILE_PLANCIA} aria-hidden="true">
+      <div style={GRIGLIA_NOTE}>
+        {Array.from({ length: quanti }).map((_, i) => (
+          <div
+            key={i}
+            className="bacheca-skel relative p-4 pt-6 rounded-lg"
+            style={{
+              backgroundColor: i % 2 === 0 ? NOTE_YELLOW : NOTE_WHITE,
+              transform: `rotate(${INCLINAZIONI[i % INCLINAZIONI.length]}deg)`,
+              border: '2px solid rgba(34,48,31,0.10)',
+              animationDelay: `${i * 90}ms`,
+            }}
+          >
+            <span className="bacheca-skel-riga mb-3" style={{ width: 108, height: 20, borderRadius: 4 }} />
+            <span className="bacheca-skel-riga" style={{ width: '100%', height: 11, marginBottom: 7 }} />
+            <span className="bacheca-skel-riga" style={{ width: '88%', height: 11, marginBottom: 7 }} />
+            <span className="bacheca-skel-riga" style={{ width: '54%', height: 11 }} />
+            <span className="bacheca-skel-riga mt-4" style={{ width: 74, height: 9 }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Bacheca({
   annunci,
+  loading = false,
   nuovoTesto,
   setNuovoTesto,
   nuovoTipo,
@@ -534,7 +614,9 @@ export default function Bacheca({
         </div>
       )}
 
-      {annunci.length === 0 ? (
+      {loading ? (
+        <SchelettroBacheca />
+      ) : annunci.length === 0 ? (
         <div className="text-center py-16 px-4">
           <div className="text-5xl mb-4">📌</div>
           <h3 className="font-black text-xl mb-2" style={{ color: INK }}>
@@ -545,17 +627,8 @@ export default function Bacheca({
           </p>
         </div>
       ) : (
-        <div
-          className="rounded-2xl p-5 sm:p-6 shadow"
-          style={{
-            backgroundColor: CORK,
-            backgroundImage:
-              'radial-gradient(circle at 20% 30%, rgba(0,0,0,0.07) 1px, transparent 1px), radial-gradient(circle at 65% 65%, rgba(0,0,0,0.06) 1.5px, transparent 1.5px), radial-gradient(circle at 85% 15%, rgba(0,0,0,0.05) 1px, transparent 1px), radial-gradient(circle at 40% 85%, rgba(0,0,0,0.05) 1px, transparent 1px)',
-            backgroundSize: '26px 26px, 34px 34px, 30px 30px, 22px 22px',
-            border: `2px solid ${CORK_FRAME}`,
-          }}
-        >
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '2rem 1.5rem' }}>
+        <div className="rounded-2xl p-5 sm:p-6 shadow" style={STILE_PLANCIA}>
+          <div style={GRIGLIA_NOTE}>
             {annunci.map((post) => (
               <BachecaNote
                 key={post.id}

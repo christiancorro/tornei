@@ -33,7 +33,12 @@ const fcm = getMessaging();
    agganciano. europe-west1 va con Firestore in eur3 (Europa), che è
    il default per un progetto creato dall'Italia. Se il deploy
    protesta, guarda in console qual è la posizione del database e
-   metti quella (nam5 → us-central1). */
+   metti quella (nam5 → us-central1).
+
+   Vale per tutte le funzioni di questo file. Se un domani ne
+   aggiungi una che deve stare altrove, la regione si può mettere
+   anche sulla singola: onDocumentCreated({ document: '...',
+   region: '...' }, ...). */
 setGlobalOptions({ region: 'europe-west1', maxInstances: 10 });
 
 const SITO = 'https://volleyfvg.it';
@@ -134,6 +139,24 @@ async function tokenDiUtente(uid, tipo) {
   return snap.docs.map((d) => d.id);
 }
 
+/* I token di chi amministra il sito, per le notifiche di servizio
+   (roba da approvare, suggerimenti in arrivo).
+
+   Gli admin si leggono da `users` invece di tenerne una lista a
+   parte: il ruolo è già lì ed è la stessa fonte che usano le regole
+   di sicurezza. Sono pochissimi, quindi una query per ciascuno non
+   è un problema. */
+async function tokenDegliAdmin() {
+  const admins = await db.collection('users').where('role', '==', 'admin').get();
+  if (admins.empty) return [];
+
+  const liste = await Promise.all(
+    admins.docs.map((d) => tokenDiUtente(d.id, 'admin')),
+  );
+
+  return liste.flat();
+}
+
 /* Chi ha scritto la cosa non ha bisogno di essere avvisato che
    l'ha scritta. Tolgo i suoi token dalla lista. */
 async function senzaAutore(tokens, autoreUid) {
@@ -160,16 +183,36 @@ function notificaTorneo(id, torneo) {
 }
 
 /* ---------------------------------------------------------
-   1. Torneo pubblicato direttamente (organizzatore o admin).
+   1. Torneo appena creato. Due strade a seconda di com'è nato:
+
+      • già pubblicato (organizzatore o admin) → lo sanno tutti;
+      • in coda (proposto da un utente) → lo sanno gli admin, che
+        sono gli unici che possono farci qualcosa. Nessun altro
+        deve sapere che esiste un torneo non ancora approvato.
 --------------------------------------------------------- */
 exports.notificaNuovoTorneo = onDocumentCreated('tornei/{torneoId}', async (event) => {
   const torneo = event.data?.data();
-  if (!torneo || torneo.status !== 'published') return;
+  if (!torneo) return;
 
-  const tokens = await senzaAutore(await tokenPerTipo('tornei'), torneo.authorId);
-  const esito = await invia(tokens, notificaTorneo(event.params.torneoId, torneo));
+  if (torneo.status === 'published') {
+    const tokens = await senzaAutore(await tokenPerTipo('tornei'), torneo.authorId);
+    const esito = await invia(tokens, notificaTorneo(event.params.torneoId, torneo));
 
-  logger.info('[push] nuovo torneo', { id: event.params.torneoId, ...esito });
+    logger.info('[push] nuovo torneo', { id: event.params.torneoId, ...esito });
+    return;
+  }
+
+  if (torneo.status === 'pending') {
+    const tokens = await senzaAutore(await tokenDegliAdmin(), torneo.authorId);
+    const esito = await invia(tokens, {
+      titolo: 'Torneo da approvare',
+      corpo: `${taglia(torneo.nome, 50)} — proposto da ${taglia(torneo.authorName || 'un utente', 30)}`,
+      url: `${SITO}/?vista=admin`,
+      tag: `pending-${event.params.torneoId}`,
+    });
+
+    logger.info('[push] torneo in coda', { id: event.params.torneoId, ...esito });
+  }
 });
 
 /* ---------------------------------------------------------
@@ -198,7 +241,7 @@ exports.notificaNuovoAnnuncio = onDocumentCreated('annunci/{annuncioId}', async 
 
   const titolo = annuncio.tipo === 'cerca_giocatore'
     ? 'Cercasi giocatori'
-    : 'Qualcuno cerca una squadra';
+    : 'Qualcuno cerca squadra';
 
   const tokens = await senzaAutore(await tokenPerTipo('annunci'), annuncio.authorId);
   const esito = await invia(tokens, {
@@ -212,7 +255,28 @@ exports.notificaNuovoAnnuncio = onDocumentCreated('annunci/{annuncioId}', async 
 });
 
 /* ---------------------------------------------------------
-   4. Nuovo messaggio in una conversazione.
+   4. Nuovo suggerimento dagli utenti: va agli admin.
+
+      Come i tornei in coda, è una notifica di servizio: segnala
+      qualcosa che aspetta una risposta, e la aspetta da loro.
+--------------------------------------------------------- */
+exports.notificaNuovaRichiesta = onDocumentCreated('richieste/{richiestaId}', async (event) => {
+  const richiesta = event.data?.data();
+  if (!richiesta) return;
+
+  const tokens = await senzaAutore(await tokenDegliAdmin(), richiesta.authorId);
+  const esito = await invia(tokens, {
+    titolo: `Suggerimento da ${taglia(richiesta.authorName || 'un utente', 30)}`,
+    corpo: taglia(richiesta.testo, 120),
+    url: `${SITO}/?vista=admin`,
+    tag: `richiesta-${event.params.richiestaId}`,
+  });
+
+  logger.info('[push] nuova richiesta', { id: event.params.richiestaId, ...esito });
+});
+
+/* ---------------------------------------------------------
+   5. Nuovo messaggio in una conversazione.
 
       Va solo al destinatario. Il mittente lo ricavo dal messaggio,
       il destinatario dai partecipanti della conversazione: è

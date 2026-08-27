@@ -82,7 +82,12 @@ export default function App() {
      skeleton, niente fade. */
   useLocandinePrefetch(tournaments);
 
-  const { annunci, publish: publishAnnuncio, remove: removeAnnuncio } = useAnnunci();
+  const {
+    annunci,
+    loading: loadingAnnunci,
+    publish: publishAnnuncio,
+    remove: removeAnnuncio,
+  } = useAnnunci();
 
   /* Questi listener partono solo per chi ne ha diritto: passare
      un flag "enabled" evita una query che le regole rifiuterebbero. */
@@ -402,6 +407,10 @@ export default function App() {
 
     if (destinazioneIniziale.vista === 'bacheca') {
       setView('bacheca');
+    } else if (destinazioneIniziale.vista === 'admin') {
+      /* Se chi apre non è admin ci pensa l'effect delle viste
+         riservate a rimandarlo sui tornei. */
+      setView('admin');
     } else if (destinazioneIniziale.vista === 'messaggi' || destinazioneIniziale.vista === 'account') {
       setView('account');
       if (destinazioneIniziale.conv) setPendingOpenConv(destinazioneIniziale.conv);
@@ -767,6 +776,7 @@ export default function App() {
         <div className="view-swap">
           <Bacheca
             annunci={sortedAnnunci}
+            loading={loadingAnnunci}
             nuovoTesto={nuovoTesto}
             setNuovoTesto={setNuovoTesto}
             nuovoTipo={nuovoTipo}

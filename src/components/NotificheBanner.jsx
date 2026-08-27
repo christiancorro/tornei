@@ -234,7 +234,7 @@ export default function NotificheBanner({ uid = null }) {
                 resta strizzato in una colonna da tre parole. Sopra i 640
                 torna tutto in fila. */}
           <div
-            className="ban-card flex flex-wrap items-center gap-x-3 gap-y-2.5 rounded-2xl border-2 px-4 py-3 mt-2"
+            className="ban-card flex flex-wrap items-center gap-x-3 gap-y-2.5 rounded-2xl border-2 px-4 py-3 mt-3"
             style={{
               borderColor: fatto ? 'rgba(72,130,34,0.35)' : 'rgba(34,48,31,0.15)',
               backgroundColor: fatto ? 'rgba(72,130,34,0.06)' : 'rgba(245,165,36,0.07)',

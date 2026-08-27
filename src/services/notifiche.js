@@ -51,9 +51,16 @@ const VAPID = import.meta.env.VITE_FIREBASE_VAPID_KEY;
    impostazioni, e serve solo a sapere QUALE documento leggere. */
 const CHIAVE_LOCALE = 'vfvg-push-token';
 
+/* Cosa arriva a chi attiva le notifiche senza scegliere niente.
+
+   Gli annunci partono SPENTI: la bacheca si muove più spesso dei
+   tornei e vale meno per chi passa di qui — un "cerco squadra" non
+   è una notizia per tutti. Chi li vuole li accende in
+   Impostazioni; chi non è loggato non li riceverà mai, ed è la
+   conseguenza voluta di questa scelta. */
 export const PREFERENZE_DEFAULT = {
   tornei: true,
-  annunci: true,
+  annunci: false,
   messaggi: true,
 };
 

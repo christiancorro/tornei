@@ -253,7 +253,7 @@ exports.notificaNuovoAnnuncio = onDocumentCreated('annunci/{annuncioId}', async 
 
   const titolo = annuncio.tipo === 'cerca_giocatore'
     ? 'Cercasi giocatori'
-    : 'Qualcuno cerca squadra';
+    : 'Qualcuno cerca una squadra';
 
   const tokens = await senzaAutore(await tokenPerTipo('annunci'), annuncio.authorId);
   const esito = await invia(tokens, {

@@ -264,12 +264,16 @@ async function gestisciHome(request, env, ctx) {
     return finalizeProxy(originRes, request, env, 'home-generica');
   }
 
-  /* La home tiene i suoi meta tag: quelli in index.html descrivono
-     già il sito meglio di qualsiasi cosa generata. Qui aggiungiamo
-     solo il corpo e l'ItemList. */
-  const html = await applyPreview(originRes, buildPreviewHome(env), {
+  /* preview = null: la home tiene il <title> e la description di
+     index.html. Non è pigrizia, è la scelta giusta — quel titolo
+     dice "Tornei di Green Volley, Beach Volley e Pallavolo in
+     Friuli Venezia Giulia", cioè esattamente la domanda a cui
+     vogliamo rispondere. Sostituirlo col nome del sito butterebbe
+     via il segnale on-page più forte che c'è. */
+  const html = await applyPreview(originRes, null, {
     body: bloccoLista(tornei, env, oggi),
     ldTag: tagJsonLd(jsonLdLista(tornei, env)),
+    canonical: `${String(env.SITE_URL || 'https://volleyfvg.it').replace(/\/+$/, '')}/`,
   }).text();
 
   ctx.waitUntil(cache.put(key, rispostaHtml(html, ttlLista(env), 'home', true)));
@@ -278,28 +282,6 @@ async function gestisciHome(request, env, ctx) {
   return request.method === 'HEAD'
     ? new Response(null, { status: 200, headers: res.headers })
     : res;
-}
-
-/* I meta tag della home: gli stessi di sempre, ma passati da
-   buildPreview così il canonical punta alla radice e non resta
-   quello del torneo aperto per ultimo. */
-function buildPreviewHome(env) {
-  const base = String(env.SITE_URL || 'https://volleyfvg.it').replace(/\/+$/, '');
-  return {
-    title: String(env.SITE_NAME || 'Tornei Volley FVG'),
-    description: String(
-      env.FALLBACK_DESCRIPTION ||
-      'Tornei di green volley, beach volley e pallavolo in Friuli Venezia Giulia e dintorni.'
-    ),
-    image: String(env.FALLBACK_IMAGE || `${base}/icons/icon512.png`),
-    imageAlt: String(env.SITE_NAME || 'Tornei Volley FVG'),
-    imageSize: {
-      width: String(env.FALLBACK_IMAGE_WIDTH || '512'),
-      height: String(env.FALLBACK_IMAGE_HEIGHT || '512'),
-    },
-    url: `${base}/`,
-    siteName: String(env.SITE_NAME || 'Tornei Volley FVG'),
-  };
 }
 
 /* ---------------------------------------------------------

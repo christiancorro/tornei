@@ -199,8 +199,14 @@ export function renderMetaTags(p) {
    worker — passa inalterato.
 --------------------------------------------------------- */
 export function applyPreview(response, preview, contenuto) {
-  const blocco = renderMetaTags(preview);
-  const titolo = escapeHtml(preview.title);
+  /* `preview` può essere null. Serve per la home: il suo <title>
+     e la sua description in index.html sono scritti bene e sono
+     pieni delle parole che la gente cerca davvero ("tornei green
+     volley Friuli"). Rigenerarli dal nome del sito li peggiora.
+     Con preview null la testa non si tocca: si aggiungono solo
+     il canonical e il JSON-LD. */
+  const blocco = preview ? renderMetaTags(preview) : null;
+  const titolo = preview ? escapeHtml(preview.title) : null;
 
   /* `contenuto` è opzionale: { body, ldTag }, entrambe stringhe
      HTML già pronte. Quando c'è, la stessa passata che sistema i
@@ -215,17 +221,23 @@ export function applyPreview(response, preview, contenuto) {
      dipendenze vanno in una direzione sola. */
   const body = contenuto && contenuto.body;
   const ldTag = contenuto && contenuto.ldTag;
+  const canonical = contenuto && contenuto.canonical;
 
-  return new HTMLRewriter()
-    .on('title', {
+  const rw = new HTMLRewriter();
+
+  if (preview) {
+    rw.on('title', {
       element(el) {
         el.setInnerContent(titolo, { html: true });
       },
     })
-    .on('meta[property^="og:"]', { element(el) { el.remove(); } })
-    .on('meta[name^="twitter:"]', { element(el) { el.remove(); } })
-    .on('meta[name="description"]', { element(el) { el.remove(); } })
-    .on('link[rel="canonical"]', { element(el) { el.remove(); } })
+      .on('meta[property^="og:"]', { element(el) { el.remove(); } })
+      .on('meta[name^="twitter:"]', { element(el) { el.remove(); } })
+      .on('meta[name="description"]', { element(el) { el.remove(); } })
+      .on('link[rel="canonical"]', { element(el) { el.remove(); } });
+  }
+
+  return rw
     .on('script[type="application/ld+json"]', {
       element(el) {
         /* Via il blocco WebSite statico dell'index.html: quando
@@ -238,7 +250,10 @@ export function applyPreview(response, preview, contenuto) {
     .on('head', {
       element(el) {
         el.onEndTag((end) => {
-          end.before(blocco, { html: true });
+          if (blocco) end.before(blocco, { html: true });
+          else if (canonical) {
+            end.before(`<link rel="canonical" href="${escapeHtml(canonical)}">`, { html: true });
+          }
           if (ldTag) end.before(ldTag, { html: true });
         });
       },

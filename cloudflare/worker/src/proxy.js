@@ -160,10 +160,36 @@ export function finalizeProxy(res, request, env, tag = 'proxy') {
    l'URL richiesto — che è poi quello che fa qualunque hosting
    con il fallback SPA configurato.
 --------------------------------------------------------- */
-export function fetchOriginIndex(request, env) {
-  return fetch(`${originBase(env)}/index.html`, {
-    method: 'GET',
-    headers: headerInoltrabili(request),
-    redirect: 'manual',
+export async function fetchOriginIndex(request, env) {
+  /* Gli header condizionali del browser (If-None-Match,
+     If-Modified-Since) valgono per l'URL che ha chiesto LUI, non
+     per /index.html. Inoltrarli qui può farci tornare un 304
+     senza corpo, e a quel punto non c'è HTML in cui iniettare.
+     Stessa cosa per Range. */
+  const headers = headerInoltrabili(request);
+  headers.delete('if-none-match');
+  headers.delete('if-modified-since');
+  headers.delete('if-match');
+  headers.delete('if-range');
+  headers.delete('range');
+
+  const base = originBase(env);
+
+  /* Prima /index.html, che è come si chiama il file. Se l'origin
+     non lo serve a quel nome — capita con certe configurazioni —
+     riprovo con la radice, che è la stessa pagina per un'altra
+     porta. Senza questo fallback un origin "particolare" fa
+     rispondere 404 a TUTTE le pagine dei tornei, e l'errore
+     sembra venire da Firestore quando invece non c'entra. */
+  let res = await fetch(`${base}/index.html`, {
+    method: 'GET', headers, redirect: 'manual',
   });
+
+  const html = (r) => (r.headers.get('content-type') || '').includes('text/html');
+  if (res.status === 200 && html(res)) return res;
+
+  res = await fetch(`${base}/`, {
+    method: 'GET', headers, redirect: 'follow',
+  });
+  return res;
 }

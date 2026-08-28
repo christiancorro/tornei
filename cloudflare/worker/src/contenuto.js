@@ -90,6 +90,66 @@ export function fraseTorneo(torneo) {
 }
 
 /* ---------------------------------------------------------
+   Lo stile del primo istante.
+
+   Il blocco qui sotto è quello che si vede prima che il bundle
+   React sia pronto — su una connessione lenta, o al primo
+   accesso, è un secondo o due. Senza CSS il browser lo disegna
+   con i suoi default: Times New Roman, link blu sottolineati,
+   tabella a sette colonne che esce dallo schermo. Brutto, e
+   sembra un errore.
+
+   Con queste poche regole diventa uno stato di caricamento
+   intenzionale, negli stessi colori del sito (SAND di sfondo,
+   INK per il testo, GRASS_DARK per i link). Il min-height
+   copre la viewport, così non si vede il bianco del browser
+   sotto.
+
+   Va in fondo a questo file e non nel <head> apposta: sta
+   dentro #root, quindi quando React monta se ne va insieme al
+   resto. Nessun CSS orfano che sopravvive alla pagina.
+
+   Nota sui crawler: il CSS non li riguarda: leggono l'HTML e
+   basta. Impaginare le righe come schede invece che come
+   tabella non cambia una virgola di quello che vedono loro,
+   che è sempre una <table> con <th> e <td> al posto giusto.
+--------------------------------------------------------- */
+const STILI_BOOT = `<style>
+.vfvg-boot{background:#fffefb;color:#282828;min-height:100vh;margin:0;padding:24px 18px 56px;
+font:400 15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.vfvg-boot .w{max-width:760px;margin:0 auto}
+.vfvg-boot h1{margin:0 0 10px;font-size:21px;line-height:1.28;font-weight:700;letter-spacing:-.015em}
+.vfvg-boot p{margin:0 0 14px;font-size:14px;color:#6f6c63}
+.vfvg-boot strong{font-weight:600;color:#282828}
+.vfvg-boot em{font-style:normal;color:#a3a096}
+.vfvg-boot a{color:#488222;text-decoration:none}
+.vfvg-boot ul{margin:0 0 16px;padding:0;list-style:none}
+.vfvg-boot li{padding:9px 0;border-bottom:1px solid #efece3;font-size:14px;color:#6f6c63}
+.vfvg-boot li strong{margin-right:6px}
+.vfvg-boot table{width:100%;border-collapse:collapse}
+.vfvg-boot thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.vfvg-boot tr{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 8px;
+padding:12px 0;border-bottom:1px solid #efece3}
+.vfvg-boot td{padding:0;font-size:13px;color:#7d7a70}
+.vfvg-boot td:nth-child(1){flex:0 0 100%;font-size:11.5px;letter-spacing:.04em;
+text-transform:uppercase;color:#a3a096}
+.vfvg-boot td:nth-child(2){flex:0 0 100%;margin:1px 0 3px;font-size:15.5px;
+font-weight:600;line-height:1.3;color:#282828}
+.vfvg-boot td:nth-child(n+4)::before{content:"·";margin-right:8px;color:#d2cfc4}
+.vfvg-boot .w::after{content:"Caricamento…";display:block;margin-top:26px;
+font-size:12.5px;color:#b6b3a9}
+</style>`;
+
+/* Il contenuto vero e proprio, vestito. Lo stile viaggia con il
+   blocco: un solo pezzo da iniettare, e sparisce tutto insieme. */
+function avvolgi(articolo) {
+  return `<div class="vfvg-boot">${STILI_BOOT}
+<div class="w">${articolo}</div>
+</div>`;
+}
+
+/* ---------------------------------------------------------
    bloccoTorneo() — il corpo della pagina di un torneo.
 
    Un h1 col nome, la frase completa, poi le voci etichettate.
@@ -121,7 +181,7 @@ export function bloccoTorneo(torneo, slug, env) {
     ? `\n    <p>${escapeHtml(torneo.descrizioneOrganizzatore)}</p>`
     : '';
 
-  return `
+  return avvolgi(`
   <article>
     <h1>${escapeHtml(torneo.nome)}</h1>
     <p>${escapeHtml(fraseTorneo(torneo))}</p>
@@ -130,7 +190,7 @@ ${righe}
     </ul>${nota}
     <p><a href="${escapeHtml(baseSito(env))}/">Tutti i tornei di volley in Friuli Venezia Giulia</a></p>
   </article>
-`;
+`);
 }
 
 /* ---------------------------------------------------------
@@ -146,13 +206,13 @@ export function bloccoLista(tornei, env, oggiISO) {
   const titolo = 'Tornei di green volley, beach volley e pallavolo in Friuli Venezia Giulia';
 
   if (!tornei.length) {
-    return `
+    return avvolgi(`
   <article>
     <h1>${escapeHtml(titolo)}</h1>
     <p>Al momento non ci sono tornei in programma. Il calendario viene aggiornato
     di continuo: torna a controllare, oppure pubblica il tuo torneo.</p>
   </article>
-`;
+`);
   }
 
   const dal = minuscola(formatData(tornei[0].data, ''));
@@ -181,7 +241,7 @@ export function bloccoLista(tornei, env, oggiISO) {
     return `      <tr>\n${celle.map((c) => `        <td>${c}</td>`).join('\n')}\n      </tr>`;
   }).join('\n');
 
-  return `
+  return avvolgi(`
   <article>
     <h1>${escapeHtml(titolo)}</h1>
     <p>Ci sono <strong>${tornei.length} tornei</strong> in programma, da ${escapeHtml(dal)}
@@ -197,17 +257,17 @@ ${righe}
       </tbody>
     </table>
   </article>
-`;
+`);
 }
 
 export function bloccoNonTrovato(env) {
-  return `
+  return avvolgi(`
   <article>
     <h1>Torneo non trovato</h1>
     <p>Questo torneo non è più in programma oppure è stato rimosso.</p>
     <p><a href="${escapeHtml(baseSito(env))}/">Vedi tutti i tornei di volley in Friuli Venezia Giulia</a></p>
   </article>
-`;
+`);
 }
 
 /* ---------------------------------------------------------

@@ -149,3 +149,21 @@ export function finalizeProxy(res, request, env, tag = 'proxy') {
   const body = request.method === 'HEAD' ? null : res.body;
   return new Response(body, { status: res.status, headers });
 }
+
+/* ---------------------------------------------------------
+   fetchOriginIndex() — lo shell del sito, qualunque sia il path.
+
+   Serve per /torneo/<slug>. GitHub Pages serve file veri: non ha
+   le rewrite di una SPA, quindi a quel percorso risponderebbe
+   404 e non ci sarebbe nessun HTML in cui iniettare. Chiediamo
+   quindi esplicitamente /index.html e lo consegniamo sotto
+   l'URL richiesto — che è poi quello che fa qualunque hosting
+   con il fallback SPA configurato.
+--------------------------------------------------------- */
+export function fetchOriginIndex(request, env) {
+  return fetch(`${originBase(env)}/index.html`, {
+    method: 'GET',
+    headers: headerInoltrabili(request),
+    redirect: 'manual',
+  });
+}

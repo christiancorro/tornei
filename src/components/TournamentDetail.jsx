@@ -220,11 +220,7 @@ const Scheda = memo(function Scheda({ t, attivo, scrollRef, closing, grabbed, on
        la barra degli indirizzi, il link condiviso è comunque quello
        giusto. Chi lo apre atterra dritto sulla card grazie al deep
        link gestito in app.jsx. */
-    const url = (() => {
-      const u = new URL(window.location.href);
-      u.searchParams.set('torneo', t.id);
-      return u.toString();
-    })();
+    const url = `${window.location.origin}/torneo/${encodeURIComponent(t.id)}`;
 
     /* Si condivide SOLO l'URL. Nome, data, luogo, costo e locandina li
        mette il Cloudflare Worker nei meta tag Open Graph, quindi

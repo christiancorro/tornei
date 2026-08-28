@@ -27,11 +27,6 @@
     ],
     "rewrites": [
       {
-        "source": "/torneo/**",
-        "function": "torneoOg",
-        "region": "europe-west1"
-      },
-      {
         "source": "**",
         "destination": "/index.html"
       }

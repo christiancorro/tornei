@@ -89,7 +89,7 @@ function listen(q, onData, onError) {
 
 /* ---------------------------------------------------------
    Slug ID: usato come ID del documento in Firestore per rendere
-   l'URL /?torneo=<id> leggibile da umani e migliore in SERP.
+   l'URL /torneo/<id> leggibile da umani e migliore in SERP.
 
    Formato: <nome-slug>-<gg>-<mm>-<aaaa>
      es. "finale-serie-c-15-06-2026"

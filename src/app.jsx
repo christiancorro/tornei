@@ -36,6 +36,21 @@ import { sendRichiesta } from './services/richieste';
 import { collegaToken } from './services/notifiche';
 
 /* ---------------------------------------------------------
+   Lo slug del torneo vive nel percorso: /torneo/<slug>.
+
+   Leggo ancora anche il vecchio ?torneo=<slug>: il Worker lo
+   reindirizza con un 301, ma un link aperto dalla cache offline
+   del service worker non passa dal Worker e arriverebbe qui nella
+   forma vecchia. Costa una riga e non lascia nessuno per strada.
+--------------------------------------------------------- */
+function slugDallUrl() {
+  if (typeof window === 'undefined') return null;
+  const m = window.location.pathname.match(/^\/torneo\/([^/?#]+)\/?$/);
+  if (m) return decodeURIComponent(m[1]);
+  return new URLSearchParams(window.location.search).get('torneo');
+}
+
+/* ---------------------------------------------------------
 App
 --------------------------------------------------------- */
 export default function App() {
@@ -333,10 +348,7 @@ export default function App() {
      detailTarget=null e cancellerebbe il parametro dalla barra
      degli indirizzi prima ancora di poterlo applicare.
   --------------------------------------------------------- */
-  const [tidDaAprire, setTidDaAprire] = useState(() => {
-    if (typeof window === 'undefined') return null;
-    return new URLSearchParams(window.location.search).get('torneo');
-  });
+  const [tidDaAprire, setTidDaAprire] = useState(() => slugDallUrl());
 
   // Aggiorna l'URL quando cambia detailTarget. Finché c'è un deep
   // link ancora da applicare (tidDaAprire), non tocca niente: il
@@ -345,24 +357,23 @@ export default function App() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (tidDaAprire) return;
-    const url = new URL(window.location.href);
-    const attualeParam = url.searchParams.get('torneo');
+    const attuale = slugDallUrl();
     if (detailTarget) {
-      if (attualeParam === detailTarget.id) return;
-      url.searchParams.set('torneo', detailTarget.id);
+      if (attuale === detailTarget.id) return;
+      const nuovoUrl = `/torneo/${encodeURIComponent(detailTarget.id)}`;
       // pushState solo alla prima apertura (quando non c'era ancora
       // un torneo nell'URL): così il tasto Indietro chiude la card.
       // Sui cambi successivi (swipe da una card all'altra) uso
       // replaceState, così la cronologia non si riempie.
-      if (attualeParam) {
-        window.history.replaceState({ torneo: detailTarget.id }, '', url);
+      if (attuale) {
+        window.history.replaceState({ torneo: detailTarget.id }, '', nuovoUrl);
       } else {
-        window.history.pushState({ torneo: detailTarget.id }, '', url);
+        window.history.pushState({ torneo: detailTarget.id }, '', nuovoUrl);
       }
-    } else if (attualeParam) {
-      url.searchParams.delete('torneo');
-      const nuovoUrl = url.pathname + (url.search || '') + url.hash;
-      window.history.replaceState(null, '', nuovoUrl);
+    } else if (attuale) {
+      // Chiudendo la card si torna alla radice: il percorso /torneo/<slug>
+      // non ha più niente da rappresentare.
+      window.history.replaceState(null, '', '/');
     }
   }, [detailTarget, tidDaAprire]);
 
@@ -439,8 +450,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     function onPop() {
-      const params = new URLSearchParams(window.location.search);
-      const tid = params.get('torneo');
+      const tid = slugDallUrl();
       if (!tid) {
         setDetailTarget(null);
         return;

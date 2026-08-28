@@ -84,7 +84,12 @@ export function safeHttpsUrl(value) {
 --------------------------------------------------------- */
 export function buildPreview(torneo, slug, env) {
   const siteUrl = String(env.SITE_URL || 'https://volleyfvg.it').replace(/\/+$/, '');
-  const url = `${siteUrl}/?torneo=${encodeURIComponent(slug)}`;
+  /* Path, non query: /torneo/<slug>. È l'URL canonico da quando i
+     tornei hanno una pagina propria — la scheda evento di Google
+     vale solo su pagine dedicate a un evento solo, e un link
+     pulito si legge meglio quando è un chatbot a citarlo. Il
+     vecchio ?torneo= arriva qui già trasformato dal 301. */
+  const url = `${siteUrl}/torneo/${encodeURIComponent(slug)}`;
 
   const nome = troncaTesto(torneo.nome, 110) || 'Torneo';
 
@@ -193,9 +198,23 @@ export function renderMetaTags(p) {
    Tutto il resto del documento — script, CSS, div#root, service
    worker — passa inalterato.
 --------------------------------------------------------- */
-export function applyPreview(response, preview) {
+export function applyPreview(response, preview, contenuto) {
   const blocco = renderMetaTags(preview);
   const titolo = escapeHtml(preview.title);
+
+  /* `contenuto` è opzionale: { body, ldTag }, entrambe stringhe
+     HTML già pronte. Quando c'è, la stessa passata che sistema i
+     meta tag scrive anche dentro #root il testo del torneo e
+     accoda il JSON-LD — una passata sola invece di due, perché
+     HTMLRewriter è in streaming e incatenarne due vorrebbe dire
+     rileggere tutto il documento due volte.
+
+     Le stringhe arrivano già renderizzate da chi chiama, non
+     costruite qui: così questo file non deve importare
+     contenuto.js, che a sua volta importa escapeHtml da qui. Le
+     dipendenze vanno in una direzione sola. */
+  const body = contenuto && contenuto.body;
+  const ldTag = contenuto && contenuto.ldTag;
 
   return new HTMLRewriter()
     .on('title', {
@@ -207,11 +226,29 @@ export function applyPreview(response, preview) {
     .on('meta[name^="twitter:"]', { element(el) { el.remove(); } })
     .on('meta[name="description"]', { element(el) { el.remove(); } })
     .on('link[rel="canonical"]', { element(el) { el.remove(); } })
+    .on('script[type="application/ld+json"]', {
+      element(el) {
+        /* Via il blocco WebSite statico dell'index.html: quando
+           stiamo pubblicando un evento vogliamo il nostro, non
+           due blocchi che dicono cose diverse. Senza contenuto
+           (preview e basta) resta dov'è. */
+        if (ldTag) el.remove();
+      },
+    })
     .on('head', {
       element(el) {
         el.onEndTag((end) => {
           end.before(blocco, { html: true });
+          if (ldTag) end.before(ldTag, { html: true });
         });
+      },
+    })
+    /* Il corpo. React azzera #root quando monta, quindi questo
+       testo è un fallback che l'utente vede per un istante e i
+       crawler senza JavaScript vedono come la pagina intera. */
+    .on('#root', {
+      element(el) {
+        if (body) el.setInnerContent(body, { html: true });
       },
     })
     .transform(response);

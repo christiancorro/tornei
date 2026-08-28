@@ -120,3 +120,84 @@ export function troncaTesto(testo, max = 200) {
   const spazio = tagliato.lastIndexOf(' ');
   return `${(spazio > max * 0.6 ? tagliato.slice(0, spazio) : tagliato).trimEnd()}…`;
 }
+
+/* ---------------------------------------------------------
+   Fuso di Roma senza Intl.
+
+   Stesso motivo del blocco in cima al file: l'ICU dei Worker non
+   è affidabile, e `timeZone: 'Europe/Rome'` è proprio la parte
+   che salta per prima. La regola europea però è fissa dal 2002 e
+   si calcola in cinque righe: ora legale dall'ultima domenica di
+   marzo alle 01:00 UTC all'ultima domenica di ottobre, stessa ora.
+
+   Serve a due cose: sapere che giorno è *in Italia* (a mezzanotte
+   e mezza UTC a Roma è già domani, e un torneo di oggi non deve
+   sparire dalla lista), e scrivere lo startDate in JSON-LD con
+   l'offset giusto — un torneo di giugno alle 9:00 dichiarato in
+   UTC diventa un torneo alle 11:00.
+--------------------------------------------------------- */
+
+function ultimaDomenica(anno, mese) {
+  // Giorno 0 del mese dopo = ultimo giorno di questo mese.
+  const ultimo = new Date(Date.UTC(anno, mese + 1, 0));
+  return ultimo.getUTCDate() - ultimo.getUTCDay();
+}
+
+function eOraLegale(date) {
+  const anno = date.getUTCFullYear();
+  const inizio = Date.UTC(anno, 2, ultimaDomenica(anno, 2), 1);
+  const fine = Date.UTC(anno, 9, ultimaDomenica(anno, 9), 1);
+  const t = date.getTime();
+  return t >= inizio && t < fine;
+}
+
+function due(n) { return String(n).padStart(2, '0'); }
+
+/* "+02:00" d'estate, "+01:00" d'inverno, per la data del torneo
+   (non per adesso: un torneo di gennaio letto ad agosto vuole
+   comunque +01:00). */
+export function offsetRoma(dataISO) {
+  const d = parseISO(dataISO);
+  if (!d) return '+01:00';
+  /* Mezzogiorno, non mezzanotte: il cambio d'ora scatta alle 01:00
+     UTC, quindi il 29 marzo a mezzanotte UTC è ancora ora solare
+     mentre il torneo, che comincia in mattinata, è già ora legale.
+     Ancorare a metà giornata dà l'offset che vale per l'evento. */
+  const meta = new Date(d.getTime() + 12 * 3600000);
+  return eOraLegale(meta) ? '+02:00' : '+01:00';
+}
+
+/* La data di oggi a Roma, in formato YYYY-MM-DD. */
+export function oggiRoma(adesso = new Date()) {
+  const ore = eOraLegale(adesso) ? 2 : 1;
+  const locale = new Date(adesso.getTime() + ore * 3600000);
+  return `${locale.getUTCFullYear()}-${due(locale.getUTCMonth() + 1)}-${due(locale.getUTCDate())}`;
+}
+
+/* Versione compatta per la colonna "Data" della tabella:
+   "sab 29 ago" — o "sab 29 ago - dom 30 ago" per i due giorni.
+   L'anno lo mette chi chiama, una volta sola per riga. */
+const MESI_BREVI = [
+  'gen', 'feb', 'mar', 'apr', 'mag', 'giu',
+  'lug', 'ago', 'set', 'ott', 'nov', 'dic',
+];
+const GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
+
+function breve(d) {
+  return `${GIORNI_BREVI[d.getUTCDay()]} ${d.getUTCDate()} ${MESI_BREVI[d.getUTCMonth()]}`;
+}
+
+export function formatDataBreve(data, dataFine) {
+  const inizio = parseISO(data);
+  if (!inizio) return '';
+  const fine = parseISO(dataFine);
+  const anno = inizio.getUTCFullYear();
+  if (!fine || fine.getTime() <= inizio.getTime()) return `${breve(inizio)} ${anno}`;
+  return `${breve(inizio)} - ${breve(fine)} ${fine.getUTCFullYear()}`;
+}
+
+/* L'anno di una data ISO, per raggruppare o etichettare. */
+export function annoDi(dataISO) {
+  const d = parseISO(dataISO);
+  return d ? d.getUTCFullYear() : null;
+}

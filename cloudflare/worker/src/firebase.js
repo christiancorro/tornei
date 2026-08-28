@@ -44,12 +44,32 @@ const CAMPI = [
   'locandina',
   'locandinaThumb',
   'status',
+  /* Da qui in giù: campi che NON servono alla preview social ma
+     finiscono nel testo che leggono i crawler e nel JSON-LD.
+     Restano tutti pubblici — sono gli stessi che il sito mostra
+     nella card del torneo. authorEmail / authorId / authorName
+     continuano a non essere chiesti, come prima. */
+  'disciplina',
+  'formati',
+  'modalita',
+  'ora',
+  'organizzatore',
+  'descrizioneOrganizzatore',
+  'sitoWeb',
+  'lat',
+  'lng',
+  'updatedAt',
 ];
 
 /* Oltre questo tempo mollo il colpo e restituisco null: il sito
    deve caricare comunque, una preview generica è infinitamente
    meglio di una pagina che non arriva. */
 const TIMEOUT_MS = 2000;
+
+/* La query di lista attraversa più documenti della lettura
+   singola: le concedo qualcosa in più, restando ben sotto il
+   limite di CPU del piano gratuito. */
+const TIMEOUT_LISTA_MS = 4000;
 
 /* Firestore serializza ogni campo come { stringValue }, { integerValue },
    { arrayValue: { values: [...] } }... Qui mi servono solo le
@@ -61,6 +81,13 @@ function valore(campo) {
   if ('integerValue' in campo) return String(campo.integerValue);
   if ('doubleValue' in campo) return String(campo.doubleValue);
   if ('booleanValue' in campo) return campo.booleanValue;
+  if ('timestampValue' in campo) return campo.timestampValue;
+  /* `formati` è l'unico array del documento: ['2x2', '4x4']. Senza
+     questo ramo tornava undefined e spariva dal testo. */
+  if ('arrayValue' in campo) {
+    const values = (campo.arrayValue && campo.arrayValue.values) || [];
+    return values.map(valore).filter((v) => v !== undefined);
+  }
   if ('nullValue' in campo) return null;
   return undefined;
 }
@@ -73,6 +100,15 @@ function documentoAOggetto(doc) {
     const v = valore(fields[k]);
     if (v !== undefined) out[k] = v;
   }
+  /* L'id (= lo slug, = l'URL) non sta nei fields: è l'ultimo
+     segmento di doc.name. Alla lettura singola non serviva perché
+     lo slug lo sapevamo già; nella lista sì, è quello che ci va
+     nel link. */
+  if (typeof doc.name === 'string') {
+    const id = doc.name.split('/').pop();
+    if (id) out.id = id;
+  }
+  if (!Array.isArray(out.formati)) out.formati = [];
   return out;
 }
 
@@ -119,5 +155,83 @@ export async function getTorneo(slug, env) {
     // Timeout, DNS, TLS, JSON rotto: tutto qui dentro, e tutto
     // finisce nello stesso modo — il sito continua a funzionare.
     return null;
+  }
+}
+
+/* ---------------------------------------------------------
+   listTornei(env, daISO, limite)
+
+   La lista dei tornei dalla data indicata in poi, ordinata per
+   data. È quella che diventa la tabella in homepage e la
+   sitemap — cioè la pagina che risponde davvero a "quali tornei
+   ci sono la prossima settimana in Friuli".
+
+   Il filtro status == 'published' non è cosmetico: le regole
+   rifiutano una query che POTREBBE restituire documenti non
+   leggibili, quindi senza quel where l'intera lettura fallisce
+   con 403. Con il where, un chiamante anonimo passa.
+
+   Stessa disciplina di getTorneo: nessuna credenziale, timeout
+   corto, e qualunque cosa vada storta diventa [] — la home
+   perde la tabella, non si spacca.
+--------------------------------------------------------- */
+export async function listTornei(env, daISO, limite = 300) {
+  const progetto = env.FIREBASE_PROJECT_ID;
+  const collection = env.FIRESTORE_COLLECTION || 'tornei';
+  if (!progetto) return [];
+
+  const url =
+    `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(progetto)}` +
+    '/databases/(default)/documents:runQuery';
+
+  const query = {
+    structuredQuery: {
+      from: [{ collectionId: collection }],
+      /* select fa per la query quello che la field mask fa per la
+         lettura singola: torna solo quello che ci serve. */
+      select: { fields: CAMPI.map((f) => ({ fieldPath: f })) },
+      where: {
+        compositeFilter: {
+          op: 'AND',
+          filters: [
+            {
+              fieldFilter: {
+                field: { fieldPath: 'status' },
+                op: 'EQUAL',
+                value: { stringValue: 'published' },
+              },
+            },
+            {
+              fieldFilter: {
+                field: { fieldPath: 'data' },
+                op: 'GREATER_THAN_OR_EQUAL',
+                value: { stringValue: String(daISO) },
+              },
+            },
+          ],
+        },
+      },
+      orderBy: [{ field: { fieldPath: 'data' }, direction: 'ASCENDING' }],
+      limit: limite,
+    },
+  };
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify(query),
+      signal: AbortSignal.timeout(TIMEOUT_LISTA_MS),
+    });
+    if (!res.ok) return [];
+
+    const righe = await res.json();
+    if (!Array.isArray(righe)) return [];
+
+    return righe
+      .map((r) => (r && r.document ? documentoAOggetto(r.document) : null))
+      .filter((t) => t && t.status === 'published' && t.nome && t.data);
+  } catch (err) {
+    return [];
   }
 }

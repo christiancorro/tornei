@@ -115,7 +115,7 @@ export function fraseTorneo(torneo) {
    che è sempre una <table> con <th> e <td> al posto giusto.
 --------------------------------------------------------- */
 const STILI_BOOT = `<style>
-.vfvg-boot{background:#fffefb;color:#282828;min-height:100vh;margin:0;padding:24px 18px 56px;
+.vfvg-boot{visibility:hidden;background:#fffefb;color:#282828;min-height:100vh;margin:0;padding:24px 18px 56px;
 font:400 15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .vfvg-boot .w{max-width:760px;margin:0 auto}
@@ -174,24 +174,62 @@ export function bloccoTorneo(torneo, slug, env) {
   ].filter(([, v]) => v);
 
   const righe = voci
-    .map(([k, v]) => `      <li><strong>${escapeHtml(k)}:</strong> ${escapeHtml(v)}</li>`)
+    .map(([k, v]) =>
+      `      <li><strong>${escapeHtml(k)}:</strong> ${escapeHtml(v)}</li>`
+    )
     .join('\n');
 
   const nota = torneo.descrizioneOrganizzatore
     ? `\n    <p>${escapeHtml(torneo.descrizioneOrganizzatore)}</p>`
     : '';
 
+  /* -------------------------------------------------------
+     Locandina SEO.
+
+     `locandina` è l'immagine grande già caricata su Storage.
+     La inseriamo nell'HTML iniziale così:
+       - i crawler che non eseguono JS la vedono;
+       - Google può associare l'immagine al torneo;
+       - l'utente non vede una pagina testuale completamente
+         diversa mentre React sta caricando;
+       - il CSS del blocco boot la rende comunque discreta.
+
+     `alt` contiene il nome del torneo e il luogo: descrittivo,
+     non keyword stuffing.
+  ------------------------------------------------------- */
+  const locandina = torneo.locandina
+    ? `
+    <figure class="vfvg-poster">
+      <img
+        src="${escapeHtml(torneo.locandina)}"
+        alt="${escapeHtml(
+      `${torneo.nome}${L.nome ? ` a ${L.nome}` : ''}${L.prov ? ` (${L.prov})` : ''}`
+    )}"
+        width="800"
+        height="1100"
+        loading="eager"
+        decoding="async"
+      />
+    </figure>`
+    : '';
+
   return avvolgi(`
   <article>
     <h1>${escapeHtml(torneo.nome)}</h1>
+${locandina}
     <p>${escapeHtml(fraseTorneo(torneo))}</p>
     <ul>
 ${righe}
     </ul>${nota}
-    <p><a href="${escapeHtml(baseSito(env))}/">Tutti i tornei di volley in Friuli Venezia Giulia</a></p>
+    <p>
+      <a href="${escapeHtml(baseSito(env))}/">
+        Tutti i tornei di volley in Friuli Venezia Giulia
+      </a>
+    </p>
   </article>
 `);
 }
+
 
 /* ---------------------------------------------------------
    bloccoLista() — il corpo della homepage.

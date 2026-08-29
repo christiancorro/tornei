@@ -593,8 +593,6 @@ async function gestisci(request, env, ctx) {
     return paginaAssente(request, env);
   }
 
-  if (!eRichiestaDocumento(request, url)) return proxy(request, env);
-
   /* La lista va solo su `/`, non su `/index.html`.
 
      Il motivo è il service worker: in fase di install mette in
@@ -608,11 +606,21 @@ async function gestisci(request, env, ctx) {
      /index.html non lo cerca nessun crawler (non è linkato da
      nessuna parte e non è in sitemap), quindi non perdiamo
      niente lato indicizzazione. */
-  if (url.pathname === '/') return gestisciHome(request, env, ctx);
-  if (url.pathname === '/tornei') return gestisciTornei(request, env, ctx);
-  if (url.pathname === '/bacheca') return gestisciBacheca(request, env, ctx);
-  if (url.pathname === '/index.html') return proxy(request, env);
+  if (url.pathname === '/tornei') {
+    if (!leggibile) return proxy(request, env);
+    return gestisciTornei(request, env, ctx);
+  }
+  if (url.pathname === '/bacheca') {
+    if (!leggibile) return proxy(request, env);
+    return gestisciBacheca(request, env, ctx);
+  }
 
+  // 2. Il controllo di sicurezza originale
+  if (!eRichiestaDocumento(request, url)) return proxy(request, env);
+
+  // 3. Home e proxy di fallback
+  if (url.pathname === '/') return gestisciHome(request, env, ctx);
+  if (url.pathname === '/index.html') return proxy(request, env);
   /* /torneo/<qualcosa di malformato>: niente Firestore, niente
      pagina inventata. Il proxy risponderà con il 404 dell'origin. */
   return proxy(request, env);

@@ -574,9 +574,12 @@ export default function App() {
     };
   }, [detailTarget, replyTarget, showAuth, formState]);
 
-  // Sincronizza l'URL quando cambia la view
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // 1. Forza il titolo principale dell'app per tutte le schede
+    document.title = ' Volley FVG - Tornei di Green Volley e Beach Volley in Friuli Venezia Giulia';
+
     const currentPath = window.location.pathname;
 
     // Se l'utente ha aperto una card singola (/torneo/<slug>), non tocchiamo l'URL

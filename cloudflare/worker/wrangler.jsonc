@@ -54,7 +54,7 @@
     "FIRESTORE_COLLECTION": "tornei",
     // Secondi di cache al bordo per una preview gia' costruita.
     // 300 = una modifica al torneo si vede entro 5 minuti.
-    "PREVIEW_TTL": "300",
+    "PREVIEW_TTL": "60",
     /* Immagine usata quando il torneo non ha locandina.
        NB: /og-image.png citata in index.html non esiste nel
        repository, quindi qui punto a un file che c'e' davvero.

@@ -236,4 +236,42 @@ export async function listTornei(env, daISO, limite = 300) {
   }
 }
 
+export async function listAnnunci(env, limite = 100) {
+  const progetto = env.FIREBASE_PROJECT_ID;
+  if (!progetto) return [];
 
+  const url = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(progetto)}/databases/(default)/documents:runQuery`;
+  const query = {
+    structuredQuery: {
+      from: [{ collectionId: 'annunci' }],
+      orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }],
+      limit: limite,
+    },
+  };
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(query),
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!res.ok) return [];
+
+    const righe = await res.json();
+    if (!Array.isArray(righe)) return [];
+
+    return righe.map(r => {
+      const f = r?.document?.fields;
+      if (!f) return null;
+      return {
+        id: r.document.name.split('/').pop(),
+        tipo: f.tipo?.stringValue || '',
+        testo: f.testo?.stringValue || '',
+        authorName: f.authorName?.stringValue || '',
+      };
+    }).filter(a => a);
+  } catch (err) {
+    return [];
+  }
+}

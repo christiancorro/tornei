@@ -66,7 +66,15 @@ function slugDallUrl() {
 App
 --------------------------------------------------------- */
 export default function App() {
-  const [view, setView] = useState('tornei');
+  const [view, setView] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      if (path.startsWith('/bacheca')) return 'bacheca';
+      if (path.startsWith('/admin')) return 'admin';
+      if (path.startsWith('/account')) return 'account';
+    }
+    return 'tornei'; // Default per '/' e '/tornei'
+  });
   const [viewMode, setViewMode] = useState('lista');
   const [search, setSearch] = useState('');
   const [selectedDisciplines, setSelectedDisciplines] = useState([]);
@@ -565,6 +573,29 @@ export default function App() {
       root.style.paddingRight = prevPadding;
     };
   }, [detailTarget, replyTarget, showAuth, formState]);
+
+  // Sincronizza l'URL quando cambia la view
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const currentPath = window.location.pathname;
+
+    // Se l'utente ha aperto una card singola (/torneo/<slug>), non tocchiamo l'URL
+    if (view === 'tornei' && currentPath.startsWith('/torneo/')) return;
+
+    const targetPaths = {
+      bacheca: '/bacheca',
+      tornei: '/tornei',
+      admin: '/admin',
+      account: '/account'
+    };
+
+    const targetPath = targetPaths[view] || '/tornei';
+
+    // Aggiorna l'URL solo se è diverso da quello attuale
+    if (currentPath !== targetPath && currentPath !== '/') {
+      window.history.pushState(null, '', targetPath);
+    }
+  }, [view]);
 
   function resetFilters() {
     setSearch('');

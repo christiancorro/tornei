@@ -16,13 +16,16 @@
    pubblicati (vedi firebase.js).
 --------------------------------------------------------- */
 import { proxy, fetchOrigin, fetchOriginIndex, finalizeProxy } from './proxy.js';
-import { getTorneo, listTornei } from './firebase.js';
+
 import { buildPreview, applyPreview } from './preview.js';
 import { oggiRoma } from './format.js';
+import { getTorneo, listTornei, listAnnunci } from './firebase.js';
+
 import {
   bloccoTorneo,
   bloccoLista,
   bloccoNonTrovato,
+  bloccoBacheca,
   jsonLdTorneo,
   jsonLdSito,
   tagJsonLd,
@@ -46,7 +49,7 @@ export const SLUG_VALIDO = /^[A-Za-z0-9_-]{1,120}$/;
 /* La home. Il resto del sito è una SPA: qualunque altro path che
    non sia /torneo/<slug> è un file vero (asset, icone, sw.js) e
    passa dal proxy senza essere toccato. */
-const PATH_DOCUMENTO = new Set(['/', '/index.html']);
+const PATH_DOCUMENTO = new Set(['/', '/index.html', '/tornei', '/bacheca']);
 
 /* /torneo/<slug>. Lo slug ha lo stesso vincolo di prima, quindi
    un path malformato non genera nessuna richiesta a Firestore. */
@@ -145,7 +148,7 @@ function ttl(env) {
    diretta e non da qui. */
 function ttlLista(env) {
   const n = Number(env.LIST_TTL);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 900;
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 60;
 }
 
 /* La stessa stringa HTML serve due volte: una al visitatore e
@@ -257,6 +260,113 @@ async function gestisciTorneo(request, env, ctx, slug) {
   ctx.waitUntil(cache.put(key, rispostaHtml(html, ttl(env), 'torneo', true)));
 
   const res = rispostaHtml(html, ttl(env), 'torneo', false);
+  return request.method === 'HEAD'
+    ? new Response(null, { status: 200, headers: res.headers })
+    : res;
+}
+
+
+/* ---------------------------------------------------------
+   Pagina /tornei (Elenco esplicito per sitelinks)
+--------------------------------------------------------- */
+async function gestisciTornei(request, env, ctx) {
+  const cache = caches.default;
+  const key = chiaveCache(env, 'tornei');
+
+  const inCache = await cache.match(key);
+  if (inCache) {
+    const html = await inCache.text();
+    const res = rispostaHtml(html, ttlLista(env), 'tornei-cache', false);
+    return request.method === 'HEAD'
+      ? new Response(null, { status: 200, headers: res.headers })
+      : res;
+  }
+
+  const oggi = oggiRoma();
+
+  const [originRes, tutti] = await Promise.all([
+    fetchOriginIndex(request, env),
+    listTornei(env, '2000-01-01', 1000),
+  ]);
+
+  const tipo = originRes.headers.get('content-type') || '';
+  if (originRes.status !== 200 || !tipo.includes('text/html')) {
+    return finalizeProxy(originRes, request, env, 'tornei-passthrough');
+  }
+
+  const { futuri, passati } = dividiPassatoFuturo(tutti, oggi);
+  const base = String(env.SITE_URL || 'https://volleyfvg.it').replace(/\/+$/, '');
+
+  // Ricreiamo al volo i meta tag dedicati per la rotta senza toccare preview.js
+  const metaTornei = {
+    title: 'Tornei di Green Volley e Beach Volley in Friuli Venezia Giulia',
+    description: 'Tutti i tornei in programma e passati di Green Volley, Beach Volley e Pallavolo in FVG e dintorni.',
+    url: `${base}/tornei`,
+    image: env.FALLBACK_IMAGE || `${base}/icons/icon512.png`,
+    imageAlt: String(env.SITE_NAME || 'Tornei Volley FVG'),
+    siteName: String(env.SITE_NAME || 'Tornei Volley FVG'),
+  };
+
+  const html = await applyPreview(originRes, metaTornei, {
+    body: bloccoLista(futuri, passati.slice(0, 50), env, oggi, false),
+    ldTag: tagJsonLd(jsonLdSito(futuri, env)),
+    canonical: `${base}/tornei`,
+  }).text();
+
+  ctx.waitUntil(cache.put(key, rispostaHtml(html, ttlLista(env), 'tornei', true)));
+
+  const res = rispostaHtml(html, ttlLista(env), 'tornei', false);
+  return request.method === 'HEAD'
+    ? new Response(null, { status: 200, headers: res.headers })
+    : res;
+}
+
+/* ---------------------------------------------------------
+   Pagina /bacheca (Sitelink specifico)
+--------------------------------------------------------- */
+async function gestisciBacheca(request, env, ctx) {
+  const cache = caches.default;
+  const key = chiaveCache(env, 'bacheca');
+
+  const inCache = await cache.match(key);
+  if (inCache) {
+    const html = await inCache.text();
+    const res = rispostaHtml(html, ttlLista(env), 'bacheca-cache', false);
+    return request.method === 'HEAD'
+      ? new Response(null, { status: 200, headers: res.headers })
+      : res;
+  }
+
+  const [originRes, annunci] = await Promise.all([
+    fetchOriginIndex(request, env),
+    listAnnunci(env, 100),
+  ]);
+
+  const tipo = originRes.headers.get('content-type') || '';
+  if (originRes.status !== 200 || !tipo.includes('text/html')) {
+    return finalizeProxy(originRes, request, env, 'bacheca-passthrough');
+  }
+
+  const base = String(env.SITE_URL || 'https://volleyfvg.it').replace(/\/+$/, '');
+
+  // Titolo esplicito per costringere Google a prenderlo come sitelink
+  const metaBacheca = {
+    title: 'Bacheca Annunci - Cerca squadre o giocatori in FVG',
+    description: 'Cerca squadre o giocatori per completare il tuo team per i tornei di Green Volley e Beach Volley in Friuli Venezia Giulia.',
+    url: `${base}/bacheca`,
+    image: env.FALLBACK_IMAGE || `${base}/icons/icon512.png`,
+    imageAlt: String(env.SITE_NAME || 'Tornei Volley FVG'),
+    siteName: String(env.SITE_NAME || 'Tornei Volley FVG'),
+  };
+
+  const html = await applyPreview(originRes, metaBacheca, {
+    body: bloccoBacheca(annunci, env),
+    canonical: `${base}/bacheca`,
+  }).text();
+
+  ctx.waitUntil(cache.put(key, rispostaHtml(html, ttlLista(env), 'bacheca', true)));
+
+  const res = rispostaHtml(html, ttlLista(env), 'bacheca', false);
   return request.method === 'HEAD'
     ? new Response(null, { status: 200, headers: res.headers })
     : res;
@@ -499,6 +609,8 @@ async function gestisci(request, env, ctx) {
      nessuna parte e non è in sitemap), quindi non perdiamo
      niente lato indicizzazione. */
   if (url.pathname === '/') return gestisciHome(request, env, ctx);
+  if (url.pathname === '/tornei') return gestisciTornei(request, env, ctx);
+  if (url.pathname === '/bacheca') return gestisciBacheca(request, env, ctx);
   if (url.pathname === '/index.html') return proxy(request, env);
 
   /* /torneo/<qualcosa di malformato>: niente Firestore, niente

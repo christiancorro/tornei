@@ -229,6 +229,49 @@ function avvolgi(articolo) {
 </div>`;
 }
 
+/* ---------------------------------------------------------
+   Navigazione principale per favorire i sitelinks.
+   Usata all'inizio dei vari blocchi pagina.
+--------------------------------------------------------- */
+export function navigazionePrincipale(env) {
+  const base = String(env?.SITE_URL || 'https://volleyfvg.it').replace(/\/+$/, '');
+
+  return `  <nav aria-label="Navigazione principale" style="margin-bottom: 24px; border-bottom: 1px solid #efece3; padding-bottom: 12px;">
+    <ul style="display: flex; gap: 16px; margin: 0; padding: 0; list-style: none;">
+      <li><a href="${escapeHtml(base)}/" style="font-weight: 600;">Home</a></li>
+      <li><a href="${escapeHtml(base)}/tornei" style="font-weight: 600;">Tornei</a></li>
+      <li><a href="${escapeHtml(base)}/bacheca" style="font-weight: 600;">Bacheca</a></li>
+    </ul>
+  </nav>`;
+}
+
+export function bloccoBacheca(annunci, env) {
+  const righe = annunci.map(a => {
+    const titolo = a.tipo === 'cerca_squadra' ? 'Cerca Squadra' : 'Cerca Giocatore';
+    return `        <li style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #efece3;">
+      <h3 style="margin: 0 0 4px; font-size: 16px;">${escapeHtml(titolo)}</h3>
+      <p style="margin: 0 0 8px; font-size: 14px; color: #6f6c63;">Di <strong>${escapeHtml(a.authorName)}</strong></p>
+      <p style="margin: 0;">${escapeHtml(a.testo)}</p>
+    </li>`;
+  }).join('\n');
+
+  const corpo = annunci.length > 0
+    ? `<ul>\n${righe}\n      </ul>`
+    : '<p>Nessun annuncio presente al momento.</p>';
+
+  // Qui inseriamo la navigazione all'inizio
+  return avvolgi(componi(
+    navigazionePrincipale(env),
+    '  <article>',
+    '    <h1>Bacheca Volley FVG</h1>',
+    '    <p>Cerca squadre o giocatori per i tornei di Green Volley e Beach Volley in Friuli Venezia Giulia.</p>',
+    '    <section>',
+    corpo,
+    '    </section>',
+    '  </article>'
+  ));
+}
+
 /* Mette insieme i pezzi di pagina scartando quelli vuoti, così
    una sezione che non ha niente da dire non lascia markup a
    vuoto. */
@@ -297,6 +340,7 @@ export function bloccoTorneo(torneo, slug, env) {
     : '';
 
   return avvolgi(componi(
+    navigazionePrincipale(env),
     '  <article>',
     `    <h1>${escapeHtml(torneo.nome)}</h1>`,
     locandina,
@@ -532,21 +576,29 @@ ${voci}
    sole quando non hanno contenuto, quindi non c'è più un
    ramo separato per il calendario vuoto.
 --------------------------------------------------------- */
-export function bloccoLista(tornei, torneiPassati, env, oggiISO) {
-  const aggiornato = minuscola(formatData(oggiISO, ''));
+export function bloccoLista(tornei, torneiPassati, env, oggiISO, mostraChiSiamo = true) {
+  const aggiornato = formatData(oggiISO, '').toLowerCase();
 
   const sezioni = [
     sezioneInProgramma(tornei, env),
     sezionePassati(torneiPassati, env),
-    ...sezioniChiSiamo(),
-  ].filter(Boolean);
+  ];
 
+  // Aggiungiamo le sezioni del progetto solo se richiesto (es. nella Home)
+  if (mostraChiSiamo) {
+    sezioni.push(...sezioniChiSiamo());
+  }
+
+  const sezioniFiltrate = sezioni.filter(Boolean);
+
+  // Aggiunta navigazionePrincipale come primo elemento
   return avvolgi(componi(
+    navigazionePrincipale(env),
     '  <article>',
     `    <h1>${escapeHtml(TITOLO_LISTA)}</h1>`,
     sommarioLista(tornei, torneiPassati, aggiornato),
-    indiceSezioni(sezioni),
-    ...sezioni.map((s) => s.html),
+    indiceSezioni(sezioniFiltrate),
+    ...sezioniFiltrate.map((s) => s.html),
     '  </article>'
   ));
 }
@@ -555,6 +607,7 @@ export function bloccoNonTrovato(env) {
   const home = `${escapeHtml(baseSito(env))}/`;
 
   return avvolgi(componi(
+    navigazionePrincipale(env),
     '  <article>',
     '    <h1>Torneo non trovato</h1>',
     '    <p>',
@@ -584,13 +637,13 @@ export function bloccoNonTrovato(env) {
    e "chi l'ha fatto".
 --------------------------------------------------------- */
 export const DESCRIZIONE_SITO = [
-  'Volley FVG è un calendario aperto dei tornei amatoriali di green volley, beach volley e pallavolo in Friuli Venezia Giulia e nelle province vicine. Ogni torneo ha la sua pagina con data, orario, luogo, formato di gioco, costo di iscrizione, locandina e i contatti di chi lo organizza; l\'elenco si sfoglia in lista, sulla mappa o nel calendario.',
-  'Pubblicare un torneo è gratuito: la proposta viene controllata prima di comparire in calendario, così l\'elenco resta pulito. Nella bacheca si può invece cercare una squadra a cui unirsi, oppure cercare giocatori per completare la propria.',
+  'Volley FVG è un sito che aggrega tornei amatoriali di green volley, beach volley e pallavolo in Friuli Venezia Giulia (FVG) e nelle regioni vicine. Ogni torneo ha la sua pagina con data, orario, luogo, formato di gioco, costo di iscrizione, locandina e i contatti di chi lo organizza',
+  'Pubblicare un torneo è gratuito: la proposta viene controllata prima di comparire nella lista dei tornei. Nella bacheca si può invece cercare una squadra a cui unirsi, oppure cercare giocatori per completare la propria.',
 ];
 
 export const AUTORE = {
   nome: 'Christian Corrò',
-  ruolo: 'Dottorando',
+  ruolo: 'Ricercatore',
   ente: 'Università degli Studi di Udine',
   enteUrl: 'https://www.uniud.it/',
   profilo: 'https://dmif.uniud.it/it/didattica/dottorato/iai/dottorandi/christian-corro?set_language=it',
@@ -806,7 +859,12 @@ export function sitemapXml(tornei, env, oggiISO) {
 
   return '<?xml version="1.0" encoding="UTF-8"?>\n' +
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-    [voce(`${base}/`, oggiISO, '1.0', 'daily'), ...righe].join('\n') +
+    [
+      voce(`${base}/`, oggiISO, '1.0', 'daily'),
+      voce(`${base}/tornei`, oggiISO, '0.9', 'daily'),
+      voce(`${base}/bacheca`, oggiISO, '0.9', 'daily'),
+      ...righe
+    ].join('\n') +
     '\n</urlset>\n';
 }
 
@@ -890,6 +948,9 @@ export function llmsTxt(tornei, torneiPassati, env, oggiISO) {
 
   righe.push('## Altro');
   righe.push('');
+  righe.push(`- [Home](${base}/): la pagina principale.`);
+  righe.push(`- [Tornei](${base}/tornei): pagina dedicata all'elenco dei tornei.`);
+  righe.push(`- [Bacheca](${base}/bacheca): annunci per cercare squadre o giocatori.`);
   righe.push(`- [Sitemap](${base}/sitemap.xml): tutti gli URL del sito.`);
   righe.push('');
 

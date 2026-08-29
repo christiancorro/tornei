@@ -46,7 +46,19 @@ import { collegaToken } from './services/notifiche';
 function slugDallUrl() {
   if (typeof window === 'undefined') return null;
   const m = window.location.pathname.match(/^\/torneo\/([^/?#]+)\/?$/);
-  if (m) return decodeURIComponent(m[1]);
+  if (m) {
+    let slug;
+    try {
+      slug = decodeURIComponent(m[1]);
+    } catch {
+      return null; // percent-encoding rotto
+    }
+    /* Stessa pulizia che fa il Worker: le app di chat si portano
+       dentro il link la punteggiatura che gli sta accanto. Se le
+       due regole non coincidono succede la cosa peggiore — il
+       Worker serve la pagina giusta e poi la card non si apre. */
+    return slug.replace(/[.,;:!?)\]}'"\u00bb]+$/, '') || null;
+  }
   return new URLSearchParams(window.location.search).get('torneo');
 }
 

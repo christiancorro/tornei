@@ -72,6 +72,13 @@ export function leggiSlugPath(url) {
   } catch {
     return null; // percent-encoding rotto
   }
+  /* I client di chat si portano dentro il link la punteggiatura
+     che gli sta accanto: "...29-ago-2026." con il punto della
+     frase, o la parentesi che chiudeva l'inciso. Nessuno slug
+     finisce con questi caratteri, quindi toglierli non può
+     risolvere il torneo sbagliato — e salva il link a chi lo ha
+     incollato in mezzo a una frase. */
+  slug = slug.replace(/[.,;:!?)\]}'"\u00bb]+$/, '');
   return SLUG_VALIDO.test(slug) ? slug : null;
 }
 
@@ -83,9 +90,17 @@ export function leggiSlugPath(url) {
    non serve toccare niente. Se manca — vecchi browser, crawler,
    curl — non deduco nulla e procedo: costa una lettura in cache
    e il risultato è comunque la pagina giusta. */
+/* NB: qui dentro NON c'è /torneo/<slug>, e non è una svista.
+   Questo controllo esiste per risparmiare lavoro sulle richieste
+   che non sono navigazioni, e chi non lo passa finisce al proxy.
+   Per la home va benissimo: all'origin un file a `/` c'è, e
+   saltare l'iniezione per un prefetch è un risparmio. Per una
+   pagina torneo sarebbe un disastro: su GitHub Pages a
+   /torneo/<slug> non esiste nessun file, quindi il proxy può
+   solo restituire 404. Quelle richieste le intercettiamo prima. */
 export function eRichiestaDocumento(request, url) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return false;
-  if (!PATH_DOCUMENTO.has(url.pathname) && !PATH_TORNEO.test(url.pathname)) return false;
+  if (!PATH_DOCUMENTO.has(url.pathname)) return false;
   const dest = request.headers.get('sec-fetch-dest');
   if (dest && dest !== 'document') return false;
   return true;
@@ -151,6 +166,41 @@ function rispostaHtml(html, secondi, tag, perCache) {
   });
 }
 
+/* La pagina "torneo non trovato": lo shell del sito con dentro
+   il nostro messaggio, e status 404 vero. Serve a due pubblici
+   diversi con la stessa risposta — chi ha in mano un link morto
+   vede una pagina del sito con la via di ritorno, e un crawler
+   vede il 404 che gli serve per togliere l'URL dall'indice.
+
+   Cache breve di proposito: getTorneo restituisce null sia per
+   "non esiste" sia per "Firestore non ha risposto", e non
+   sappiamo distinguerli. Se è stato un problema passeggero,
+   fra un minuto si riprova. */
+function rendi404(originRes, request, env, tag) {
+  const preview = buildPreview({}, '', env);
+  preview.title = 'Torneo non trovato';
+  preview.description = 'Questo torneo non è più in programma.';
+  preview.url = `${String(env.SITE_URL || 'https://volleyfvg.it').replace(/\/+$/, '')}/`;
+
+  const res = applyPreview(originRes, preview, { body: bloccoNonTrovato(env) });
+  return new Response(request.method === 'HEAD' ? null : res.body, {
+    status: 404,
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'public, max-age=0, s-maxage=60, must-revalidate',
+      'x-vfvg-worker': tag,
+    },
+  });
+}
+
+/* Percorso /torneo/ con uno slug che non supera la validazione.
+   Nessuna lettura di Firestore: serve solo lo shell col messaggio. */
+async function paginaAssente(request, env) {
+  const originRes = await fetchOriginIndex(request, env);
+  if (originRes.status !== 200) return finalizeProxy(originRes, request, env, 'assente-passthrough');
+  return rendi404(originRes, request, env, 'slug-non-valido');
+}
+
 async function gestisciTorneo(request, env, ctx, slug) {
   const cache = caches.default;
   const key = chiaveCache(env, `torneo/${slug}`);
@@ -195,23 +245,7 @@ async function gestisciTorneo(request, env, ctx, slug) {
      Non sappiamo distinguere i due casi (getTorneo restituisce
      null per entrambi), quindi la cache di questa risposta dura
      poco e il TTL breve la fa riprovare presto. */
-  if (!torneo) {
-    const preview = buildPreview({}, slug, env);
-    preview.title = 'Torneo non trovato';
-    preview.description = 'Questo torneo non è più in programma.';
-    const html = await applyPreview(originRes, preview, {
-      body: bloccoNonTrovato(env),
-    }).text();
-    const res = new Response(request.method === 'HEAD' ? null : html, {
-      status: 404,
-      headers: {
-        'content-type': 'text/html; charset=utf-8',
-        'cache-control': 'public, max-age=0, s-maxage=60, must-revalidate',
-        'x-vfvg-worker': 'torneo-404',
-      },
-    });
-    return res;
-  }
+  if (!torneo) return rendi404(originRes, request, env, 'torneo-404');
 
   const preview = buildPreview(torneo, slug, env);
   const html = await applyPreview(originRes, preview, {
@@ -402,10 +436,31 @@ async function gestisci(request, env, ctx) {
     return gestisciFeed(request, env, ctx);
   }
 
-  if (!eRichiestaDocumento(request, url)) return proxy(request, env);
+  /* --- /torneo/<slug>: gestito SEMPRE qui, mai inoltrato ---
 
-  const slug = leggiSlugPath(url);
-  if (slug) return gestisciTorneo(request, env, ctx, slug);
+     All'origin quel percorso non esiste: GitHub Pages serve file
+     veri e non ha il fallback SPA, quindi qualunque richiesta che
+     esca da questo Worker verso /torneo/<qualcosa> torna 404.
+
+     Ed è per questo che il controllo su sec-fetch-dest non può
+     stare prima: lo mandano tutti i browser, ma non sempre vale
+     "document" — un prefetch, un prerender, la webview dentro
+     un'app di messaggistica mandano altro. Con il controllo
+     davanti, quelle richieste finivano al proxy e prendevano il
+     404 dell'origin. Il sito funzionava da desktop e "dava 404"
+     dal telefono, che è esattamente il sintomo peggiore da
+     capire. */
+  if (url.pathname.startsWith('/torneo/')) {
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      return proxy(request, env);
+    }
+    const slug = leggiSlugPath(url);
+    if (slug) return gestisciTorneo(request, env, ctx, slug);
+    // Slug che non passa la validazione: pagina nostra, non quella dell'origin.
+    return paginaAssente(request, env);
+  }
+
+  if (!eRichiestaDocumento(request, url)) return proxy(request, env);
 
   /* La lista va solo su `/`, non su `/index.html`.
 

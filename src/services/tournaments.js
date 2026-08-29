@@ -305,17 +305,6 @@ export async function rejectTournament(torneo, adminUid, motivo = '') {
 --------------------------------------------------------- */
 export const MAX_LOCANDINA_MB = 20;
 
-/* WebP pesa il 25–35% meno di JPEG a parità di qualità ed è
-   supportato ovunque tranne Safari molto vecchio: se il browser
-   non sa produrlo, il canvas restituisce un PNG e ripieghiamo. */
-function supportsWebP() {
-  try {
-    const c = document.createElement('canvas');
-    return c.toDataURL('image/webp').startsWith('data:image/webp');
-  } catch {
-    return false;
-  }
-}
 
 export async function compressLocandina(file) {
   if (!file) return null;
@@ -326,9 +315,8 @@ export async function compressLocandina(file) {
     throw new Error(`L'immagine non può superare i ${MAX_LOCANDINA_MB} MB.`);
   }
 
-  const webp = supportsWebP();
-  const type = webp ? 'image/webp' : 'image/jpeg';
-  const ext = webp ? 'webp' : 'jpg';
+  const type = 'image/jpeg';
+  const ext = 'jpg';
 
   // Le due compressioni girano in parallelo: sono due passate
   // indipendenti sullo stesso file d'ingresso, non c'è motivo di

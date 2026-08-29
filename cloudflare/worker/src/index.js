@@ -50,7 +50,7 @@ export const SLUG_VALIDO = /^[A-Za-z0-9_-]{1,120}$/;
 /* La home. Il resto del sito è una SPA: qualunque altro path che
    non sia /torneo/<slug> è un file vero (asset, icone, sw.js) e
    passa dal proxy senza essere toccato. */
-const PATH_DOCUMENTO = new Set(['/', '/index.html', '/tornei', '/bacheca']);
+const PATH_DOCUMENTO = new Set(['/', '/index.html', '/tornei', '/bacheca', '/account', '/admin']);
 
 /* /torneo/<slug>. Lo slug ha lo stesso vincolo di prima, quindi
    un path malformato non genera nessuna richiesta a Firestore. */
@@ -643,6 +643,11 @@ async function gestisci(request, env, ctx) {
   if (url.pathname === '/bacheca') {
     if (!leggibile) return proxy(request, env);
     return gestisciBacheca(request, env, ctx);
+  }
+
+  if (url.pathname === '/account' || url.pathname === '/admin') {
+    if (!leggibile) return proxy(request, env);
+    return fetchOriginIndex(request, env);
   }
 
   // 2. Il controllo di sicurezza originale

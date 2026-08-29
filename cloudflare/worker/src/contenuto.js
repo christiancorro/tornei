@@ -528,7 +528,6 @@ export function jsonLdTorneo(torneo, slug, env) {
 export const DESCRIZIONE_SITO = [
   'Volley FVG è un calendario aperto dei tornei amatoriali di green volley, beach volley e pallavolo in Friuli Venezia Giulia e nelle province vicine. Ogni torneo ha la sua pagina con data, orario, luogo, formato di gioco, costo di iscrizione, locandina e i contatti di chi lo organizza; l\'elenco si sfoglia in lista, sulla mappa o nel calendario.',
   'Pubblicare un torneo è gratuito: la proposta viene controllata prima di comparire in calendario, così l\'elenco resta pulito. Nella bacheca si può invece cercare una squadra a cui unirsi, oppure cercare giocatori per completare la propria.',
-  'Volley FVG è ideato e realizzato da Christian Corrò, dottorando all\'Università degli Studi di Udine. È un progetto indipendente, nato per raccogliere in un posto solo i tornei che altrimenti restano sparsi fra volantini, storie di Instagram e passaparola.',
 ];
 
 export function bloccoChiSiamo() {
@@ -536,7 +535,19 @@ export function bloccoChiSiamo() {
     <section>
       <h2>Che cos'è Volley FVG</h2>
 ${DESCRIZIONE_SITO.map((t) => `      <p>${escapeHtml(t)}</p>`).join('\n')}
-    </section>`;
+    </section>
+     <section>
+  <h2>Chi ha sviluppato Volley FVG?</h2>
+  Volley FVG è ideato e realizzato da
+  <a href="https://dmif.uniud.it/it/didattica/dottorato/iai/dottorandi/christian-corro?set_language=it"
+     target="_blank">
+    Christian Corrò
+  </a>,
+  dottorando all'Università degli Studi di Udine. È un progetto indipendente,
+  nato per raccogliere in un posto solo i tornei che altrimenti restano sparsi
+  fra volantini, storie di Instagram e passaparola.
+</section>`
+    ;
 }
 
 /* ---------------------------------------------------------

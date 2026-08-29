@@ -58,6 +58,29 @@ function minuscola(s) {
   return s ? `${s.charAt(0).toLowerCase()}${s.slice(1)}` : s;
 }
 
+/* ---------------------------------------------------------
+   dividiPassatoFuturo()
+
+   La stessa regola di isPassato() in src/utils.js del sito:
+   conta l'ULTIMO giorno, non il primo. Un torneo di tre giorni
+   cominciato ieri è ancora in corso, e deve restare fra quelli
+   in programma — filtrare su `data` lo faceva sparire proprio
+   nel weekend in cui si gioca.
+
+   I passati escono dal più recente: sono quelli che interessano.
+--------------------------------------------------------- */
+export function dividiPassatoFuturo(tornei, oggiISO) {
+  const futuri = [];
+  const passati = [];
+  for (const t of tornei) {
+    const ultimoGiorno = t.dataFine || t.data;
+    if (ultimoGiorno < oggiISO) passati.push(t);
+    else futuri.push(t);
+  }
+  passati.reverse();
+  return { futuri, passati };
+}
+
 export function urlTorneo(slug, env) {
   const base = String(env.SITE_URL || 'https://volleyfvg.it').replace(/\/+$/, '');
   return `${base}/torneo/${encodeURIComponent(slug)}`;
@@ -231,19 +254,12 @@ ${righe}
 }
 
 
-/* ---------------------------------------------------------
-   bloccoLista() — il corpo della homepage.
 
-   Questa è la pagina che risponde alla domanda. La prima frase
-   contiene già la risposta (quanti tornei, da quando a quando,
-   dove): è la parte che pesa di più quando un motore decide se
-   citare una fonte. La tabella sotto tiene una riga per torneo,
-   con province e regione scritte per esteso.
---------------------------------------------------------- */
-export function bloccoLista(tornei, env, oggiISO) {
+
+export function bloccoLista(tornei, torneiPassati, env, oggiISO) {
   const titolo = 'Tornei di green volley, beach volley e pallavolo in Friuli Venezia Giulia';
 
-  if (!tornei.length) {
+  if (!tornei.length && !torneiPassati.length) {
     return avvolgi(`
   <article>
     <h1>${escapeHtml(titolo)}</h1>
@@ -253,60 +269,172 @@ export function bloccoLista(tornei, env, oggiISO) {
 `);
   }
 
-  const dal = minuscola(formatData(tornei[0].data, ''));
-  const al = minuscola(formatData(tornei[tornei.length - 1].data, ''));
+  let contenuto = '';
 
-  const righe = tornei.map((t) => {
-    const L = scomponiLuogo(t);
+  if (tornei.length) {
+    const dal = minuscola(formatData(tornei[0].data, ''));
+    const al = minuscola(formatData(tornei[tornei.length - 1].data, ''));
 
-    /* Il link è l'unica cella che contiene HTML voluto, e il suo
-       contenuto è comunque escapato. Tutte le altre partono da
-       testo grezzo e passano da escapeHtml qui sotto: nessuna
-       cella arriva nell'output senza essere passata di qui. */
-    const link = `<a href="${escapeHtml(urlTorneo(t.id, env))}">${escapeHtml(t.nome)}</a>`;
+    const righe = tornei.map((t) => {
+      const L = scomponiLuogo(t);
 
-    const testo = [
-      formatDataBreve(t.data, t.dataFine),
-      null, // il posto del link
-      t.disciplina || '',
-      [(t.formati || []).join(', '), t.modalita].filter(Boolean).join(' '),
-      `${L.nome || L.raw}${L.prov ? ` (${L.prov})` : ''}`,
-      L.regione,
-      formatCosto(t.costo) || '—',
-    ];
+      const link = `<a href="${escapeHtml(urlTorneo(t.id, env))}">${escapeHtml(t.nome)}</a>`;
 
-    const celle = testo.map((v, i) => (i === 1 ? link : escapeHtml(v)));
-    return `      <tr>\n${celle.map((c) => `        <td>${c}</td>`).join('\n')}\n      </tr>`;
-  }).join('\n');
+      const testo = [
+        formatDataBreve(t.data, t.dataFine),
+        null,
+        t.disciplina || '',
+        [(t.formati || []).join(', '), t.modalita]
+          .filter(Boolean)
+          .join(' '),
+        `${L.nome || L.raw}${L.prov ? ` (${L.prov})` : ''}`,
+        L.regione,
+        formatCosto(t.costo) || '—',
+      ];
 
-  return avvolgi(`
+      const celle = testo.map((v, i) =>
+        i === 1 ? link : escapeHtml(v)
+      );
+
+      return `      <tr>
+${celle.map((c) => `        <td>${c}</td>`).join('\n')}
+      </tr>`;
+    }).join('\n');
+
+    const linkTornei = tornei.map((t) => `
+      <li>
+        <a href="${escapeHtml(urlTorneo(t.id, env))}">
+          ${escapeHtml(t.nome)}
+        </a>
+        ${t.data ? ` — ${escapeHtml(formatDataBreve(t.data, t.dataFine))}` : ''}
+      </li>
+`).join('\n');
+
+    contenuto += `
   <article>
     <h1>${escapeHtml(titolo)}</h1>
-    <p>Ci sono <strong>${tornei.length} tornei</strong> in programma, da ${escapeHtml(dal)}
-    a ${escapeHtml(al)}, in Friuli Venezia Giulia e dintorni: green volley, beach volley
-    e pallavolo, con data, luogo, provincia, formato e costo di iscrizione.
-    <em>Elenco aggiornato ${escapeHtml(minuscola(formatData(oggiISO, '')))}.</em></p>
+
+    <p>
+      Ci sono <strong>${tornei.length} tornei</strong> in programma,
+      da ${escapeHtml(dal)} a ${escapeHtml(al)}, in Friuli Venezia Giulia
+      e dintorni: green volley, beach volley e pallavolo, con data,
+      luogo, provincia, formato e costo di iscrizione.
+      <em>Elenco aggiornato ${escapeHtml(minuscola(formatData(oggiISO, '')))}.</em>
+    </p>
+
+    <nav aria-label="Tornei in programma">
+      <h2>Tornei di volley in programma</h2>
+
+      <p>
+        Qui sotto ci sono i nomi e le date. Ogni voce rimanda alla pagina
+        del singolo torneo: <strong>per avere i dettagli completi è necessario
+        seguire il link del torneo</strong>. Nella sua pagina si trovano
+        l&rsquo;orario di inizio, il formato e la modalit&agrave; di gioco, il costo di
+        iscrizione, la locandina, i contatti dell&rsquo;organizzatore e la
+        posizione esatta del campo.
+      </p>
+
+      <ul>
+${linkTornei}
+      </ul>
+    </nav>
+
     <table>
       <thead>
-        <tr><th>Data</th><th>Torneo</th><th>Disciplina</th><th>Formato</th><th>Luogo</th><th>Regione</th><th>Iscrizione</th></tr>
+        <tr>
+          <th>Data</th>
+          <th>Torneo</th>
+          <th>Disciplina</th>
+          <th>Formato</th>
+          <th>Luogo</th>
+          <th>Regione</th>
+          <th>Iscrizione</th>
+        </tr>
       </thead>
       <tbody>
 ${righe}
       </tbody>
     </table>
   </article>
-`);
+`;
+  } else {
+    contenuto += `
+  <article>
+    <h1>${escapeHtml(titolo)}</h1>
+    <p>
+      Al momento non ci sono tornei futuri in programma.
+      Di seguito trovi gli ultimi tornei già disputati.
+      <em>Elenco aggiornato ${escapeHtml(minuscola(formatData(oggiISO, '')))}.</em>
+    </p>
+  </article>
+`;
+  }
+
+  /*
+   * TORNEI PASSATI
+   */
+  if (torneiPassati.length) {
+    const passati = torneiPassati.map((t) => {
+      const L = scomponiLuogo(t);
+
+      const link = `<a href="${escapeHtml(urlTorneo(t.id, env))}">
+        ${escapeHtml(t.nome)}
+      </a>`;
+
+      const data = formatDataBreve(t.data, t.dataFine);
+
+      const luogo =
+        `${L.nome || L.raw}${L.prov ? ` (${L.prov})` : ''}`;
+
+      return `
+        <li>
+          <strong>${link}</strong>
+          <span>${escapeHtml(data)}</span>
+          <span>${escapeHtml(luogo)}</span>
+          ${L.regione ? `<span>${escapeHtml(L.regione)}</span>` : ''}
+        </li>
+      `;
+    }).join('');
+
+    contenuto += `
+  <section class="vfvg-past">
+    <h2>Tornei passati</h2>
+    <p>
+      Gli ultimi tornei di volley già disputati in
+      Friuli Venezia Giulia e dintorni.
+    </p>
+    <ul>
+${passati}
+    </ul>
+  </section>
+`;
+  }
+
+  contenuto += bloccoChiSiamo();
+
+  return avvolgi(contenuto);
 }
 
 export function bloccoNonTrovato(env) {
+  const home = `${escapeHtml(baseSito(env))}/`;
+
   return avvolgi(`
   <article>
     <h1>Torneo non trovato</h1>
-    <p>Questo torneo non è più in programma oppure è stato rimosso.</p>
-    <p><a href="${escapeHtml(baseSito(env))}/">Vedi tutti i tornei di volley in Friuli Venezia Giulia</a></p>
+    <p>
+      Questo torneo non esiste, non è più pubblicato oppure non è
+      attualmente disponibile.
+    </p>
+    <p>
+      <a href="${home}">
+        Torna ai tornei di volley in Friuli Venezia Giulia
+      </a>
+    </p>
   </article>
 `);
 }
+
+
 
 /* ---------------------------------------------------------
    JSON-LD.
@@ -380,6 +508,78 @@ export function jsonLdTorneo(torneo, slug, env) {
   }
 
   return ev;
+}
+
+/* ---------------------------------------------------------
+   Chi siamo.
+
+   Lo stesso testo sta nel Footer del sito (src/components/
+   Footer.jsx): è una scelta, non una duplicazione per sbaglio.
+   Quello che iniettiamo qui deve essere l'anticipo di contenuto
+   che l'utente vede davvero — se stesse solo qui sarebbe testo
+   scritto per i soli crawler, che è esattamente la cosa che
+   Google chiama hidden text e punisce. Se cambi uno, cambia
+   l'altro.
+
+   Serve anche a una domanda che i motori AI fanno spesso e a
+   cui il sito oggi non sa rispondere: "che cos'è volleyfvg" e
+   "chi l'ha fatto".
+--------------------------------------------------------- */
+export const DESCRIZIONE_SITO = [
+  'Volley FVG è un calendario aperto dei tornei amatoriali di green volley, beach volley e pallavolo in Friuli Venezia Giulia e nelle province vicine. Ogni torneo ha la sua pagina con data, orario, luogo, formato di gioco, costo di iscrizione, locandina e i contatti di chi lo organizza; l\'elenco si sfoglia in lista, sulla mappa o nel calendario.',
+  'Pubblicare un torneo è gratuito: la proposta viene controllata prima di comparire in calendario, così l\'elenco resta pulito. Nella bacheca si può invece cercare una squadra a cui unirsi, oppure cercare giocatori per completare la propria.',
+  'Volley FVG è ideato e realizzato da Christian Corrò, dottorando all\'Università degli Studi di Udine. È un progetto indipendente, nato per raccogliere in un posto solo i tornei che altrimenti restano sparsi fra volantini, storie di Instagram e passaparola.',
+];
+
+export function bloccoChiSiamo() {
+  return `
+    <section>
+      <h2>Che cos'è Volley FVG</h2>
+${DESCRIZIONE_SITO.map((t) => `      <p>${escapeHtml(t)}</p>`).join('\n')}
+    </section>`;
+}
+
+/* ---------------------------------------------------------
+   L'identità del sito, in JSON-LD.
+
+   Iniettando l'ItemList si porta via il blocco WebSite che sta
+   in index.html: applyPreview toglie il ld+json esistente per
+   non lasciarne due che si contraddicono. Quindi lo rimetto
+   qui dentro, in un @graph, insieme alla Person — così la
+   paternità del sito è un'entità dichiarata e non solo una
+   frase in fondo alla pagina.
+--------------------------------------------------------- */
+export function jsonLdSito(tornei, env) {
+  const base = baseSito(env);
+  const idAutore = `${base}/#christian-corro`;
+
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebSite',
+        '@id': `${base}/#website`,
+        url: `${base}/`,
+        name: 'Volley FVG',
+        description: DESCRIZIONE_SITO[0],
+        inLanguage: 'it-IT',
+        author: { '@id': idAutore },
+        creator: { '@id': idAutore },
+      },
+      {
+        '@type': 'Person',
+        '@id': idAutore,
+        name: 'Christian Corrò',
+        jobTitle: 'Dottorando',
+        affiliation: {
+          '@type': 'CollegeOrUniversity',
+          name: 'Università degli Studi di Udine',
+          url: 'https://www.uniud.it/',
+        },
+      },
+      { ...jsonLdLista(tornei, env), '@context': undefined },
+    ],
+  };
 }
 
 export function jsonLdLista(tornei, env) {

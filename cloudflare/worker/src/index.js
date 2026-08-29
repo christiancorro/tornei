@@ -24,10 +24,11 @@ import {
   bloccoLista,
   bloccoNonTrovato,
   jsonLdTorneo,
-  jsonLdLista,
+  jsonLdSito,
   tagJsonLd,
   sitemapXml,
   urlTorneo,
+  dividiPassatoFuturo,
   scomponiLuogo,
 } from './contenuto.js';
 
@@ -284,17 +285,37 @@ async function gestisciHome(request, env, ctx) {
   }
 
   const oggi = oggiRoma();
-  const [originRes, tornei] = await Promise.all([
+
+  /* Una query sola, non due.
+
+     La seconda (tornei passati, orderBy data DESCENDING) chiede a
+     Firestore un ordinamento che l'indice esistente non copre:
+     l'app usa status ASC + data ASC, e quello per DESC nessuno
+     l'ha mai creato. La query torna 400, listTornei si mangia
+     l'errore e restituisce [] — ed ecco perché la sezione
+     "Tornei passati" non compariva: non era vuota per caso, la
+     lettura falliva in silenzio.
+
+     Invece di creare un secondo indice, leggo tutto una volta e
+     divido qui, esattamente come fa splitPassatoFuturo nel sito.
+     Tre vantaggi: nessun indice nuovo, una chiamata di rete in
+     meno, e soprattutto la stessa identica regola del frontend —
+     se le due divergono, il sito e la pagina che leggono i
+     crawler raccontano cose diverse. */
+  const [originRes, tutti] = await Promise.all([
     fetchOrigin(request, env),
-    listTornei(env, oggi, 300),
+    listTornei(env, '2000-01-01', 1000),
   ]);
 
   const tipo = originRes.headers.get('content-type') || '';
   if (originRes.status !== 200 || !tipo.includes('text/html')) {
     return finalizeProxy(originRes, request, env, 'home-passthrough');
   }
-  if (!tornei.length) {
-    // Nessun torneo, o Firestore muto: la home di sempre.
+  const { futuri, passati } = dividiPassatoFuturo(tutti, oggi);
+
+  if (!futuri.length && !passati.length) {
+    // Nessun torneo futuro né passato, oppure Firestore muto:
+    // la home di sempre.
     return finalizeProxy(originRes, request, env, 'home-generica');
   }
 
@@ -305,8 +326,8 @@ async function gestisciHome(request, env, ctx) {
      vogliamo rispondere. Sostituirlo col nome del sito butterebbe
      via il segnale on-page più forte che c'è. */
   const html = await applyPreview(originRes, null, {
-    body: bloccoLista(tornei, env, oggi),
-    ldTag: tagJsonLd(jsonLdLista(tornei, env)),
+    body: bloccoLista(futuri, passati.slice(0, 50), env, oggi),
+    ldTag: tagJsonLd(jsonLdSito(futuri, env)),
     canonical: `${String(env.SITE_URL || 'https://volleyfvg.it').replace(/\/+$/, '')}/`,
   }).text();
 
@@ -358,7 +379,9 @@ async function gestisciFeed(request, env, ctx) {
   if (inCache) return inCache;
 
   const oggi = oggiRoma();
-  const tornei = await listTornei(env, oggi, 500);
+  /* Stessa regola della home: "in programma" vuol dire che non è
+     ancora finito, non che non è ancora cominciato. */
+  const tornei = dividiPassatoFuturo(await listTornei(env, '2000-01-01', 1000), oggi).futuri;
 
   const dati = tornei.map((t) => {
     const L = scomponiLuogo(t);

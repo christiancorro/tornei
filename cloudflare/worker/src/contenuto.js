@@ -1,22 +1,39 @@
 /* ---------------------------------------------------------
    Il contenuto che leggono i crawler.
 
-   Stessa filosofia di preview.js — una pagina sola, non una
-   versione finta per i bot — portata un piano più giù. preview.js
-   riscrive la testa del documento; questo file riempie il corpo.
+   Stessa filosofia di preview.js (una pagina sola, non una
+   versione finta per i bot) portata un piano più giù:
+   preview.js riscrive la testa del documento, questo file
+   riempie il corpo.
 
-   Serve perché i crawler che contano per le risposte AI (GPTBot,
-   OAI-SearchBot, ClaudeBot, PerplexityBot) NON eseguono
-   JavaScript: scaricano l'HTML e si fermano lì. Con #root vuoto
-   quello che leggono è una pagina bianca.
+   Serve perché i crawler che contano per le risposte AI
+   (GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot) NON
+   eseguono JavaScript: scaricano l'HTML e si fermano lì. Con
+   #root vuoto quello che leggono è una pagina bianca.
 
    React azzera il contenuto del container quando monta, quindi
-   quello che scriviamo qui l'utente lo vede per una frazione di
-   secondo come stato di caricamento, e sparisce da solo. Il
+   quello che scriviamo qui vive solo fino al primo render. Il
    sito non cambia di una riga.
 
    Regola: ogni valore dinamico passa da escapeHtml(). Nessuna
    eccezione, come in preview.js.
+
+   Struttura della pagina lista, una sezione per ogni domanda
+   che un motore AI fa al sito:
+
+     h1                          di che cosa parla il sito
+     sommario                    quanti tornei, in che periodo
+     Tornei di volley in programma   la tabella, una riga per torneo
+     Tornei passati              le edizioni già disputate
+     Che cos'è Volley FVG        il progetto
+     Chi ha sviluppato Volley FVG?   la paternità
+
+   Rispetto alla versione precedente i tornei futuri compaiono
+   una volta sola. Prima c'erano un elenco di link e una
+   tabella con dentro gli stessi tornei: doppio peso in pagina,
+   e per un modello due liste da riconciliare invece di una
+   fonte sola. Adesso il link sta nella cella del nome, quindi
+   la tabella fa entrambi i lavori.
 --------------------------------------------------------- */
 import { escapeHtml } from './preview.js';
 import {
@@ -26,6 +43,14 @@ import {
   formatCosto,
   offsetRoma,
 } from './format.js';
+
+const TITOLO_LISTA =
+  'Tornei di green volley, beach volley e pallavolo in Friuli Venezia Giulia';
+
+/* Il testo che prende il posto di un campo vuoto in tabella.
+   Prima era un trattino: chi legge "-" non sa dire se il torneo
+   è gratuito o se il dato manca, queste due parole sì. */
+const COSTO_MANCANTE = 'non indicata';
 
 /* Le sigle delle province che compaiono nei luoghi dei tornei.
    Servono a dire "Friuli-Venezia Giulia" per esteso: è la parola
@@ -39,7 +64,7 @@ const REGIONI = {
 };
 const REGIONE_DEFAULT = 'Friuli-Venezia Giulia';
 
-/* "Mels (UD)" → { nome: 'Mels', prov: 'UD', regione: '...' }.
+/* "Mels (UD)" produce { nome: 'Mels', prov: 'UD', regione: '...' }.
    Il campo è testo libero: se non c'è la sigla tra parentesi
    teniamo la stringa così com'è e diamo per buona la regione
    del sito. */
@@ -49,6 +74,16 @@ export function scomponiLuogo(torneo) {
   const nome = m ? m[1].trim() : raw;
   const prov = m ? m[2].toUpperCase() : '';
   return { raw, nome, prov, regione: REGIONI[prov] || REGIONE_DEFAULT };
+}
+
+/* "Mels (UD)" in una riga sola, senza regione. */
+function luogoBreve(L) {
+  return `${L.nome || L.raw}${L.prov ? ` (${L.prov})` : ''}`;
+}
+
+/* Luogo per esteso, come lo scriverebbe un modello in risposta. */
+function luogoEsteso(L) {
+  return L.raw ? `${luogoBreve(L)}, ${L.regione}, Italia` : '';
 }
 
 /* formatData() apre con la maiuscola perché nella preview la data
@@ -64,7 +99,7 @@ function minuscola(s) {
    La stessa regola di isPassato() in src/utils.js del sito:
    conta l'ULTIMO giorno, non il primo. Un torneo di tre giorni
    cominciato ieri è ancora in corso, e deve restare fra quelli
-   in programma — filtrare su `data` lo faceva sparire proprio
+   in programma: filtrare su `data` lo faceva sparire proprio
    nel weekend in cui si gioca.
 
    I passati escono dal più recente: sono quelli che interessano.
@@ -90,17 +125,31 @@ function baseSito(env) {
   return String(env.SITE_URL || 'https://volleyfvg.it').replace(/\/+$/, '');
 }
 
+/* "a, b e c": tre formati incollati con "e" tre volte
+   ("2x2 e 3x3 e 4x4") in una risposta parlata suonano male. */
+function elenco(voci) {
+  const v = (voci || []).filter(Boolean);
+  if (v.length < 2) return v.join('');
+  return `${v.slice(0, -1).join(', ')} e ${v[v.length - 1]}`;
+}
+
+/* Singolare e plurale. Un "1 tornei" in cima alla pagina è la
+   cosa che fa sembrare generato tutto il resto. */
+function plurale(n, uno, molti) {
+  return n === 1 ? uno : molti;
+}
+
 /* Una frase intera, non un elenco di campi separati da punti.
    È la forma che i modelli citano meglio, ed è anche la prima
    cosa che si legge nella pagina. */
 export function fraseTorneo(torneo) {
   const L = scomponiLuogo(torneo);
   const testa = ['Torneo di', torneo.disciplina || 'volley'];
-  if (torneo.formati && torneo.formati.length) testa.push(torneo.formati.join(' e '));
+  if (torneo.formati && torneo.formati.length) testa.push(elenco(torneo.formati));
   if (torneo.modalita) testa.push(String(torneo.modalita).toLowerCase());
 
   let s = testa.join(' ');
-  s += ` a ${L.nome || L.raw}${L.prov ? ` (${L.prov})` : ''}, ${L.regione}`;
+  s += ` a ${luogoBreve(L)}, ${L.regione}`;
 
   const quando = formatData(torneo.data, torneo.dataFine);
   if (quando) s += `, ${minuscola(quando)}`;
@@ -115,12 +164,10 @@ export function fraseTorneo(torneo) {
 /* ---------------------------------------------------------
    Lo stile del primo istante.
 
-   Il blocco qui sotto è quello che si vede prima che il bundle
-   React sia pronto — su una connessione lenta, o al primo
-   accesso, è un secondo o due. Senza CSS il browser lo disegna
+   Il blocco qui sotto è quello che sta in pagina prima che il
+   bundle React sia pronto. Senza CSS il browser lo disegnerebbe
    con i suoi default: Times New Roman, link blu sottolineati,
-   tabella a sette colonne che esce dallo schermo. Brutto, e
-   sembra un errore.
+   tabella a sette colonne che esce dallo schermo.
 
    Con queste poche regole diventa uno stato di caricamento
    intenzionale, negli stessi colori del sito (SAND di sfondo,
@@ -132,10 +179,16 @@ export function fraseTorneo(torneo) {
    dentro #root, quindi quando React monta se ne va insieme al
    resto. Nessun CSS orfano che sopravvive alla pagina.
 
-   Nota sui crawler: il CSS non li riguarda: leggono l'HTML e
+   Nota sui crawler: il CSS non li riguarda, leggono l'HTML e
    basta. Impaginare le righe come schede invece che come
    tabella non cambia una virgola di quello che vedono loro,
    che è sempre una <table> con <th> e <td> al posto giusto.
+
+   Nota su visibility:hidden. Così com'è, questo blocco l'utente
+   non lo vede mai: occupa lo spazio ma resta invisibile fino a
+   quando React lo sostituisce. Se lo vuoi come stato di
+   caricamento visibile basta togliere quella riga, il resto
+   delle regole è già scritto per quello.
 --------------------------------------------------------- */
 const STILI_BOOT = `<style>
 .vfvg-boot{visibility:hidden;background:#fffefb;color:#282828;min-height:100vh;margin:0;padding:24px 18px 56px;
@@ -143,13 +196,17 @@ font:400 15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helve
 -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .vfvg-boot .w{max-width:760px;margin:0 auto}
 .vfvg-boot h1{margin:0 0 10px;font-size:21px;line-height:1.28;font-weight:700;letter-spacing:-.015em}
+.vfvg-boot h2{margin:26px 0 8px;font-size:15px;line-height:1.3;font-weight:600;letter-spacing:-.01em}
 .vfvg-boot p{margin:0 0 14px;font-size:14px;color:#6f6c63}
 .vfvg-boot strong{font-weight:600;color:#282828}
 .vfvg-boot em{font-style:normal;color:#a3a096}
 .vfvg-boot a{color:#488222;text-decoration:none}
+.vfvg-boot figure{margin:0 0 16px}
+.vfvg-boot img{display:block;width:auto;max-width:min(100%,300px);height:auto;border-radius:6px}
 .vfvg-boot ul{margin:0 0 16px;padding:0;list-style:none}
 .vfvg-boot li{padding:9px 0;border-bottom:1px solid #efece3;font-size:14px;color:#6f6c63}
-.vfvg-boot li strong{margin-right:6px}
+.vfvg-boot li strong{margin-right:2px}
+.vfvg-boot li a{font-weight:600}
 .vfvg-boot table{width:100%;border-collapse:collapse}
 .vfvg-boot thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .vfvg-boot tr{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 8px;
@@ -172,8 +229,15 @@ function avvolgi(articolo) {
 </div>`;
 }
 
+/* Mette insieme i pezzi di pagina scartando quelli vuoti, così
+   una sezione che non ha niente da dire non lascia markup a
+   vuoto. */
+function componi(...pezzi) {
+  return pezzi.filter(Boolean).join('\n');
+}
+
 /* ---------------------------------------------------------
-   bloccoTorneo() — il corpo della pagina di un torneo.
+   bloccoTorneo(), il corpo della pagina di un torneo.
 
    Un h1 col nome, la frase completa, poi le voci etichettate.
    Le etichette esplicite ("Luogo:", "Iscrizione:") non sono
@@ -183,12 +247,11 @@ function avvolgi(articolo) {
 --------------------------------------------------------- */
 export function bloccoTorneo(torneo, slug, env) {
   const L = scomponiLuogo(torneo);
-  const luogoCompleto = `${L.nome || L.raw}${L.prov ? ` (${L.prov})` : ''}, ${L.regione}, Italia`;
 
   const voci = [
     ['Data', formatData(torneo.data, torneo.dataFine)],
     ['Orario', torneo.ora],
-    ['Luogo', L.raw ? luogoCompleto : ''],
+    ['Luogo', luogoEsteso(L)],
     ['Disciplina', torneo.disciplina],
     ['Formato', (torneo.formati || []).join(', ')],
     ['Modalità', torneo.modalita],
@@ -198,12 +261,12 @@ export function bloccoTorneo(torneo, slug, env) {
 
   const righe = voci
     .map(([k, v]) =>
-      `      <li><strong>${escapeHtml(k)}:</strong> ${escapeHtml(v)}</li>`
+      `        <li><strong>${escapeHtml(k)}:</strong> ${escapeHtml(v)}</li>`
     )
     .join('\n');
 
   const nota = torneo.descrizioneOrganizzatore
-    ? `\n    <p>${escapeHtml(torneo.descrizioneOrganizzatore)}</p>`
+    ? `    <p>${escapeHtml(torneo.descrizioneOrganizzatore)}</p>`
     : '';
 
   /* -------------------------------------------------------
@@ -211,23 +274,20 @@ export function bloccoTorneo(torneo, slug, env) {
 
      `locandina` è l'immagine grande già caricata su Storage.
      La inseriamo nell'HTML iniziale così:
-       - i crawler che non eseguono JS la vedono;
-       - Google può associare l'immagine al torneo;
-       - l'utente non vede una pagina testuale completamente
-         diversa mentre React sta caricando;
-       - il CSS del blocco boot la rende comunque discreta.
+       1. i crawler che non eseguono JS la vedono;
+       2. Google può associare l'immagine al torneo;
+       3. l'utente non vede una pagina testuale completamente
+          diversa mentre React sta caricando;
+       4. il CSS del blocco boot la tiene comunque discreta.
 
      `alt` contiene il nome del torneo e il luogo: descrittivo,
      non keyword stuffing.
   ------------------------------------------------------- */
   const locandina = torneo.locandina
-    ? `
-    <figure class="vfvg-poster">
+    ? `    <figure class="vfvg-poster">
       <img
         src="${escapeHtml(torneo.locandina)}"
-        alt="${escapeHtml(
-      `${torneo.nome}${L.nome ? ` a ${L.nome}` : ''}${L.prov ? ` (${L.prov})` : ''}`
-    )}"
+        alt="${escapeHtml(`${torneo.nome}${L.nome ? ` a ${L.nome}` : ''}${L.prov ? ` (${L.prov})` : ''}`)}"
         width="800"
         height="1100"
         loading="eager"
@@ -236,205 +296,345 @@ export function bloccoTorneo(torneo, slug, env) {
     </figure>`
     : '';
 
-  return avvolgi(`
-  <article>
-    <h1>${escapeHtml(torneo.nome)}</h1>
-${locandina}
-    <p>${escapeHtml(fraseTorneo(torneo))}</p>
-    <ul>
-${righe}
-    </ul>${nota}
-    <p>
-      <a href="${escapeHtml(baseSito(env))}/">
-        Tutti i tornei di volley in Friuli Venezia Giulia
-      </a>
-    </p>
-  </article>
-`);
+  return avvolgi(componi(
+    '  <article>',
+    `    <h1>${escapeHtml(torneo.nome)}</h1>`,
+    locandina,
+    `    <p>${escapeHtml(fraseTorneo(torneo))}</p>`,
+    componi(
+      '    <section>',
+      '      <h2>Informazioni sul torneo</h2>',
+      '      <ul>',
+      righe,
+      '      </ul>',
+      '    </section>'
+    ),
+    nota,
+    componi(
+      '    <p>',
+      `      <a href="${escapeHtml(baseSito(env))}/">Tutti i tornei di volley in Friuli Venezia Giulia</a>`,
+      '    </p>'
+    ),
+    '  </article>'
+  ));
 }
 
+/* ---------------------------------------------------------
+   Il sommario di apertura.
 
+   Una frase che risponde subito a "quanti tornei ci sono e
+   quando": è la riga che un motore AI riprende per intero.
+--------------------------------------------------------- */
+function periodoTornei(tornei) {
+  if (!tornei.length) return '';
+  const dal = minuscola(formatData(tornei[0].data, ''));
+  const al = minuscola(formatData(tornei[tornei.length - 1].data, ''));
+  if (!dal) return '';
+  if (!al || al === dal) return dal;
+  return `da ${dal} a ${al}`;
+}
 
+function sommarioLista(tornei, passati, aggiornato) {
+  const quandoAggiornato = aggiornato
+    ? ` <em>Elenco aggiornato ${escapeHtml(aggiornato)}.</em>`
+    : '';
 
-export function bloccoLista(tornei, torneiPassati, env, oggiISO) {
-  const titolo = 'Tornei di green volley, beach volley e pallavolo in Friuli Venezia Giulia';
-
-  if (!tornei.length && !torneiPassati.length) {
-    return avvolgi(`
-  <article>
-    <h1>${escapeHtml(titolo)}</h1>
-    <p>Al momento non ci sono tornei in programma. Il calendario viene aggiornato
-    di continuo: torna a controllare, oppure pubblica il tuo torneo.</p>
-  </article>
-`);
+  if (!tornei.length && !passati.length) {
+    return `    <p>Al momento non ci sono tornei in calendario. L'elenco viene
+    aggiornato di continuo: torna a controllare, oppure pubblica il tuo
+    torneo.${quandoAggiornato}</p>`;
   }
 
-  let contenuto = '';
+  const frasi = [];
 
   if (tornei.length) {
-    const dal = minuscola(formatData(tornei[0].data, ''));
-    const al = minuscola(formatData(tornei[tornei.length - 1].data, ''));
+    const periodo = periodoTornei(tornei);
+    frasi.push(
+      `${plurale(tornei.length, "C'è", 'Ci sono')} ` +
+      `<strong>${tornei.length} ${plurale(tornei.length, 'torneo', 'tornei')}</strong> ` +
+      `in programma${periodo ? `, ${escapeHtml(periodo)},` : ''} in Friuli Venezia ` +
+      'Giulia e dintorni: green volley, beach volley e pallavolo, con data, ' +
+      'luogo, provincia, formato e costo di iscrizione.'
+    );
+  } else {
+    frasi.push(
+      'Al momento non ci sono tornei futuri in programma. Qui sotto trovi ' +
+      'le ultime edizioni già disputate.'
+    );
+  }
 
-    const righe = tornei.map((t) => {
-      const L = scomponiLuogo(t);
+  if (passati.length) {
+    frasi.push(
+      `In archivio ${plurale(passati.length, "c'è", 'ci sono')} anche ` +
+      `<strong>${passati.length} ${plurale(passati.length, 'torneo', 'tornei')}</strong> ` +
+      `${plurale(passati.length, 'già giocato', 'già giocati')}.`
+    );
+  }
 
-      const link = `<a href="${escapeHtml(urlTorneo(t.id, env))}">${escapeHtml(t.nome)}</a>`;
+  return `    <p>${frasi.join(' ')}${quandoAggiornato}</p>`;
+}
 
-      const testo = [
-        formatDataBreve(t.data, t.dataFine),
-        null,
-        t.disciplina || '',
-        [(t.formati || []).join(', '), t.modalita]
-          .filter(Boolean)
-          .join(' '),
-        `${L.nome || L.raw}${L.prov ? ` (${L.prov})` : ''}`,
-        L.regione,
-        formatCosto(t.costo) || '—',
-      ];
+/* ---------------------------------------------------------
+   Le sezioni della home.
 
-      const celle = testo.map((v, i) =>
-        i === 1 ? link : escapeHtml(v)
-      );
+   Ogni sezione si dichiara con un id, un titolo e un corpo.
+   L'indice in cima alla pagina si costruisce da questa lista,
+   quindi non può andare fuori sincrono con quello che c'e'
+   sotto: se una sezione non ha contenuto non esiste, e dall'indice sparisce da sola.
+--------------------------------------------------------- */
+const ID_IN_PROGRAMMA = 'tornei-in-programma';
+const ID_PASSATI = 'tornei-passati';
+const ID_PROGETTO = 'che-cose-volley-fvg';
+const ID_AUTORE = 'chi-ha-sviluppato-volley-fvg';
 
-      return `      <tr>
-${celle.map((c) => `        <td>${c}</td>`).join('\n')}
-      </tr>`;
-    }).join('\n');
+function sezione(id, titolo, corpo, conta) {
+  return {
+    id,
+    titolo,
+    conta: conta || 0,
+    html: componi(
+      `    <section id="${id}">`,
+      `      <h2>${escapeHtml(titolo)}</h2>`,
+      corpo,
+      '    </section>'
+    ),
+  };
+}
 
-    const linkTornei = tornei.map((t) => `
-      <li>
-        <a href="${escapeHtml(urlTorneo(t.id, env))}">
-          ${escapeHtml(t.nome)}
-        </a>
-        ${t.data ? ` — ${escapeHtml(formatDataBreve(t.data, t.dataFine))}` : ''}
-      </li>
-`).join('\n');
+/* ---------------------------------------------------------
+   indiceSezioni(), l'indice per i bot.
 
-    contenuto += `
-  <article>
-    <h1>${escapeHtml(titolo)}</h1>
+   Un crawler non "vede" la pagina: legge un flusso di testo e
+   deve capire da solo dove finisce una cosa e dove ne comincia
+   un'altra. L'indice glielo dice in poche righe, in cima,
+   prima di tutto il resto: quali domande trova qui, quanti
+   elementi ci sono in ognuna e con che ancora ci arriva.
 
-    <p>
-      Ci sono <strong>${tornei.length} tornei</strong> in programma,
-      da ${escapeHtml(dal)} a ${escapeHtml(al)}, in Friuli Venezia Giulia
-      e dintorni: green volley, beach volley e pallavolo, con data,
-      luogo, provincia, formato e costo di iscrizione.
-      <em>Elenco aggiornato ${escapeHtml(minuscola(formatData(oggiISO, '')))}.</em>
-    </p>
+   Le ancore non sono decorative. Un motore che cita la pagina
+   può linkare #chi-ha-sviluppato-volley-fvg invece della home
+   generica, e la citazione porta il lettore sul paragrafo
+   giusto. Servono anche a noi: sono URL stabili da mettere nei
+   messaggi e nelle risposte.
 
-    <nav aria-label="Tornei in programma">
-      <h2>Tornei di volley in programma</h2>
+   Resta un indice vero, non un blocco scritto per i soli bot:
+   è lo stesso sommario che un lettore umano usa per saltare
+   alla parte che gli interessa.
+--------------------------------------------------------- */
+function indiceSezioni(sezioni) {
+  if (sezioni.length < 2) return '';
 
-      <p>
-        Qui sotto ci sono i nomi e le date. Ogni voce rimanda alla pagina
-        del singolo torneo: <strong>per avere i dettagli completi è necessario
-        seguire il link del torneo</strong>. Nella sua pagina si trovano
-        l&rsquo;orario di inizio, il formato e la modalit&agrave; di gioco, il costo di
-        iscrizione, la locandina, i contatti dell&rsquo;organizzatore e la
-        posizione esatta del campo.
+  const voci = sezioni.map((s) => {
+    const conta = s.conta ? ` (${s.conta})` : '';
+    return `        <li><a href="#${escapeHtml(s.id)}">${escapeHtml(s.titolo)}</a>${conta}</li>`;
+  }).join('\n');
+
+  return `    <nav aria-label="Indice della pagina">
+      <h2>Indice</h2>
+      <ul>
+${voci}
+      </ul>
+    </nav>`;
+}
+
+function sezioneInProgramma(tornei, env) {
+  if (!tornei.length) return null;
+
+  const righe = tornei.map((t) => {
+    const L = scomponiLuogo(t);
+    const celle = [
+      escapeHtml(formatDataBreve(t.data, t.dataFine)),
+      `<a href="${escapeHtml(urlTorneo(t.id, env))}">${escapeHtml(t.nome)}</a>`,
+      escapeHtml(t.disciplina || ''),
+      escapeHtml([(t.formati || []).join(', '), t.modalita].filter(Boolean).join(' ')),
+      escapeHtml(luogoBreve(L)),
+      escapeHtml(L.regione),
+      escapeHtml(formatCosto(t.costo) || COSTO_MANCANTE),
+    ];
+    return `        <tr>
+${celle.map((c) => `          <td>${c}</td>`).join('\n')}
+        </tr>`;
+  }).join('\n');
+
+  /* Le sette colonne restano quelle di prima perché il CSS del
+     blocco boot le impagina per posizione (la prima diventa
+     l'occhiello con la data, la seconda il titolo della scheda):
+     se cambi ordine o numero, aggiorna le regole nth-child in
+     STILI_BOOT. */
+  const corpo = `      <p>
+        Una riga per torneo, con data, disciplina, formato, luogo, provincia,
+        regione e costo di iscrizione. Il nome rimanda alla pagina del singolo
+        torneo: <strong>per i dettagli completi è necessario seguire quel
+        link</strong>, perché è lì che stanno l'orario di inizio, la
+        locandina, i contatti dell'organizzatore e la posizione esatta del
+        campo.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Torneo</th>
+            <th>Disciplina</th>
+            <th>Formato</th>
+            <th>Luogo</th>
+            <th>Regione</th>
+            <th>Iscrizione</th>
+          </tr>
+        </thead>
+        <tbody>
+${righe}
+        </tbody>
+      </table>`;
+
+  return sezione(ID_IN_PROGRAMMA, 'Tornei di volley in programma', corpo, tornei.length);
+}
+
+function sezionePassati(passati, env) {
+  if (!passati.length) return null;
+
+  const voci = passati.map((t) => {
+    const L = scomponiLuogo(t);
+    const coda = [formatDataBreve(t.data, t.dataFine), luogoBreve(L), L.regione]
+      .filter(Boolean)
+      .map(escapeHtml)
+      .join(', ');
+    const link =
+      `<a href="${escapeHtml(urlTorneo(t.id, env))}">${escapeHtml(t.nome)}</a>`;
+    return `        <li>${link}${coda ? `, ${coda}` : ''}</li>`;
+  }).join('\n');
+
+  const corpo = `      <p>
+        Gli ultimi tornei di volley già disputati in Friuli Venezia Giulia
+        e dintorni, dal più recente.
       </p>
 
       <ul>
-${linkTornei}
-      </ul>
-    </nav>
+${voci}
+      </ul>`;
 
-    <table>
-      <thead>
-        <tr>
-          <th>Data</th>
-          <th>Torneo</th>
-          <th>Disciplina</th>
-          <th>Formato</th>
-          <th>Luogo</th>
-          <th>Regione</th>
-          <th>Iscrizione</th>
-        </tr>
-      </thead>
-      <tbody>
-${righe}
-      </tbody>
-    </table>
-  </article>
-`;
-  } else {
-    contenuto += `
-  <article>
-    <h1>${escapeHtml(titolo)}</h1>
-    <p>
-      Al momento non ci sono tornei futuri in programma.
-      Di seguito trovi gli ultimi tornei già disputati.
-      <em>Elenco aggiornato ${escapeHtml(minuscola(formatData(oggiISO, '')))}.</em>
-    </p>
-  </article>
-`;
-  }
+  return sezione(ID_PASSATI, 'Tornei passati', corpo, passati.length);
+}
 
-  /*
-   * TORNEI PASSATI
-   */
-  if (torneiPassati.length) {
-    const passati = torneiPassati.map((t) => {
-      const L = scomponiLuogo(t);
 
-      const link = `<a href="${escapeHtml(urlTorneo(t.id, env))}">
-        ${escapeHtml(t.nome)}
-      </a>`;
+/* ---------------------------------------------------------
+   bloccoLista(), la home.
 
-      const data = formatDataBreve(t.data, t.dataFine);
+   L'ossatura sta tutta qui: h1, sommario, poi le sezioni in
+   ordine di interesse. Le sezioni si sanno spegnere da sole
+   quando non hanno contenuto, quindi non c'è più un ramo
+   separato per il calendario vuoto.
+--------------------------------------------------------- */
+/* ---------------------------------------------------------
+   bloccoLista(), la home.
 
-      const luogo =
-        `${L.nome || L.raw}${L.prov ? ` (${L.prov})` : ''}`;
+   L'ossatura sta tutta qui: h1, sommario, indice, poi le
+   sezioni in ordine di interesse. Le sezioni si spengono da
+   sole quando non hanno contenuto, quindi non c'è più un
+   ramo separato per il calendario vuoto.
+--------------------------------------------------------- */
+export function bloccoLista(tornei, torneiPassati, env, oggiISO) {
+  const aggiornato = minuscola(formatData(oggiISO, ''));
 
-      return `
-        <li>
-          <strong>${link}</strong>
-          <span>${escapeHtml(data)}</span>
-          <span>${escapeHtml(luogo)}</span>
-          ${L.regione ? `<span>${escapeHtml(L.regione)}</span>` : ''}
-        </li>
-      `;
-    }).join('');
+  const sezioni = [
+    sezioneInProgramma(tornei, env),
+    sezionePassati(torneiPassati, env),
+    ...sezioniChiSiamo(),
+  ].filter(Boolean);
 
-    contenuto += `
-  <section class="vfvg-past">
-    <h2>Tornei passati</h2>
-    <p>
-      Gli ultimi tornei di volley già disputati in
-      Friuli Venezia Giulia e dintorni.
-    </p>
-    <ul>
-${passati}
-    </ul>
-  </section>
-`;
-  }
-
-  contenuto += bloccoChiSiamo();
-
-  return avvolgi(contenuto);
+  return avvolgi(componi(
+    '  <article>',
+    `    <h1>${escapeHtml(TITOLO_LISTA)}</h1>`,
+    sommarioLista(tornei, torneiPassati, aggiornato),
+    indiceSezioni(sezioni),
+    ...sezioni.map((s) => s.html),
+    '  </article>'
+  ));
 }
 
 export function bloccoNonTrovato(env) {
   const home = `${escapeHtml(baseSito(env))}/`;
 
-  return avvolgi(`
-  <article>
-    <h1>Torneo non trovato</h1>
-    <p>
-      Questo torneo non esiste, non è più pubblicato oppure non è
-      attualmente disponibile.
-    </p>
-    <p>
-      <a href="${home}">
-        Torna ai tornei di volley in Friuli Venezia Giulia
-      </a>
-    </p>
-  </article>
-`);
+  return avvolgi(componi(
+    '  <article>',
+    '    <h1>Torneo non trovato</h1>',
+    '    <p>',
+    '      Questo torneo non esiste, non è più pubblicato oppure non è',
+    '      attualmente disponibile.',
+    '    </p>',
+    '    <p>',
+    `      <a href="${home}">Torna ai tornei di volley in Friuli Venezia Giulia</a>`,
+    '    </p>',
+    '  </article>'
+  ));
 }
 
+/* ---------------------------------------------------------
+   Chi siamo.
 
+   Lo stesso testo sta nel Footer del sito (src/components/
+   Footer.jsx): è una scelta, non una duplicazione per sbaglio.
+   Quello che iniettiamo qui deve essere l'anticipo di contenuto
+   che l'utente vede davvero: se stesse solo qui sarebbe testo
+   scritto per i soli crawler, che è esattamente la cosa che
+   Google chiama hidden text e punisce. Se cambi uno, cambia
+   l'altro.
+
+   Serve anche a due domande che i motori AI fanno spesso e a
+   cui il sito da solo non sa rispondere: "che cos'è volleyfvg"
+   e "chi l'ha fatto".
+--------------------------------------------------------- */
+export const DESCRIZIONE_SITO = [
+  'Volley FVG è un calendario aperto dei tornei amatoriali di green volley, beach volley e pallavolo in Friuli Venezia Giulia e nelle province vicine. Ogni torneo ha la sua pagina con data, orario, luogo, formato di gioco, costo di iscrizione, locandina e i contatti di chi lo organizza; l\'elenco si sfoglia in lista, sulla mappa o nel calendario.',
+  'Pubblicare un torneo è gratuito: la proposta viene controllata prima di comparire in calendario, così l\'elenco resta pulito. Nella bacheca si può invece cercare una squadra a cui unirsi, oppure cercare giocatori per completare la propria.',
+];
+
+export const AUTORE = {
+  nome: 'Christian Corrò',
+  ruolo: 'Dottorando',
+  ente: 'Università degli Studi di Udine',
+  enteUrl: 'https://www.uniud.it/',
+  profilo: 'https://dmif.uniud.it/it/didattica/dottorato/iai/dottorandi/christian-corro?set_language=it',
+};
+
+/* Una frase sola, senza markup, riusata anche nel JSON-LD:
+   description della Person e testo della sezione restano
+   allineati per costruzione. */
+export const FRASE_AUTORE =
+  `Volley FVG è ideato e realizzato da ${AUTORE.nome}, ${AUTORE.ruolo.toLowerCase()} ` +
+  `all'${AUTORE.ente}. È un progetto indipendente, nato per raccogliere in un ` +
+  'posto solo i tornei che altrimenti restano sparsi fra volantini, storie di ' +
+  'Instagram e passaparola.';
+
+export function sezioniChiSiamo() {
+  const progetto = DESCRIZIONE_SITO
+    .map((t) => `      <p>${escapeHtml(t)}</p>`)
+    .join('\n');
+
+  /* Il nome è un link, quindi la frase va ricomposta a pezzi
+     invece di essere stampata intera: il testo resta identico
+     a FRASE_AUTORE. */
+  const autore = componi(
+    '      <p>',
+    '        Volley FVG è ideato e realizzato da',
+    `        <a href="${escapeHtml(AUTORE.profilo)}" target="_blank" rel="noopener noreferrer">${escapeHtml(AUTORE.nome)}</a>,`,
+    `        ${escapeHtml(AUTORE.ruolo.toLowerCase())} all'${escapeHtml(AUTORE.ente)}.`,
+    '        È un progetto indipendente, nato per raccogliere in un posto solo i',
+    '        tornei che altrimenti restano sparsi fra volantini, storie di',
+    '        Instagram e passaparola.',
+    '      </p>'
+  );
+
+  return [
+    sezione(ID_PROGETTO, "Che cos'è Volley FVG", progetto),
+    sezione(ID_AUTORE, 'Chi ha sviluppato Volley FVG?', autore),
+  ];
+}
+
+/* Compatibilità: il blocco intero come stringa, se serve
+   altrove. */
+export function bloccoChiSiamo() {
+  return sezioniChiSiamo().map((s) => s.html).join('\n');
+}
 
 /* ---------------------------------------------------------
    JSON-LD.
@@ -442,9 +642,9 @@ export function bloccoNonTrovato(env) {
    Da tenere in prospettiva: i test più recenti dicono che i
    modelli NON interpretano lo schema, lo leggono come testo
    qualsiasi. Serve a Google, che con SportsEvent può mostrare
-   la scheda evento con data e luogo — e quella richiede una
-   pagina per evento, che è il motivo per cui i tornei sono
-   passati a /torneo/<slug>.
+   la scheda evento con data e luogo, e quella richiede una
+   pagina per evento: è il motivo per cui i tornei sono passati
+   a /torneo/<slug>.
 --------------------------------------------------------- */
 export function jsonLdTorneo(torneo, slug, env) {
   const L = scomponiLuogo(torneo);
@@ -511,52 +711,12 @@ export function jsonLdTorneo(torneo, slug, env) {
 }
 
 /* ---------------------------------------------------------
-   Chi siamo.
-
-   Lo stesso testo sta nel Footer del sito (src/components/
-   Footer.jsx): è una scelta, non una duplicazione per sbaglio.
-   Quello che iniettiamo qui deve essere l'anticipo di contenuto
-   che l'utente vede davvero — se stesse solo qui sarebbe testo
-   scritto per i soli crawler, che è esattamente la cosa che
-   Google chiama hidden text e punisce. Se cambi uno, cambia
-   l'altro.
-
-   Serve anche a una domanda che i motori AI fanno spesso e a
-   cui il sito oggi non sa rispondere: "che cos'è volleyfvg" e
-   "chi l'ha fatto".
---------------------------------------------------------- */
-export const DESCRIZIONE_SITO = [
-  'Volley FVG è un calendario aperto dei tornei amatoriali di green volley, beach volley e pallavolo in Friuli Venezia Giulia e nelle province vicine. Ogni torneo ha la sua pagina con data, orario, luogo, formato di gioco, costo di iscrizione, locandina e i contatti di chi lo organizza; l\'elenco si sfoglia in lista, sulla mappa o nel calendario.',
-  'Pubblicare un torneo è gratuito: la proposta viene controllata prima di comparire in calendario, così l\'elenco resta pulito. Nella bacheca si può invece cercare una squadra a cui unirsi, oppure cercare giocatori per completare la propria.',
-];
-
-export function bloccoChiSiamo() {
-  return `
-    <section>
-      <h2>Che cos'è Volley FVG</h2>
-${DESCRIZIONE_SITO.map((t) => `      <p>${escapeHtml(t)}</p>`).join('\n')}
-    </section>
-     <section>
-  <h2>Chi ha sviluppato Volley FVG?</h2>
-  Volley FVG è ideato e realizzato da
-  <a href="https://dmif.uniud.it/it/didattica/dottorato/iai/dottorandi/christian-corro?set_language=it"
-     target="_blank">
-    Christian Corrò
-  </a>,
-  dottorando all'Università degli Studi di Udine. È un progetto indipendente,
-  nato per raccogliere in un posto solo i tornei che altrimenti restano sparsi
-  fra volantini, storie di Instagram e passaparola.
-</section>`
-    ;
-}
-
-/* ---------------------------------------------------------
    L'identità del sito, in JSON-LD.
 
    Iniettando l'ItemList si porta via il blocco WebSite che sta
    in index.html: applyPreview toglie il ld+json esistente per
    non lasciarne due che si contraddicono. Quindi lo rimetto
-   qui dentro, in un @graph, insieme alla Person — così la
+   qui dentro, in un @graph, insieme alla Person: così la
    paternità del sito è un'entità dichiarata e non solo una
    frase in fondo alla pagina.
 --------------------------------------------------------- */
@@ -580,12 +740,14 @@ export function jsonLdSito(tornei, env) {
       {
         '@type': 'Person',
         '@id': idAutore,
-        name: 'Christian Corrò',
-        jobTitle: 'Dottorando',
+        name: AUTORE.nome,
+        url: AUTORE.profilo,
+        description: FRASE_AUTORE,
+        jobTitle: AUTORE.ruolo,
         affiliation: {
           '@type': 'CollegeOrUniversity',
-          name: 'Università degli Studi di Udine',
-          url: 'https://www.uniud.it/',
+          name: AUTORE.ente,
+          url: AUTORE.enteUrl,
         },
       },
       { ...jsonLdLista(tornei, env), '@context': undefined },
@@ -597,7 +759,7 @@ export function jsonLdLista(tornei, env) {
   return {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    name: 'Tornei di green volley, beach volley e pallavolo in Friuli Venezia Giulia',
+    name: TITOLO_LISTA,
     numberOfItems: tornei.length,
     itemListElement: tornei.slice(0, 100).map((t, i) => ({
       '@type': 'ListItem',
@@ -646,4 +808,90 @@ export function sitemapXml(tornei, env, oggiISO) {
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
     [voce(`${base}/`, oggiISO, '1.0', 'daily'), ...righe].join('\n') +
     '\n</urlset>\n';
+}
+
+/* ---------------------------------------------------------
+   llmsTxt(), l'indice del sito in un file solo.
+
+   sitemap.xml dice a un crawler quali URL esistono, e basta:
+   per sapere che cosa c'è dentro deve scaricarli tutti. Questo
+   file glielo racconta in una schermata di testo, nel formato
+   llms.txt: titolo, una riga di sintesi, poi le sezioni con un
+   punto elenco per torneo, link e descrizione sulla stessa
+   riga.
+
+   È markdown senza HTML da ripulire, quindi un modello lo legge
+   intero anche quando non segue nessun link, e chi invece li
+   segue arriva su una pagina che dice le stesse cose. Nessuna
+   versione parallela del sito: le frasi sono le stesse che
+   stanno in pagina, generate dalle stesse funzioni.
+
+   Da servire su /llms.txt, con la stessa rotta di sitemap.xml
+   nel worker, e da dichiarare in robots.txt.
+--------------------------------------------------------- */
+function vocellmsTxt(torneo, env) {
+  /* Le parentesi quadre nel nome romperebbero il link markdown. */
+  const nome = String(torneo.nome || '').replace(/[[\]]/g, '');
+  return `- [${nome}](${urlTorneo(torneo.id, env)}): ${fraseTorneo(torneo)}`;
+}
+
+export function llmsTxt(tornei, torneiPassati, env, oggiISO) {
+  const base = baseSito(env);
+  const aggiornato = minuscola(formatData(oggiISO, ''));
+  const righe = [];
+
+  righe.push('# Volley FVG');
+  righe.push('');
+  righe.push(`> ${DESCRIZIONE_SITO[0]}`);
+  righe.push('');
+  if (aggiornato) righe.push(`Elenco aggiornato ${aggiornato}.`);
+  righe.push(`Sito: ${base}/`);
+  righe.push('');
+
+  righe.push('## Tornei di volley in programma');
+  righe.push('');
+  if (tornei.length) {
+    const periodo = periodoTornei(tornei);
+    righe.push(
+      `${tornei.length} ${plurale(tornei.length, 'torneo', 'tornei')} ` +
+      `in programma${periodo ? `, ${periodo}` : ''}. ` +
+      'Ogni voce ha la sua pagina con orario, locandina, contatti ' +
+      "dell'organizzatore e posizione del campo."
+    );
+    righe.push('');
+    for (const t of tornei) righe.push(vocellmsTxt(t, env));
+  } else {
+    righe.push('Al momento non ci sono tornei in programma.');
+  }
+  righe.push('');
+
+  if (torneiPassati.length) {
+    righe.push('## Tornei passati');
+    righe.push('');
+    righe.push('Edizioni già disputate, dalla più recente.');
+    righe.push('');
+    for (const t of torneiPassati) righe.push(vocellmsTxt(t, env));
+    righe.push('');
+  }
+
+  righe.push("## Che cos'è Volley FVG");
+  righe.push('');
+  for (const p of DESCRIZIONE_SITO) {
+    righe.push(p);
+    righe.push('');
+  }
+
+  righe.push('## Chi ha sviluppato Volley FVG');
+  righe.push('');
+  righe.push(FRASE_AUTORE);
+  righe.push('');
+  righe.push(`Profilo: ${AUTORE.profilo}`);
+  righe.push('');
+
+  righe.push('## Altro');
+  righe.push('');
+  righe.push(`- [Sitemap](${base}/sitemap.xml): tutti gli URL del sito.`);
+  righe.push('');
+
+  return `${righe.join('\n').replace(/\n{3,}/g, '\n\n').trim()}\n`;
 }

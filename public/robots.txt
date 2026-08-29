@@ -16,3 +16,4 @@ User-agent: Google-Extended
 Allow: /
 
 Sitemap: https://volleyfvg.it/sitemap.xml
+Sitemap: https://volleyfvg.it/llms.txt

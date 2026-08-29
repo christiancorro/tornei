@@ -29,6 +29,7 @@ import {
   jsonLdTorneo,
   jsonLdSito,
   tagJsonLd,
+  llmsTxt,
   sitemapXml,
   urlTorneo,
   dividiPassatoFuturo,
@@ -482,6 +483,31 @@ async function gestisciSitemap(request, env, ctx) {
   return new Response(request.method === 'HEAD' ? null : xml, { headers });
 }
 
+/* ---------------------------------------------------------
+   llms.txt — Indice testuale per motori di ricerca AI
+--------------------------------------------------------- */
+async function gestisciLlmsTxt(request, env, ctx) {
+  const cache = caches.default;
+  const key = chiaveCache(env, 'llms');
+  const inCache = await cache.match(key);
+  if (inCache) return inCache;
+
+  const oggi = oggiRoma();
+  const tutti = await listTornei(env, '2000-01-01', 1000);
+  const { futuri, passati } = dividiPassatoFuturo(tutti, oggi);
+
+  const testo = llmsTxt(futuri, passati.slice(0, 50), env, oggi);
+  const headers = {
+    'content-type': 'text/plain; charset=utf-8',
+    'cache-control': `public, max-age=0, s-maxage=${ttlLista(env)}, must-revalidate`,
+    'x-vfvg-worker': 'llms-txt',
+  };
+  ctx.waitUntil(cache.put(key, new Response(testo, {
+    headers: { ...headers, 'cache-control': `public, s-maxage=${ttlLista(env)}` },
+  })));
+  return new Response(request.method === 'HEAD' ? null : testo, { headers });
+}
+
 async function gestisciFeed(request, env, ctx) {
   const cache = caches.default;
   const key = chiaveCache(env, 'feed');
@@ -563,6 +589,10 @@ async function gestisci(request, env, ctx) {
 
   if (leggibile && url.pathname === '/sitemap.xml') {
     return gestisciSitemap(request, env, ctx);
+  }
+
+  if (leggibile && url.pathname === '/llms.txt') {
+    return gestisciLlmsTxt(request, env, ctx);
   }
 
   if (leggibile && url.pathname === '/api/tornei.json') {

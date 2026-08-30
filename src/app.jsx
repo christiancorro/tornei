@@ -578,7 +578,7 @@ export default function App() {
     if (typeof window === 'undefined') return;
 
     // 1. Forza il titolo principale dell'app per tutte le schede
-    document.title = ' Volley FVG - Tornei di Green Volley e Beach Volley in Friuli Venezia Giulia';
+    document.title = ' Tornei di Green Volley e Beach Volley in Friuli Venezia Giulia - Volley FVG';
 
     const currentPath = window.location.pathname;
 

@@ -324,8 +324,8 @@ export async function compressLocandina(file) {
   // condivide la worker: nessun rischio di raddoppio dei tempi.
   const [full, thumb] = await Promise.all([
     imageCompression(file, {
-      maxSizeMB: 0.4,
-      maxWidthOrHeight: 1600,
+      maxSizeMB: 0.25,
+      maxWidthOrHeight: 1400,
       initialQuality: 0.82,
       useWebWorker: true,
       fileType: type,

@@ -269,7 +269,7 @@ export default function NotificheBanner({ uid = null }) {
                     Vuoi sapere quando esce un nuovo torneo?
                   </p>
                   <p className="text-xs" style={{ color: INK, opacity: 0.6 }}>
-                    Attiva le notifiche. Puoi disattivarle in qualunque momento dalle impostazioni.
+                    Attiva le notifiche su questo dispositivo. Puoi disattivarle in qualunque momento dalle impostazioni.
                   </p>
                 </>
               )}

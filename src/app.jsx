@@ -880,6 +880,7 @@ export default function App() {
         <div className="view-swap">
           <AdminDashboard
             pending={pending}
+            published={tournaments}
             users={users}
             counts={counts}
             myUid={uid}
@@ -896,6 +897,9 @@ export default function App() {
             richieste={richieste}
             onMarkRichiestaRead={handleMarkRichiestaRead}
             onDeleteRichiesta={handleDeleteRichiesta}
+            onEditTorneo={(t) => setFormState(t)}
+            onDeleteTorneo={(t) => setDeleteTarget(t)}
+            onOpenDetail={setDetailTarget}
           />
         </div>
       )}

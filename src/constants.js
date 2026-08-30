@@ -25,8 +25,8 @@ export const DISCIPLINE_COLORS = {
 };
 
 export const STUB_STYLE = {
-  'Green Volley': { bg: `linear-gradient(155deg, ${GRASS}, ${GRASS_DARK})`, tagBg: '#E7F0DE', tagText: GRASS_DARK },
-  'Beach Volley': { bg: `linear-gradient(155deg, ${SABBIA}, ${SABBIA_DARK})`, tagBg: SAND, tagText: SABBIA_DARK },
+  'Green Volley': { bg: `linear-gradient(155deg, ${GRASS}, ${GRASS_DARK})`, tagBg: '#7ec63b2c', tagText: GRASS_DARK },
+  'Beach Volley': { bg: `linear-gradient(155deg, ${SABBIA}, ${SABBIA_DARK})`, tagBg: '#fff5e6', tagText: SABBIA_DARK },
   'Pallavolo': { bg: `linear-gradient(155deg, ${SEA}, ${SEA_DARK})`, tagBg: '#E0F2F4', tagText: SEA_DARK },
 };
 

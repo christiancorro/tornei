@@ -9,11 +9,11 @@ export const INK = '#282828';
 export const SUN = '#F5A524';
 export const SEA = '#1C7C8C';
 export const SEA_DARK = '#145A66';
-export const GRASS = '#a0f34e';
-export const GRASS_DARK = '#488222';
+export const GRASS = '#96e649';
+export const GRASS_DARK = '#4b8f1d';
 export const CLAY = '#B8472A';
 export const CLAY_DARK = '#8C3520';
-export const SABBIA = '#f0c843';
+export const SABBIA = '#f2c226';
 export const SABBIA_DARK = '#c78c20';
 
 // Bacheca (notice board) tokens — kept separate from the discipline

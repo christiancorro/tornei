@@ -238,10 +238,26 @@ exports.notificaTorneoApprovato = onDocumentUpdated('tornei/{torneoId}', async (
   if (!prima || !dopo) return;
   if (prima.status === 'published' || dopo.status !== 'published') return;
 
-  const tokens = await senzaAutore(await tokenPerTipo('tornei'), dopo.authorId);
-  const esito = await invia(tokens, notificaTorneo(event.params.torneoId, dopo));
+  const [tokensPubblico, tokensAutore] = await Promise.all([
+    senzaAutore(await tokenPerTipo('tornei'), dopo.authorId),
+    tokenDiUtente(dopo.authorId, 'tornei'),
+  ]);
 
-  logger.info('[push] torneo approvato', { id: event.params.torneoId, ...esito });
+  const [esitoPubblico, esitoAutore] = await Promise.all([
+    invia(tokensPubblico, notificaTorneo(event.params.torneoId, dopo)),
+    invia(tokensAutore, {
+      titolo: 'Il tuo torneo è stato approvato! 🎉',
+      corpo: `"${taglia(dopo.nome, 60)}" è ora online e visibile a tutti.`,
+      url: `${SITO}/?torneo=${event.params.torneoId}`,
+      tag: `approvato-${event.params.torneoId}`,
+    }),
+  ]);
+
+  logger.info('[push] torneo approvato', {
+    id: event.params.torneoId,
+    pubblico: esitoPubblico,
+    autore: esitoAutore,
+  });
 });
 
 /* ---------------------------------------------------------
@@ -253,7 +269,7 @@ exports.notificaNuovoAnnuncio = onDocumentCreated('annunci/{annuncioId}', async 
 
   const titolo = annuncio.tipo === 'cerca_giocatore'
     ? 'Cercasi giocatori'
-    : 'Qualcuno cerca una squadra';
+    : 'Qualcuno sta cercando una squadra';
 
   const tokens = await senzaAutore(await tokenPerTipo('annunci'), annuncio.authorId);
   const esito = await invia(tokens, {

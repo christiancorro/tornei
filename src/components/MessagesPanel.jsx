@@ -13,8 +13,8 @@ import { useFeedback } from './FeedbackProvider';
 /* Colori dei bubble dei messaggi. Non li metto nel theme perché
    valgono solo dentro la chat: SUN e SAND sono usati in mezza app
    e ridefinirli globalmente cambierebbe pulsanti, avatar, badge. */
-const MSG_MINE_BG = '#f1ab39';
-const MSG_OTHER_BG = '#fff1de';
+const MSG_MINE_BG = '#ffeed3';
+const MSG_OTHER_BG = '#f0f0ff';
 
 /* Bubble di contesto in cima al thread: mostra il testo dell'annuncio
    che ha originato la conversazione, formattato come un messaggio del
@@ -183,7 +183,7 @@ function Thread({ conv, profile, onBack, readOnly, onDelete }) {
           return (
             <div key={m.id} className={mine ? 'flex justify-end' : 'flex justify-start'}>
               <div
-                className="max-w-[80%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words"
+                className="max-w-[80%] px-3 py-2 rounded-2xl text-2sm whitespace-pre-wrap break-words"
                 style={{
                   backgroundColor: mine ? MSG_MINE_BG : MSG_OTHER_BG,
                   color: INK,
@@ -225,7 +225,7 @@ function Thread({ conv, profile, onBack, readOnly, onDelete }) {
             }}
             rows={1}
             placeholder="Scrivi un messaggio..."
-            className="flex-1 px-3 py-2 rounded-lg border-2 text-sm outline-none resize-none"
+            className="flex-1 px-3 py-2 rounded-lg border-2 text-2sm outline-none resize-none"
             style={{ borderColor: 'rgba(34,48,31,0.2)', color: INK }}
           />
           <button

@@ -683,6 +683,7 @@ export function sezioniChiSiamo() {
   ];
 }
 
+
 /* Compatibilità: il blocco intero come stringa, se serve
    altrove. */
 export function bloccoChiSiamo() {

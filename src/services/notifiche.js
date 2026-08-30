@@ -60,7 +60,7 @@ const CHIAVE_LOCALE = 'vfvg-push-token';
    conseguenza voluta di questa scelta. */
 export const PREFERENZE_DEFAULT = {
   tornei: true,
-  annunci: false,
+  annunci: true,
   messaggi: true,
   /* Roba da amministratori: tornei in coda e suggerimenti. La
      preferenza sta su tutti i token, ma il server la guarda solo

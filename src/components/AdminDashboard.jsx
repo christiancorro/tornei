@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   ShieldCheck, Check, X, Users, Clock, Search, MessageCircle, StickyNote, Trash2,
-  UserX, Loader2, Lightbulb, Mail, MailOpen,
+  UserX, Loader2, Lightbulb, Mail, MailOpen, Trophy, Pencil, User // <-- Aggiunto User
 } from 'lucide-react';
 
 import { INK, SAND, SUN, GRASS_DARK, CLAY, CARD_BG, BOARD_A, BOARD_B, NOTE_YELLOW, NOTE_WHITE } from '../theme';
@@ -53,6 +53,125 @@ function Tab({ active, onClick, children, badge }) {
         </span>
       )}
     </button>
+  );
+}
+/* --- Funzione per generare un colore pastello fisso in base a una stringa (es. email) --- */
+function getAuthorColor(identifier) {
+  if (!identifier) return '#F5F5DC';
+  let hash = 0;
+  for (let i = 0; i < identifier.length; i++) {
+    hash = identifier.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 70%, 95%)`;
+}
+
+/* --- Card per Tornei Pubblicati --- */
+function PublishedCard({ torneo, onEdit, onDelete, onOpenDetail }) {
+  const authorId = torneo.authorEmail || torneo.authorName || 'unknown';
+  const bgColor = getAuthorColor(authorId);
+
+  return (
+    <div
+      onClick={() => onOpenDetail(torneo)}
+      className="rounded-xl border-2 p-4 flex flex-col h-full cursor-pointer"
+      style={{ backgroundColor: CARD_BG, borderColor: 'rgba(34,48,31,0.15)' }}
+    >
+      {/* 1. Intestazione: Titolo, info principali e locandina */}
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="min-w-0">
+          <h4 className="font-black text-base truncate" style={{ color: INK }}>
+            {torneo.nome}
+          </h4>
+          <p className="text-xs mt-1" style={{ color: INK, opacity: 0.6 }}>
+            {torneo.disciplina} · {torneo.formati?.join(', ')}
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: INK, opacity: 0.6 }}>
+            {formatDataLunga(torneo.data)}
+          </p>
+          <p className="text-xs mt-0.5 truncate" style={{ color: INK, opacity: 0.6 }}>
+            {luogoDi(torneo)}
+          </p>
+        </div>
+
+        {torneo.locandina && (
+          <a
+            href={torneo.locandina}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="shrink-0 block rounded-lg overflow-hidden border"
+            style={{ borderColor: 'rgba(34,48,31,0.1)' }}
+            title="Vedi locandina intera"
+          >
+            <img
+              src={torneo.locandinaThumb || torneo.locandina}
+              alt="Locandina"
+              className="w-16 h-16 object-cover"
+            />
+          </a>
+        )}
+      </div>
+
+      {/* 2. Dettagli Autore e Data con Icona e sfondo personalizzato */}
+      <div className="text-xs px-3 py-2 rounded-lg mb-3" style={{ backgroundColor: bgColor, color: INK }}>
+        <div className="flex items-start gap-1.5">
+          <User size={14} className="shrink-0 mt-0.5" style={{ opacity: 0.7 }} />
+          <div className="min-w-0">
+            <span style={{ opacity: 0.85 }}>Pubblicato da</span> <strong className="inline truncate">{torneo.authorName || 'Utente sconosciuto'}</strong>
+
+            {torneo.createdAt && (
+              <span style={{ opacity: 0.85 }}>
+                {' '}il {(torneo.createdAt.toDate?.() ?? new Date(torneo.createdAt)).toLocaleDateString('it-IT', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric'
+                })}
+              </span>
+            )}
+
+            <span className="truncate block mt-1" style={{ opacity: 0.7 }}>{torneo.authorEmail}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1" />
+
+      {/* 3. Azioni Admin (Modifica / Elimina) */}
+      <div className="flex flex-wrap gap-2 pt-3 mt-1" style={{ borderTop: '1px dashed rgba(34,48,31,0.15)' }}>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(torneo);
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold active:scale-95 transition-transform"
+          style={{
+            border: '1px solid rgba(34,48,31,0.25)',
+            color: INK,
+            backgroundColor: 'transparent',
+          }}
+        >
+          <Pencil size={14} /> Modifica
+        </button>
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(torneo);
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold active:scale-95 transition-transform"
+          style={{
+            border: `1px solid ${CLAY}`,
+            color: CLAY,
+            backgroundColor: 'transparent',
+          }}
+        >
+          <Trash2 size={14} /> Elimina
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -496,13 +615,27 @@ function RichiestaRow({ richiesta, profile, onMarkRead, onDelete }) {
 }
 
 export default function AdminDashboard({
-  pending, users, counts, myUid, profile, conversations, annunci,
+  pending, published = [], users, counts, myUid, profile, conversations, annunci,
   richieste = [], onMarkRichiestaRead, onDeleteRichiesta,
   onApprove, onReject, onChangeRole, onDeleteConversation, onDeleteAnnuncio,
   onDeleteUser, onUserFootprint,
+  onEditTorneo, onDeleteTorneo, onOpenDetail
 }) {
-  const [tab, setTab] = useState('coda');
+  const [tab, setTab] = useState('tornei');
+  const [subTabTornei, setSubTabTornei] = useState('sospeso');
   const [q, setQ] = useState('');
+
+  const publishedOrdinati = useMemo(() => {
+    const toMillis = (t) => {
+      const raw = t.createdAt;
+      if (!raw) return 0;
+      if (typeof raw.toMillis === 'function') return raw.toMillis();
+      const d = raw.toDate?.() ?? new Date(raw);
+      const ms = d?.getTime?.();
+      return Number.isFinite(ms) ? ms : 0;
+    };
+    return [...published].sort((a, b) => toMillis(b) - toMillis(a));
+  }, [published]);
 
   const filteredUsers = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -528,8 +661,8 @@ export default function AdminDashboard({
       </p>
 
       <div className="flex gap-2 mb-5 flex-wrap">
-        <Tab active={tab === 'coda'} onClick={() => setTab('coda')} badge={pending.length}>
-          <Clock size={16} /> Tornei in sospeso
+        <Tab active={tab === 'tornei'} onClick={() => setTab('tornei')} badge={pending.length}>
+          <Trophy size={16} /> Tornei
         </Tab>
         <Tab active={tab === 'utenti'} onClick={() => setTab('utenti')}>
           <Users size={16} /> Utenti
@@ -550,20 +683,74 @@ export default function AdminDashboard({
       </div>
 
       <div key={tab} className="view-swap">
-        {tab === 'coda' && (
-          pending.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="text-5xl mb-3">✅</div>
-              <h3 className="font-black text-lg mb-1" style={{ color: INK }}>Nessun torneo in attesa</h3>
-              <p className="text-2sm" style={{ color: INK, opacity: 0.6 }}>
-                Le nuove proposte compaiono qui.
-              </p>
+        {tab === 'tornei' && (
+          <>
+            <div className="flex gap-2 mb-4 border-b-2 pb-2" style={{ borderColor: 'rgba(34,48,31,0.1)' }}>
+              <button
+                type="button"
+                onClick={() => setSubTabTornei('sospeso')}
+                className="px-3 py-1.5 rounded-full text-xs font-bold transition-colors"
+                style={{
+                  backgroundColor: subTabTornei === 'sospeso' ? INK : 'transparent',
+                  color: subTabTornei === 'sospeso' ? SAND : INK,
+                }}
+              >
+                Tornei in sospeso ({pending.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setSubTabTornei('pubblicati')}
+                className="px-3 py-1.5 rounded-full text-xs font-bold transition-colors"
+                style={{
+                  backgroundColor: subTabTornei === 'pubblicati' ? INK : 'transparent',
+                  color: subTabTornei === 'pubblicati' ? SAND : INK,
+                }}
+              >
+                Tornei pubblicati ({published.length})
+              </button>
             </div>
-          ) : (
-            pending.map((t) => (
-              <PendingCard key={t.id} torneo={t} onApprove={onApprove} onReject={onReject} />
-            ))
-          )
+
+            {subTabTornei === 'sospeso' && (
+              pending.length === 0 ? (
+                <div className="text-center py-16">
+                  <div className="text-5xl mb-3">✅</div>
+                  <h3 className="font-black text-lg mb-1" style={{ color: INK }}>Nessun torneo in attesa</h3>
+                  <p className="text-2sm" style={{ color: INK, opacity: 0.6 }}>
+                    Le nuove proposte compaiono qui.
+                  </p>
+                </div>
+              ) : (
+                pending.map((t) => (
+                  <PendingCard key={t.id} torneo={t} onApprove={onApprove} onReject={onReject} />
+                ))
+              )
+            )}
+
+            {subTabTornei === 'pubblicati' && (
+              published.length === 0 ? (
+                <div className="text-center py-16">
+                  <div className="text-5xl mb-3">🏆</div>
+                  <h3 className="font-black text-lg mb-1" style={{ color: INK }}>Nessun torneo pubblicato</h3>
+                  <p className="text-2sm" style={{ color: INK, opacity: 0.6 }}>
+                    I tornei attivi compariranno qui.
+                  </p>
+                </div>
+              ) : (
+                /* --- CONTENITORE A GRIGLIA --- */
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {published.map((t) => (
+                    <PublishedCard
+                      key={t.id}
+                      torneo={t}
+                      onEdit={onEditTorneo}
+                      onDelete={onDeleteTorneo}
+                      onOpenDetail={onOpenDetail}
+                    />
+                  ))}
+                </div>
+              )
+            )}
+          </>
         )}
 
         {tab === 'utenti' && (
@@ -606,7 +793,6 @@ export default function AdminDashboard({
 
         {tab === 'messaggi' && (
           <>
-
             <MessagesPanel
               conversations={conversations}
               profile={profile}

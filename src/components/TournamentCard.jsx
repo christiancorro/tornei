@@ -19,7 +19,7 @@ import LazyImage from './ui/LazyImage';
 
    Fallback: sui tornei vecchi salvati prima del thumb, se
    `locandinaThumb` non c'è si ripiega sulla `locandina`
-   grande — meglio una preview lenta di nessuna preview.
+   grande — meglio unFa preview lenta di nessuna preview.
 --------------------------------------------------------- */
 export default function TournamentCard({ t, delay, onOpenDetail, eagerImage = false }) {
   const [posterMissing, setPosterMissing] = useState(false);

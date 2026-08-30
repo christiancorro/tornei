@@ -120,6 +120,9 @@ function ricordaChiuso() {
 }
 
 export default function NotificheBanner({ uid = null }) {
+  // Se l'utente non è loggato, interrompi immediatamente senza renderizzare nulla
+  if (!uid) return null;
+
   // 'controllo' | 'nascosto' | 'visibile' | 'attesa' | 'fatto'
   const [stato, setStato] = useState('controllo');
 
@@ -157,7 +160,8 @@ export default function NotificheBanner({ uid = null }) {
     let vivo = true;
 
     (async () => {
-      if (giaChiuso() || permessoNotifiche() !== 'default') {
+      // Se l'utente non è autenticato (!uid), oppure ha già chiuso il banner o bloccato le notifiche
+      if (!uid || giaChiuso() || permessoNotifiche() !== 'default') {
         if (vivo) setStato('nascosto');
         return;
       }
@@ -167,7 +171,7 @@ export default function NotificheBanner({ uid = null }) {
     })();
 
     return () => { vivo = false; };
-  }, []);
+  }, [uid]);
 
   /* Apertura al frame successivo alla comparsa del contenuto: due
      rAF perché il primo serve a far scrivere il DOM, il secondo a
@@ -265,7 +269,7 @@ export default function NotificheBanner({ uid = null }) {
                     Vuoi sapere quando esce un nuovo torneo?
                   </p>
                   <p className="text-xs" style={{ color: INK, opacity: 0.6 }}>
-                    Attiva le notifiche: puoi disattivarle in qualunque momento.
+                    Attiva le notifiche. Puoi disattivarle in qualunque momento dalle impostazioni.
                   </p>
                 </>
               )}

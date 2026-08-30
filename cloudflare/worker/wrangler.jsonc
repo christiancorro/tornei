@@ -45,7 +45,7 @@
     "ORIGIN": "https://christiancorro.github.io/tornei",
     // Dominio pubblico, usato per costruire og:url e canonical.
     "SITE_URL": "https://volleyfvg.it",
-    "SITE_NAME": "volleyFVG",
+    "SITE_NAME": "Volley FVG",
     // www.volleyfvg.it -> volleyfvg.it con un 301, come fa oggi
     // GitHub Pages. Lascia vuoto per disattivare il redirect.
     "CANONICAL_HOST": "volleyfvg.it",

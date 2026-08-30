@@ -52,7 +52,15 @@ export const SLUG_VALIDO = /^[A-Za-z0-9_-]{1,120}$/;
 /* La home. Il resto del sito è una SPA: qualunque altro path che
    non sia /torneo/<slug> è un file vero (asset, icone, sw.js) e
    passa dal proxy senza essere toccato. */
-const PATH_DOCUMENTO = new Set(['/', '/index.html', '/tornei', '/bacheca', '/account', '/admin', '/about']);
+const PATH_DOCUMENTO = new Set([
+  '/', '/index.html', '/tornei', '/bacheca', '/account', '/admin', '/about',
+  '/tornei/pallavolo', '/tornei/green-volley', '/tornei/beach-volley',
+  '/tornei/udine', '/tornei/pordenone', '/tornei/gorizia', '/tornei/trieste',
+  '/tornei/green-volley/udine', '/tornei/green-volley/pordenone', '/tornei/green-volley/gorizia', '/tornei/green-volley/trieste',
+  '/tornei/beach-volley/udine', '/tornei/beach-volley/pordenone', '/tornei/beach-volley/gorizia', '/tornei/beach-volley/trieste',
+  '/tornei/pallavolo/udine', '/tornei/pallavolo/pordenone', '/tornei/pallavolo/gorizia', '/tornei/pallavolo/trieste',
+  '/bacheca/cerco-squadra', '/bacheca/cercasi-giocatori'
+]);
 
 /* /torneo/<slug>. Lo slug ha lo stesso vincolo di prima, quindi
    un path malformato non genera nessuna richiesta a Firestore. */
@@ -107,7 +115,12 @@ export function leggiSlugPath(url) {
    solo restituire 404. Quelle richieste le intercettiamo prima. */
 export function eRichiestaDocumento(request, url) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return false;
-  if (!PATH_DOCUMENTO.has(url.pathname)) return false;
+
+  const path = url.pathname;
+  const eArchivio = /^\/tornei\/archivio-\d{4}$/.test(path);
+
+  if (!PATH_DOCUMENTO.has(path) && !eArchivio) return false;
+
   const dest = request.headers.get('sec-fetch-dest');
   if (dest && dest !== 'document') return false;
   return true;
@@ -268,25 +281,24 @@ async function gestisciTorneo(request, env, ctx, slug) {
     : res;
 }
 
-
-/* ---------------------------------------------------------
-   Pagina /tornei (Elenco esplicito per sitelinks)
---------------------------------------------------------- */
-async function gestisciTornei(request, env, ctx) {
+async function gestisciTornei(request, env, ctx, filtroDisciplina = null, filtroProvincia = null) {
   const cache = caches.default;
-  const key = chiaveCache(env, 'tornei');
+
+  let keyParts = ['tornei'];
+  if (filtroDisciplina) keyParts.push(filtroDisciplina.toLowerCase().replace(' ', '-'));
+  if (filtroProvincia) keyParts.push(`prov-${filtroProvincia.toLowerCase()}`);
+  const keyStr = keyParts.join('-');
+
+  const key = chiaveCache(env, keyStr);
 
   const inCache = await cache.match(key);
   if (inCache) {
     const html = await inCache.text();
-    const res = rispostaHtml(html, ttlLista(env), 'tornei-cache', false);
-    return request.method === 'HEAD'
-      ? new Response(null, { status: 200, headers: res.headers })
-      : res;
+    const res = rispostaHtml(html, ttlLista(env), `${keyStr}-cache`, false);
+    return request.method === 'HEAD' ? new Response(null, { status: 200, headers: res.headers }) : res;
   }
 
   const oggi = oggiRoma();
-
   const [originRes, tutti] = await Promise.all([
     fetchOriginIndex(request, env),
     listTornei(env, '2000-01-01', 1000),
@@ -297,31 +309,60 @@ async function gestisciTornei(request, env, ctx) {
     return finalizeProxy(originRes, request, env, 'tornei-passthrough');
   }
 
-  const { futuri, passati } = dividiPassatoFuturo(tutti, oggi);
+  // Applica sia disciplina che provincia se definite
+  let torneiFiltrati = tutti;
+  if (filtroDisciplina) {
+    torneiFiltrati = torneiFiltrati.filter(t => t.disciplina === filtroDisciplina);
+  }
+  if (filtroProvincia) {
+    torneiFiltrati = torneiFiltrati.filter(t => {
+      const L = scomponiLuogo(t);
+      return L.prov === filtroProvincia;
+    });
+  }
+
+  const { futuri, passati } = dividiPassatoFuturo(torneiFiltrati, oggi);
   const base = String(env.SITE_URL || 'https://volleyfvg.it').replace(/\/+$/, '');
 
-  // Ricreiamo al volo i meta tag dedicati per la rotta senza toccare preview.js
+  const nomiProv = { 'UD': 'Udine', 'PN': 'Pordenone', 'GO': 'Gorizia', 'TS': 'Trieste' };
+  const nomeProvEsteso = filtroProvincia ? (nomiProv[filtroProvincia] || filtroProvincia) : '';
+
+  let titolo = 'Tornei di Green Volley e Beach Volley in Friuli Venezia Giulia';
+  let descrizione = 'Tutti i tornei in programma e passati di Green Volley, Beach Volley e Pallavolo in FVG e dintorni.';
+  let path = '/tornei';
+
+  if (filtroDisciplina && filtroProvincia) {
+    titolo = `Tornei di ${filtroDisciplina} a ${nomeProvEsteso} e provincia`;
+    descrizione = `Tutti i tornei di ${filtroDisciplina} in programma e passati in provincia di ${nomeProvEsteso}.`;
+    path = `/tornei/${filtroDisciplina.toLowerCase().replace(' ', '-')}/${nomeProvEsteso.toLowerCase()}`;
+  } else if (filtroDisciplina) {
+    titolo = `Tornei di ${filtroDisciplina} in Friuli Venezia Giulia`;
+    descrizione = `Tutti i tornei in programma e passati di ${filtroDisciplina} in FVG e dintorni.`;
+    path = `/tornei/${filtroDisciplina.toLowerCase().replace(' ', '-')}`;
+  } else if (filtroProvincia) {
+    titolo = `Tornei di Volley a ${nomeProvEsteso} e provincia`;
+    descrizione = `Scopri tutti i tornei in programma e passati di Green Volley, Beach Volley e Pallavolo in provincia di ${nomeProvEsteso}.`;
+    path = `/tornei/${nomeProvEsteso.toLowerCase()}`;
+  }
+
   const metaTornei = {
-    title: 'Tornei di Green Volley e Beach Volley in Friuli Venezia Giulia',
-    description: 'Tutti i tornei in programma e passati di Green Volley, Beach Volley e Pallavolo in FVG e dintorni.',
-    url: `${base}/tornei`,
+    title: titolo,
+    description: descrizione,
+    url: `${base}${path}`,
     image: env.FALLBACK_IMAGE || `${base}/icons/icon512.png`,
     imageAlt: String(env.SITE_NAME || 'Tornei Volley FVG'),
     siteName: String(env.SITE_NAME || 'Tornei Volley FVG'),
   };
 
   const html = await applyPreview(originRes, metaTornei, {
-    body: bloccoLista(futuri, passati.slice(0, 50), env, oggi, false),
+    body: bloccoLista(futuri, passati.slice(0, 50), env, oggi, false, titolo, descrizione),
     ldTag: tagJsonLd(jsonLdSito(futuri, env)),
-    canonical: `${base}/tornei`,
+    canonical: `${base}${path}`,
   }).text();
 
-  ctx.waitUntil(cache.put(key, rispostaHtml(html, ttlLista(env), 'tornei', true)));
-
-  const res = rispostaHtml(html, ttlLista(env), 'tornei', false);
-  return request.method === 'HEAD'
-    ? new Response(null, { status: 200, headers: res.headers })
-    : res;
+  ctx.waitUntil(cache.put(key, rispostaHtml(html, ttlLista(env), keyStr, true)));
+  const res = rispostaHtml(html, ttlLista(env), keyStr, false);
+  return request.method === 'HEAD' ? new Response(null, { status: 200, headers: res.headers }) : res;
 }
 
 /* ---------------------------------------------------------
@@ -647,20 +688,6 @@ async function gestisci(request, env, ctx) {
     return gestisciFeed(request, env, ctx);
   }
 
-  /* --- /torneo/<slug>: gestito SEMPRE qui, mai inoltrato ---
-
-     All'origin quel percorso non esiste: GitHub Pages serve file
-     veri e non ha il fallback SPA, quindi qualunque richiesta che
-     esca da questo Worker verso /torneo/<qualcosa> torna 404.
-
-     Ed è per questo che il controllo su sec-fetch-dest non può
-     stare prima: lo mandano tutti i browser, ma non sempre vale
-     "document" — un prefetch, un prerender, la webview dentro
-     un'app di messaggistica mandano altro. Con il controllo
-     davanti, quelle richieste finivano al proxy e prendevano il
-     404 dell'origin. Il sito funzionava da desktop e "dava 404"
-     dal telefono, che è esattamente il sintomo peggiore da
-     capire. */
   if (url.pathname.startsWith('/torneo/')) {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return proxy(request, env);
@@ -671,23 +698,47 @@ async function gestisci(request, env, ctx) {
     return paginaAssente(request, env);
   }
 
-  /* La lista va solo su `/`, non su `/index.html`.
-
-     Il motivo è il service worker: in fase di install mette in
-     cache /index.html come shell, e quella copia resta lì finché
-     non cambia versione del SW. Se ci iniettassimo la tabella dei
-     tornei, ogni utente si porterebbe dietro per mesi un elenco
-     congelato al giorno dell'installazione. React lo cancella
-     comunque al mount, quindi non si romperebbe niente — ma è
-     peso inutile in cache, e la shell è più pulita senza.
-
-     /index.html non lo cerca nessun crawler (non è linkato da
-     nessuna parte e non è in sitemap), quindi non perdiamo
-     niente lato indicizzazione. */
   if (url.pathname === '/tornei') {
     if (!leggibile) return proxy(request, env);
     return gestisciTornei(request, env, ctx);
   }
+
+  // Single Discipline
+  if (url.pathname === '/tornei/pallavolo') return gestisciTornei(request, env, ctx, 'Pallavolo');
+  if (url.pathname === '/tornei/green-volley') return gestisciTornei(request, env, ctx, 'Green Volley');
+  if (url.pathname === '/tornei/beach-volley') return gestisciTornei(request, env, ctx, 'Beach Volley');
+
+  // Single Province
+  if (url.pathname === '/tornei/udine') return gestisciTornei(request, env, ctx, null, 'UD');
+  if (url.pathname === '/tornei/pordenone') return gestisciTornei(request, env, ctx, null, 'PN');
+  if (url.pathname === '/tornei/gorizia') return gestisciTornei(request, env, ctx, null, 'GO');
+  if (url.pathname === '/tornei/trieste') return gestisciTornei(request, env, ctx, null, 'TS');
+
+  // Filtri Incrociati (Green Volley)
+  if (url.pathname === '/tornei/green-volley/udine') return gestisciTornei(request, env, ctx, 'Green Volley', 'UD');
+  if (url.pathname === '/tornei/green-volley/pordenone') return gestisciTornei(request, env, ctx, 'Green Volley', 'PN');
+  if (url.pathname === '/tornei/green-volley/gorizia') return gestisciTornei(request, env, ctx, 'Green Volley', 'GO');
+  if (url.pathname === '/tornei/green-volley/trieste') return gestisciTornei(request, env, ctx, 'Green Volley', 'TS');
+
+  // Filtri Incrociati (Beach Volley)
+  if (url.pathname === '/tornei/beach-volley/udine') return gestisciTornei(request, env, ctx, 'Beach Volley', 'UD');
+  if (url.pathname === '/tornei/beach-volley/pordenone') return gestisciTornei(request, env, ctx, 'Beach Volley', 'PN');
+  if (url.pathname === '/tornei/beach-volley/gorizia') return gestisciTornei(request, env, ctx, 'Beach Volley', 'GO');
+  if (url.pathname === '/tornei/beach-volley/trieste') return gestisciTornei(request, env, ctx, 'Beach Volley', 'TS');
+
+  // Filtri Incrociati (Pallavolo)
+  if (url.pathname === '/tornei/pallavolo/udine') return gestisciTornei(request, env, ctx, 'Pallavolo', 'UD');
+  if (url.pathname === '/tornei/pallavolo/pordenone') return gestisciTornei(request, env, ctx, 'Pallavolo', 'PN');
+  if (url.pathname === '/tornei/pallavolo/gorizia') return gestisciTornei(request, env, ctx, 'Pallavolo', 'GO');
+  if (url.pathname === '/tornei/pallavolo/trieste') return gestisciTornei(request, env, ctx, 'Pallavolo', 'TS');
+
+  const matchArchivio = url.pathname.match(/^\/tornei\/archivio-(\d{4})$/);
+  if (matchArchivio) {
+    const anno = matchArchivio[1];
+    if (!leggibile) return proxy(request, env);
+    return gestisciTornei(request, env, ctx, null, null, anno);
+  }
+
   if (url.pathname === '/bacheca') {
     if (!leggibile) return proxy(request, env);
     return gestisciBacheca(request, env, ctx);

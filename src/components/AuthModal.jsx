@@ -63,7 +63,7 @@ export default function AuthModal({ onGoogle, onClose }) {
           Accedi a volley<span style={{ color: SUN }}>FVG</span>
         </h3>
         <p className="text-sm sm:text-base text-gray-500 mb-5 sm:mb-6">
-          È necessario solo se vuoi proporre un torneo e scrivere e rispondere agli annunci in bacheca.
+          È necessario solo se vuoi proporre un torneo, scrivere e rispondere agli annunci in bacheca.
         </p>
 
         <button

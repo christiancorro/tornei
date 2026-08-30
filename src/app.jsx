@@ -77,7 +77,15 @@ export default function App() {
   });
   const [viewMode, setViewMode] = useState('lista');
   const [search, setSearch] = useState('');
-  const [selectedDisciplines, setSelectedDisciplines] = useState([]);
+  const [selectedDisciplines, setSelectedDisciplines] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      if (path === '/tornei/pallavolo') return ['Pallavolo'];
+      if (path === '/tornei/green-volley') return ['Green Volley'];
+      if (path === '/tornei/beach-volley') return ['Beach Volley'];
+    }
+    return [];
+  });
   const [selectedFormats, setSelectedFormats] = useState([]);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');

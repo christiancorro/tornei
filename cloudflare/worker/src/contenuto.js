@@ -363,6 +363,41 @@ export function bloccoTorneo(torneo, slug, env) {
     '  </article>'
   ));
 }
+// Aggiungi parametro titoloCustom e descCustom alla firma
+export function bloccoLista(tornei, torneiPassati, env, oggiISO, mostraChiSiamo = true, titoloCustom = null, descCustom = null) {
+  const aggiornato = formatData(oggiISO, '').toLowerCase();
+
+  // Usa il titolo custom se fornito, altrimenti il default
+  const titoloEffettivo = titoloCustom || TITOLO_LISTA;
+
+  const sezioni = [
+    sezioneInProgramma(tornei, env, titoloCustom),
+    sezionePassati(torneiPassati, env),
+  ];
+
+  if (mostraChiSiamo) {
+    sezioni.push(...sezioniChiSiamo(env));
+  } else {
+    sezioni.push(sezioneLinkUtili(env));
+  }
+
+  const sezioniFiltrate = sezioni.filter(Boolean);
+
+  // Generiamo il sommario custom o standard
+  const testoSommario = descCustom
+    ? `    <p>${escapeHtml(descCustom)} <em>Elenco aggiornato ${escapeHtml(aggiornato)}.</em></p>`
+    : sommarioLista(tornei, torneiPassati, aggiornato);
+
+  return avvolgi(componi(
+    navigazionePrincipale(env),
+    '  <article>',
+    `    <h1>${escapeHtml(titoloEffettivo)}</h1>`,
+    testoSommario,
+    indiceSezioni(sezioniFiltrate),
+    ...sezioniFiltrate.map((s) => s.html),
+    '  </article>'
+  ));
+}
 
 /* ---------------------------------------------------------
    Il sommario di apertura.
@@ -481,58 +516,6 @@ ${voci}
     </nav>`;
 }
 
-function sezioneInProgramma(tornei, env) {
-  if (!tornei.length) return null;
-
-  const righe = tornei.map((t) => {
-    const L = scomponiLuogo(t);
-    const celle = [
-      escapeHtml(formatDataBreve(t.data, t.dataFine)),
-      `<a href="${escapeHtml(urlTorneo(t.id, env))}">${escapeHtml(t.nome)}</a>`,
-      escapeHtml(t.disciplina || ''),
-      escapeHtml([(t.formati || []).join(', '), t.modalita].filter(Boolean).join(' ')),
-      escapeHtml(luogoBreve(L)),
-      escapeHtml(L.regione),
-      escapeHtml(formatCosto(t.costo) || COSTO_MANCANTE),
-    ];
-    return `        <tr>
-${celle.map((c) => `          <td>${c}</td>`).join('\n')}
-        </tr>`;
-  }).join('\n');
-
-  /* Le sette colonne restano quelle di prima perché il CSS del
-     blocco boot le impagina per posizione (la prima diventa
-     l'occhiello con la data, la seconda il titolo della scheda):
-     se cambi ordine o numero, aggiorna le regole nth-child in
-     STILI_BOOT. */
-  const corpo = `      <p>
-        Una riga per torneo, con data, disciplina, formato, luogo, provincia,
-        regione e costo di iscrizione. Il nome rimanda alla pagina del singolo
-        torneo: <strong>per i dettagli completi è necessario seguire quel
-        link</strong>, perché è lì che stanno l'orario di inizio, la
-        locandina, i contatti dell'organizzatore e la posizione esatta del
-        campo.
-      </p>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Data</th>
-            <th>Torneo</th>
-            <th>Disciplina</th>
-            <th>Formato</th>
-            <th>Luogo</th>
-            <th>Regione</th>
-            <th>Iscrizione</th>
-          </tr>
-        </thead>
-        <tbody>
-${righe}
-        </tbody>
-      </table>`;
-
-  return sezione(ID_IN_PROGRAMMA, 'Tornei di volley in programma', corpo, tornei.length);
-}
 
 function sezionePassati(passati, env) {
   if (!passati.length) return null;
@@ -560,48 +543,125 @@ ${voci}
   return sezione(ID_PASSATI, 'Tornei passati', corpo, passati.length);
 }
 
-
 /* ---------------------------------------------------------
-   bloccoLista(), la home.
-
-   L'ossatura sta tutta qui: h1, sommario, poi le sezioni in
-   ordine di interesse. Le sezioni si sanno spegnere da sole
-   quando non hanno contenuto, quindi non c'è più un ramo
-   separato per il calendario vuoto.
+   Sezione Link Utili (SEO e Navigazione Interna)
 --------------------------------------------------------- */
-/* ---------------------------------------------------------
-   bloccoLista(), la home.
+function sezioneLinkUtili(env) {
+  const base = env ? String(env.SITE_URL || 'https://volleyfvg.it').replace(/\/+$/, '') : '';
+  const annoCorrente = new Date().getFullYear();
 
-   L'ossatura sta tutta qui: h1, sommario, indice, poi le
-   sezioni in ordine di interesse. Le sezioni si spengono da
-   sole quando non hanno contenuto, quindi non c'è più un
-   ramo separato per il calendario vuoto.
---------------------------------------------------------- */
-export function bloccoLista(tornei, torneiPassati, env, oggiISO, mostraChiSiamo = true) {
-  const aggiornato = formatData(oggiISO, '').toLowerCase();
-
-  const sezioni = [
-    sezioneInProgramma(tornei, env),
-    sezionePassati(torneiPassati, env),
-  ];
-
-  // Aggiungiamo le sezioni del progetto solo se richiesto (es. nella Home)
-  if (mostraChiSiamo) {
-    sezioni.push(...sezioniChiSiamo(env));
+  // Genera dinamicamente la lista degli anni dal 2026 all'anno corrente
+  const linkArchivio = [];
+  for (let y = 2026; y <= annoCorrente; y++) {
+    linkArchivio.push(`        <li><a href="${escapeHtml(base)}/tornei/archivio-${y}">Tornei disputati nel ${y}</a></li>`);
   }
 
-  const sezioniFiltrate = sezioni.filter(Boolean);
+  const corpo = componi(
+    '      <p>',
+    '        Esplora l\'archivio e le categorie di Volley FVG per trovare esattamente l\'evento sportivo che cerchi:',
+    '      </p>',
 
-  // Aggiunta navigazionePrincipale come primo elemento
-  return avvolgi(componi(
-    navigazionePrincipale(env),
-    '  <article>',
-    `    <h1>${escapeHtml(TITOLO_LISTA)}</h1>`,
-    sommarioLista(tornei, torneiPassati, aggiornato),
-    indiceSezioni(sezioniFiltrate),
-    ...sezioniFiltrate.map((s) => s.html),
-    '  </article>'
-  ));
+    '      <h3 style="margin-top: 16px; font-size: 16px;">Filtra per Disciplina</h3>',
+    '      <ul>',
+    `        <li><a href="${escapeHtml(base)}/tornei/pallavolo">Tornei di Pallavolo</a></li>`,
+    `        <li><a href="${escapeHtml(base)}/tornei/green-volley">Tornei di Green Volley</a></li>`,
+    `        <li><a href="${escapeHtml(base)}/tornei/beach-volley">Tornei di Beach Volley</a></li>`,
+    '      </ul>',
+
+    '      <h3 style="margin-top: 16px; font-size: 16px;">Filtra per Provincia</h3>',
+    '      <ul>',
+    `        <li><a href="${escapeHtml(base)}/tornei/udine">Tornei a Udine e provincia</a></li>`,
+    `        <li><a href="${escapeHtml(base)}/tornei/pordenone">Tornei a Pordenone e provincia</a></li>`,
+    `        <li><a href="${escapeHtml(base)}/tornei/gorizia">Tornei a Gorizia e provincia</a></li>`,
+    `        <li><a href="${escapeHtml(base)}/tornei/trieste">Tornei a Trieste e provincia</a></li>`,
+    '      </ul>',
+
+    '      <h3 style="margin-top: 16px; font-size: 16px;">Archivio Tornei per Anno</h3>',
+    '      <ul>',
+    linkArchivio.join('\n'),
+    '      </ul>',
+
+    '      <h3 style="margin-top: 16px; font-size: 16px;">Altre risorse utili</h3>',
+    '      <ul>',
+    `        <li><strong><a href="${escapeHtml(base)}/bacheca">Bacheca Annunci</a>:</strong> Cerchi una squadra per il prossimo torneo o ti mancano giocatori per completare la rosa? Visita la bacheca per pubblicare o rispondere agli annunci gratuiti.</li>`,
+    `        <li><strong><a href="${escapeHtml(base)}/about">Chi sono</a>:</strong> Scopri di più sulla nascita del progetto Volley FVG, sulla sua missione e sullo sviluppatore che lo mantiene attivo.</li>`,
+    `        <li><strong><a href="${escapeHtml(base)}/">Home Page</a>:</strong> Torna alla pagina principale per avere una panoramica completa degli ultimi eventi in Friuli Venezia Giulia.</li>`,
+    '      </ul>'
+  );
+
+  return sezione('link-utili', 'Esplora Volley FVG', corpo);
+}
+
+/* ---------------------------------------------------------
+   sitemapXml()
+--------------------------------------------------------- */
+export function sitemapXml(tornei, env, oggiISO) {
+  const base = baseSito(env);
+  const voce = (loc, lastmod, priority, changefreq) =>
+    '  <url>\n' +
+    `    <loc>${escapeHtml(loc)}</loc>\n` +
+    `    <lastmod>${escapeHtml(lastmod)}</lastmod>\n` +
+    `    <changefreq>${changefreq}</changefreq>\n` +
+    `    <priority>${priority}</priority>\n` +
+    '  </url>';
+
+  const righe = tornei.map((t) => {
+    const agg = typeof t.updatedAt === 'string' && t.updatedAt.length >= 10
+      ? t.updatedAt.slice(0, 10)
+      : oggiISO;
+    return voce(urlTorneo(t.id, env), agg, '0.8', 'weekly');
+  });
+
+  // Genera dinamicamente le voci per l'archivio dal 2026 all'anno corrente
+  const annoCorrente = new Date().getFullYear();
+  const vociArchivio = [];
+  for (let y = 2026; y <= annoCorrente; y++) {
+    vociArchivio.push(voce(`${base}/tornei/archivio-${y}`, oggiISO, '0.6', 'monthly'));
+  }
+
+  return '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+    [
+      // Pagine principali
+      voce(`${base}/`, oggiISO, '1.0', 'daily'),
+      voce(`${base}/tornei`, oggiISO, '0.9', 'daily'),
+      voce(`${base}/bacheca`, oggiISO, '0.9', 'daily'),
+
+      // Landing page per le Discipline
+      voce(`${base}/tornei/pallavolo`, oggiISO, '0.8', 'daily'),
+      voce(`${base}/tornei/green-volley`, oggiISO, '0.8', 'daily'),
+      voce(`${base}/tornei/beach-volley`, oggiISO, '0.8', 'daily'),
+
+      // Landing page per le Province
+      voce(`${base}/tornei/udine`, oggiISO, '0.8', 'daily'),
+      voce(`${base}/tornei/pordenone`, oggiISO, '0.8', 'daily'),
+      voce(`${base}/tornei/gorizia`, oggiISO, '0.8', 'daily'),
+      voce(`${base}/tornei/trieste`, oggiISO, '0.8', 'daily'),
+
+      // Landing page per Filtri Incrociati
+      voce(`${base}/tornei/green-volley/udine`, oggiISO, '0.7', 'daily'),
+      voce(`${base}/tornei/green-volley/pordenone`, oggiISO, '0.7', 'daily'),
+      voce(`${base}/tornei/green-volley/gorizia`, oggiISO, '0.7', 'daily'),
+      voce(`${base}/tornei/green-volley/trieste`, oggiISO, '0.7', 'daily'),
+      voce(`${base}/tornei/beach-volley/udine`, oggiISO, '0.7', 'daily'),
+      voce(`${base}/tornei/beach-volley/pordenone`, oggiISO, '0.7', 'daily'),
+      voce(`${base}/tornei/beach-volley/gorizia`, oggiISO, '0.7', 'daily'),
+      voce(`${base}/tornei/beach-volley/trieste`, oggiISO, '0.7', 'daily'),
+      voce(`${base}/tornei/pallavolo/udine`, oggiISO, '0.7', 'daily'),
+      voce(`${base}/tornei/pallavolo/pordenone`, oggiISO, '0.7', 'daily'),
+      voce(`${base}/tornei/pallavolo/gorizia`, oggiISO, '0.7', 'daily'),
+      voce(`${base}/tornei/pallavolo/trieste`, oggiISO, '0.7', 'daily'),
+
+      // Landing page Archivio Storico (Dinamiche per anno)
+      ...vociArchivio,
+
+      // Pagine istituzionali
+      voce(`${base}/about`, oggiISO, '0.9', 'monthly'),
+
+      // Elenco dinamico di tutti i singoli tornei
+      ...righe
+    ].join('\n') +
+    '\n</urlset>\n';
 }
 
 export function bloccoNonTrovato(env) {
@@ -659,6 +719,63 @@ export const FRASE_AUTORE =
   'posto solo i tornei che altrimenti restano sparsi fra volantini, storie di ' +
   'Instagram e passaparola.';
 
+function sezioneInProgramma(tornei, env, titoloCustom) {
+  // Se non ci sono tornei per questo filtro, mostriamo un messaggio dedicato
+  if (!tornei.length) {
+    const nomeCategoria = titoloCustom ? titoloCustom.toLowerCase() : 'in questa categoria';
+    const corpoVuoto = `
+      <p style="padding: 16px; background-color: #fcfcf8; border: 1px dashed #d2cfc4; border-radius: 8px; color: #6f6c63;">
+        <strong>Nessun torneo disponibile:</strong> Al momento non ci sono tornei in programma per <em>${escapeHtml(nomeCategoria)}</em>. 
+        L'elenco viene aggiornato di continuo: torna a controllare presto oppure pubblica tu stesso un nuovo torneo!
+      </p>`;
+    return sezione(ID_IN_PROGRAMMA, 'Tornei in programma', corpoVuoto, 0);
+  }
+
+  const righe = tornei.map((t) => {
+    const L = scomponiLuogo(t);
+    const celle = [
+      escapeHtml(formatDataBreve(t.data, t.dataFine)),
+      `<a href="${escapeHtml(urlTorneo(t.id, env))}">${escapeHtml(t.nome)}</a>`,
+      escapeHtml(t.disciplina || ''),
+      escapeHtml([(t.formati || []).join(', '), t.modalita].filter(Boolean).join(' ')),
+      escapeHtml(luogoBreve(L)),
+      escapeHtml(L.regione),
+      escapeHtml(formatCosto(t.costo) || COSTO_MANCANTE),
+    ];
+    return `        <tr>
+${celle.map((c) => `          <td>${c}</td>`).join('\n')}
+        </tr>`;
+  }).join('\n');
+
+  const corpo = `      <p>
+        Una riga per torneo, con data, disciplina, formato, luogo, provincia,
+        regione e costo di iscrizione. Il nome rimanda alla pagina del singolo
+        torneo: <strong>per i dettagli completi è necessario seguire quel
+        link</strong>, perché è lì che stanno l'orario di inizio, la
+        locandina, i contatti dell'organizzatore e la posizione esatta del
+        campo.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Torneo</th>
+            <th>Disciplina</th>
+            <th>Formato</th>
+            <th>Luogo</th>
+            <th>Regione</th>
+            <th>Iscrizione</th>
+          </tr>
+        </thead>
+        <tbody>
+${righe}
+        </tbody>
+      </table>`;
+
+  return sezione(ID_IN_PROGRAMMA, 'Tornei di volley in programma', corpo, tornei.length);
+}
+
 export function sezioniChiSiamo(env) {
   const base = env ? baseSito(env) : '';
   const progetto = DESCRIZIONE_SITO
@@ -713,7 +830,7 @@ export function sezioniAboutApprofondito() {
 
   return [
     sezione(ID_PROGETTO, "Il progetto Volley FVG", progetto),
-    sezione(ID_AUTORE, 'Chi sono', autore),
+    sezione(ID_AUTORE, 'About', autore),
   ];
 }
 
@@ -724,7 +841,7 @@ export function bloccoPaginaAbout(env) {
   return avvolgi(componi(
     navigazionePrincipale(env),
     '  <article>',
-    '    <h1>Abou</h1>',
+    '    <h1>About</h1>',
     sezioni,
     '  </article>'
   ));
@@ -877,44 +994,6 @@ export function jsonLdLista(tornei, env) {
 export function tagJsonLd(oggetto) {
   const json = JSON.stringify(oggetto).replace(/</g, '\\u003c');
   return `<script type="application/ld+json">${json}</script>`;
-}
-
-/* ---------------------------------------------------------
-   sitemapXml()
-
-   Generata qui e non più a build time. Il motivo è concreto:
-   scripts/generate_sitemap.mjs gira durante `npm run build`,
-   quindi un torneo approvato dopo l'ultimo deploy non entra
-   nella sitemap finché non ne fai un altro. Un calendario di
-   eventi è esattamente il caso in cui questo fa male.
---------------------------------------------------------- */
-export function sitemapXml(tornei, env, oggiISO) {
-  const base = baseSito(env);
-  const voce = (loc, lastmod, priority, changefreq) =>
-    '  <url>\n' +
-    `    <loc>${escapeHtml(loc)}</loc>\n` +
-    `    <lastmod>${escapeHtml(lastmod)}</lastmod>\n` +
-    `    <changefreq>${changefreq}</changefreq>\n` +
-    `    <priority>${priority}</priority>\n` +
-    '  </url>';
-
-  const righe = tornei.map((t) => {
-    const agg = typeof t.updatedAt === 'string' && t.updatedAt.length >= 10
-      ? t.updatedAt.slice(0, 10)
-      : oggiISO;
-    return voce(urlTorneo(t.id, env), agg, '0.8', 'weekly');
-  });
-
-  return '<?xml version="1.0" encoding="UTF-8"?>\n' +
-    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-    [
-      voce(`${base}/`, oggiISO, '1.0', 'daily'),
-      voce(`${base}/tornei`, oggiISO, '0.9', 'daily'),
-      voce(`${base}/bacheca`, oggiISO, '0.9', 'daily'),
-      voce(`${base}/about`, oggiISO, '0.8', 'monthly'),
-      ...righe
-    ].join('\n') +
-    '\n</urlset>\n';
 }
 
 /* ---------------------------------------------------------

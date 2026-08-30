@@ -241,6 +241,7 @@ export function navigazionePrincipale(env) {
       <li><a href="${escapeHtml(base)}/" style="font-weight: 600;">Home</a></li>
       <li><a href="${escapeHtml(base)}/tornei" style="font-weight: 600;">Tornei</a></li>
       <li><a href="${escapeHtml(base)}/bacheca" style="font-weight: 600;">Bacheca</a></li>
+      <li><a href="${escapeHtml(base)}/about" style="font-weight: 600;">About</a></li>
     </ul>
   </nav>`;
 }
@@ -586,7 +587,7 @@ export function bloccoLista(tornei, torneiPassati, env, oggiISO, mostraChiSiamo 
 
   // Aggiungiamo le sezioni del progetto solo se richiesto (es. nella Home)
   if (mostraChiSiamo) {
-    sezioni.push(...sezioniChiSiamo());
+    sezioni.push(...sezioniChiSiamo(env));
   }
 
   const sezioniFiltrate = sezioni.filter(Boolean);
@@ -658,14 +659,12 @@ export const FRASE_AUTORE =
   'posto solo i tornei che altrimenti restano sparsi fra volantini, storie di ' +
   'Instagram e passaparola.';
 
-export function sezioniChiSiamo() {
+export function sezioniChiSiamo(env) {
+  const base = env ? baseSito(env) : '';
   const progetto = DESCRIZIONE_SITO
     .map((t) => `      <p>${escapeHtml(t)}</p>`)
     .join('\n');
 
-  /* Il nome è un link, quindi la frase va ricomposta a pezzi
-     invece di essere stampata intera: il testo resta identico
-     a FRASE_AUTORE. */
   const autore = componi(
     '      <p>',
     '        Volley FVG è ideato e realizzato da',
@@ -674,6 +673,9 @@ export function sezioniChiSiamo() {
     '        È un progetto indipendente, nato per raccogliere in un posto solo i',
     '        tornei che altrimenti restano sparsi fra volantini, storie di',
     '        Instagram e passaparola.',
+    '      </p>',
+    '      <p style="margin-top: 12px;">',
+    `        <strong><a href="${escapeHtml(base)}/about">Scopri di più sul progetto e sull'autore &rarr;</a></strong>`,
     '      </p>'
   );
 
@@ -681,6 +683,51 @@ export function sezioniChiSiamo() {
     sezione(ID_PROGETTO, "Che cos'è Volley FVG", progetto),
     sezione(ID_AUTORE, 'Chi ha sviluppato Volley FVG?', autore),
   ];
+}
+
+export function sezioniAboutApprofondito() {
+  const progetto = componi(
+    ...DESCRIZIONE_SITO.map((t) => `      <p>${escapeHtml(t)}</p>`),
+    '      <p>',
+    '        L\'idea alla base di Volley FVG è semplice: creare un punto di riferimento unico, gratuito e accessibile a tutti gli appassionati di pallavolo della regione. Prima della sua creazione, trovare informazioni sui tornei estivi significava dover scorrere decine di profili social, gruppi di messaggistica o affidarsi al passaparola, col rischio di perdersi le scadenze o i dettagli fondamentali.',
+    '      </p>',
+    '      <p>',
+    '        Oggi la piattaforma permette non solo di esplorare gli eventi in programma con tutte le informazioni necessarie (orari, locandine, costi), ma offre anche una Bacheca dedicata per facilitare l\'incontro tra giocatori in cerca di una squadra e squadre in cerca di giocatori per completare la rosa.',
+    '      </p>'
+  );
+
+  const autore = componi(
+    '      <p>',
+    '        Mi chiamo <strong>Christian Corrò</strong> e sono il creatore e lo sviluppatore unico di Volley FVG.',
+    '      </p>',
+    '      <p>',
+    `        Nella vita di tutti i giorni lavoro come ${escapeHtml(AUTORE.ruolo.toLowerCase())} presso l'${escapeHtml(AUTORE.ente)}. Tuttavia, una mia grande passione è sempre stata la pallavolo. Avendo partecipato per anni ai tornei locali di Green Volley e Beach Volley, ho vissuto in prima persona la frustrazione di non avere un calendario unificato degli eventi.`,
+    '      </p>',
+    '      <p>',
+    '        Così ho deciso di unire le mie competenze tecniche con la mia passione sportiva, sviluppando questa piattaforma nel mio tempo libero. È un progetto mantenuto in modo indipendente e senza scopo di lucro, nato esclusivamente per supportare e far crescere la fantastica community pallavolistica del Friuli Venezia Giulia.',
+    '      </p>',
+    '      <p>',
+    `        Puoi scoprire di più sul mio lavoro e sulle mie pubblicazioni accademiche visitando il mio <a href="${escapeHtml(AUTORE.profilo)}" target="_blank" rel="noopener noreferrer">profilo istituzionale</a>.`,
+    '      </p>'
+  );
+
+  return [
+    sezione(ID_PROGETTO, "Il progetto Volley FVG", progetto),
+    sezione(ID_AUTORE, 'Chi sono', autore),
+  ];
+}
+
+export function bloccoPaginaAbout(env) {
+  // Usiamo la versione approfondita dei testi
+  const sezioni = sezioniAboutApprofondito().map((s) => s.html).join('\n');
+
+  return avvolgi(componi(
+    navigazionePrincipale(env),
+    '  <article>',
+    '    <h1>Abou</h1>',
+    sezioni,
+    '  </article>'
+  ));
 }
 
 
@@ -864,6 +911,7 @@ export function sitemapXml(tornei, env, oggiISO) {
       voce(`${base}/`, oggiISO, '1.0', 'daily'),
       voce(`${base}/tornei`, oggiISO, '0.9', 'daily'),
       voce(`${base}/bacheca`, oggiISO, '0.9', 'daily'),
+      voce(`${base}/about`, oggiISO, '0.8', 'monthly'),
       ...righe
     ].join('\n') +
     '\n</urlset>\n';

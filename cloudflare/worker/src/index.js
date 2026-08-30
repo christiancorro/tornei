@@ -34,6 +34,8 @@ import {
   urlTorneo,
   dividiPassatoFuturo,
   scomponiLuogo,
+  bloccoPaginaAbout,
+  DESCRIZIONE_SITO
 } from './contenuto.js';
 
 /* Gli slug prodotti da slugify() in src/services/tournaments.js
@@ -50,7 +52,7 @@ export const SLUG_VALIDO = /^[A-Za-z0-9_-]{1,120}$/;
 /* La home. Il resto del sito è una SPA: qualunque altro path che
    non sia /torneo/<slug> è un file vero (asset, icone, sw.js) e
    passa dal proxy senza essere toccato. */
-const PATH_DOCUMENTO = new Set(['/', '/index.html', '/tornei', '/bacheca', '/account', '/admin']);
+const PATH_DOCUMENTO = new Set(['/', '/index.html', '/tornei', '/bacheca', '/account', '/admin', '/about']);
 
 /* /torneo/<slug>. Lo slug ha lo stesso vincolo di prima, quindi
    un path malformato non genera nessuna richiesta a Firestore. */
@@ -374,6 +376,52 @@ async function gestisciBacheca(request, env, ctx) {
 }
 
 /* ---------------------------------------------------------
+   Pagina /about
+--------------------------------------------------------- */
+async function gestisciAbout(request, env, ctx) {
+  const cache = caches.default;
+  const key = chiaveCache(env, 'about');
+
+  const inCache = await cache.match(key);
+  if (inCache) {
+    const html = await inCache.text();
+    const res = rispostaHtml(html, ttlLista(env), 'about-cache', false);
+    return request.method === 'HEAD'
+      ? new Response(null, { status: 200, headers: res.headers })
+      : res;
+  }
+
+  const originRes = await fetchOriginIndex(request, env);
+  const tipo = originRes.headers.get('content-type') || '';
+  if (originRes.status !== 200 || !tipo.includes('text/html')) {
+    return finalizeProxy(originRes, request, env, 'about-passthrough');
+  }
+
+  const base = String(env.SITE_URL || 'https://volleyfvg.it').replace(/\/+$/, '');
+
+  const metaAbout = {
+    title: 'About - Volley FVG',
+    description: DESCRIZIONE_SITO[0],
+    url: `${base}/about`,
+    image: env.FALLBACK_IMAGE || `${base}/icons/icon512.png`,
+    imageAlt: String(env.SITE_NAME || 'Tornei Volley FVG'),
+    siteName: String(env.SITE_NAME || 'Tornei Volley FVG'),
+  };
+
+  const html = await applyPreview(originRes, metaAbout, {
+    body: bloccoPaginaAbout(env),
+    canonical: `${base}/about`,
+  }).text();
+
+  ctx.waitUntil(cache.put(key, rispostaHtml(html, ttlLista(env), 'about', true)));
+
+  const res = rispostaHtml(html, ttlLista(env), 'about', false);
+  return request.method === 'HEAD'
+    ? new Response(null, { status: 200, headers: res.headers })
+    : res;
+}
+
+/* ---------------------------------------------------------
    La home.
 
    È la pagina che risponde a "quali tornei ci sono la prossima
@@ -643,6 +691,11 @@ async function gestisci(request, env, ctx) {
   if (url.pathname === '/bacheca') {
     if (!leggibile) return proxy(request, env);
     return gestisciBacheca(request, env, ctx);
+  }
+
+  if (url.pathname === '/about') {
+    if (!leggibile) return proxy(request, env);
+    return gestisciAbout(request, env, ctx);
   }
 
   if (url.pathname === '/account' || url.pathname === '/admin') {

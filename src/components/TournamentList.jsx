@@ -84,7 +84,7 @@ export default function TournamentList({
       {grouped.map((group) => (
         <div key={group.key} className="mb-10">
           <MonthHeader label={group.label} />
-          <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-1 gap-4 sm:gap-5">
             {group.items.map((t, i) => (
               <TournamentCard
                 key={t.id}

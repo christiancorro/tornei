@@ -484,8 +484,8 @@ export default function TrofeiPanel({ uid, onOpenDetail }) {
         nome: trofeo.nome ?? '',
         data: trofeo.data ?? '',
         disciplina: trofeo.disciplina ?? '',
-        locandina: trofeo.locandinaThumb ?? '',
-        locandinaThumb: trofeo.locandinaThumb ?? '',
+        locandina: trofeo.locandinaThumb ?? trofeo.locandina ?? '',
+        locandinaThumb: trofeo.locandinaThumb ?? trofeo.locandina ?? '',
         formati: [],
       });
     } catch (err) {
@@ -730,6 +730,9 @@ function TrofeoCard({
   const rotBase = tiltDaId(trofeo.torneoId);
   const nastro = nastroColore(trofeo.torneoId);
 
+  // 1. FIX: Leggiamo entrambi i campi per retrocompatibilità
+  const imageUrl = trofeo.locandinaThumb || trofeo.locandina;
+
   const stop = (fn) => (e) => {
     e.stopPropagation();
     fn?.(e);
@@ -745,10 +748,8 @@ function TrofeoCard({
         transition:
           'transform 320ms cubic-bezier(0.2, 0.9, 0.3, 1.05)',
       }}
-
     >
-      {/* Nastro adesivo (washi tape) che "attacca" la polaroid
-          all'album: leggermente trasparente e inclinato. */}
+      {/* Nastro adesivo */}
       <div
         aria-hidden="true"
         className="absolute z-20 pointer-events-none"
@@ -800,28 +801,15 @@ function TrofeoCard({
                 : '0 8px 18px -8px rgba(0,0,0,0.28), 0 2px 5px rgba(0,0,0,0.10)';
           }}
         >
-          {/* Riquadro foto della polaroid: aspetto ritratto ~4:5.
-              Tutti gli overlay e i pulsanti vivono qui dentro, così
-              restano sopra la foto e non invadono la cornice bianca. */}
           <div
             className="trofeo-photo w-full"
             style={{ paddingTop: '125%' }}
           >
-            {isPref && (
-              <div
-                className="trofeo-holo-overlay"
-                aria-hidden="true"
-              />
-            )}
-
-            <div
-              className="trofeo-shine"
-              aria-hidden="true"
-            />
-
-            {trofeo.locandinaThumb ? (
+            {/* 2. FIX: L'immagine (o il fallback) deve essere inserita PRIMA 
+                degli effetti nel DOM, in modo da restare sullo sfondo e non coprirli */}
+            {imageUrl ? (
               <img
-                src={trofeo.locandinaThumb}
+                src={imageUrl}
                 alt={trofeo.nome}
                 className="absolute inset-0 w-full h-full object-cover"
                 loading="lazy"
@@ -844,6 +832,20 @@ function TrofeoCard({
               </div>
             )}
 
+            {/* ORA gli effetti visivi andranno correttamente in sovrimpressione all'immagine */}
+            {isPref && (
+              <div
+                className="trofeo-holo-overlay"
+                aria-hidden="true"
+              />
+            )}
+
+            <div
+              className="trofeo-shine"
+              aria-hidden="true"
+            />
+
+            {/* Pulsanti interattivi */}
             <button
               type="button"
               onClick={onOpen}
@@ -932,9 +934,6 @@ function TrofeoCard({
             </button>
           </div>
 
-          {/* Didascalia polaroid: nome + data scritti a mano nella
-              fascia bianca bassa. Per i preferiti l'inchiostro vira
-              sul marrone dorato per intonarsi alla cornice. */}
           <div
             className="trofeo-caption"
             title={trofeo.nome}

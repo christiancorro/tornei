@@ -23,7 +23,7 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firest
 import { auth, db, COL_USERS } from '../firebase';
 import { ROLE_USER } from '../roles';
 
-setPersistence(auth, browserLocalPersistence).catch(() => {});
+setPersistence(auth, browserLocalPersistence).catch(() => { });
 
 /* `prompt: select_account` evita che chi ha più account Google
    venga loggato in automatico con quello sbagliato. */
@@ -81,7 +81,7 @@ export async function ensureProfile(user) {
     // displayName: potrebbe averlo modificato dalle impostazioni, e
     // sovrascriverlo a ogni accesso vanificherebbe la modifica.
     if (user.photoURL && user.photoURL !== data.photoURL) {
-      await updateDoc(ref, { photoURL: user.photoURL }).catch(() => {});
+      await updateDoc(ref, { photoURL: user.photoURL }).catch(() => { });
       return { ...data, photoURL: user.photoURL, uid: user.uid };
     }
     return { ...data, uid: user.uid };
@@ -94,6 +94,7 @@ export async function ensureProfile(user) {
     photoURL: user.photoURL ?? '',
     role: ROLE_USER,
     createdAt: serverTimestamp(),
+    onboardingCompletato: false,
   };
   await setDoc(ref, profile);
   return profile;

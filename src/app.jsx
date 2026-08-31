@@ -31,6 +31,7 @@ import AdminDashboard from './components/AdminDashboard';
 import AccountDashboard from './components/AccountDashboard';
 import ReplyModal from './components/ReplyModal';
 import NotificheBanner from './components/NotificheBanner';
+import OnboardingBanner from './components/OnboardingBanner';
 import { useFeedback } from './components/FeedbackProvider';
 import { sendRichiesta } from './services/richieste';
 import { collegaToken } from './services/notifiche';
@@ -715,17 +716,8 @@ export default function App() {
   function openConversazione(convId) {
     setPendingOpenConv(convId);
     setView('account');
-    // Il MessagesPanel, appena vede pendingOpenConv non-null, apre il
-    // thread e chiama onConvOpened → setPendingOpenConv(null). Serve
-    // per non riscattarlo se l'utente naviga altrove e torna.
   }
 
-  /* Ponte "Vai in Bacheca con il compositore già aperto": scattato
-     dal pulsante "Pubblica un annuncio" in Account → I miei annunci.
-     Bacheca vede `pendingOpenCompositore` a true al mount, apre il
-     compositore e mette il focus sulla textarea; poi chiama
-     onCompositoreOpened → setPendingOpenCompositore(false), così
-     tornando in Bacheca dopo non riapre da solo. */
   const [pendingOpenCompositore, setPendingOpenCompositore] = useState(false);
   function apriBachecaConCompositore() {
     setPendingOpenCompositore(true);
@@ -776,7 +768,11 @@ export default function App() {
         resetFilters={resetFilters}
       />
 
-      {view === 'tornei' && <NotificheBanner uid={uid} />}
+      {view === 'tornei' && (
+        (authReady && profile && !profile.onboardingCompletato)
+          ? <OnboardingBanner profile={profile} />
+          : <NotificheBanner uid={uid} />
+      )}
 
       {view === 'tornei' && (
         <ResultsBar

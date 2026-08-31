@@ -44,6 +44,10 @@ export async function reauthenticate() {
   await reauthenticateWithPopup(user, googleProvider);
 }
 
+export async function completaOnboarding(uid) {
+  await updateDoc(doc(db, COL_USERS, uid), { onboardingCompletato: true });
+}
+
 /* Quanto sto per cancellare — mostrato prima di confermare,
    così nessuno scopre dopo di aver perso i propri tornei. */
 export async function accountFootprint(uid) {

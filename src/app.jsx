@@ -475,18 +475,30 @@ export default function App() {
     collegaToken(profile?.uid ?? null);
   }, [authReady, profile?.uid]);
 
-  // Tasto Indietro del browser: sincronizza la card con l'URL corrente.
+  // Tasto Indietro del browser: sincronizza la card e la vista con l'URL corrente.
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
     function onPop() {
+      // 1. Gestione chiusura/apertura card torneo
       const tid = slugDallUrl();
       if (!tid) {
         setDetailTarget(null);
-        return;
+        // ATTENZIONE: Qui prima c'era un 'return;'. Ora l'abbiamo tolto 
+        // così il codice può continuare e cambiare anche la vista!
+      } else {
+        const trovato = tournaments.find((t) => t.id === tid);
+        setDetailTarget(trovato || null);
       }
-      const trovato = tournaments.find((t) => t.id === tid);
-      setDetailTarget(trovato || null);
+
+      // 2. Gestione navigazione tra le viste principali
+      const path = window.location.pathname;
+      if (path.startsWith('/bacheca')) setView('bacheca');
+      else if (path.startsWith('/admin')) setView('admin');
+      else if (path.startsWith('/account')) setView('account');
+      else setView('tornei'); // Radice '/' o '/tornei'
     }
+
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, [tournaments]);
@@ -583,15 +595,15 @@ export default function App() {
     };
   }, [detailTarget, replyTarget, showAuth, formState]);
 
+  // Sincronizza l'URL in base alla vista, senza creare una cronologia infinita
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // 1. Forza il titolo principale dell'app per tutte le schede
     document.title = ' Tornei di Green Volley e Beach Volley in Friuli Venezia Giulia - Volley FVG';
 
     const currentPath = window.location.pathname;
 
-    // Se l'utente ha aperto una card singola (/torneo/<slug>), non tocchiamo l'URL
+    // Se stiamo guardando una card, non tocchiamo l'URL della vista principale
     if (view === 'tornei' && currentPath.startsWith('/torneo/')) return;
 
     const targetPaths = {
@@ -602,10 +614,19 @@ export default function App() {
     };
 
     const targetPath = targetPaths[view] || '/tornei';
+    const normalizedCurrent = (currentPath === '/' || currentPath === '') ? '/tornei' : currentPath;
 
-    // Aggiorna l'URL solo se è diverso da quello attuale
-    if (currentPath !== targetPath && currentPath !== '/') {
-      window.history.pushState(null, '', targetPath);
+    // Aggiorna l'URL solo se stiamo visualizzando una vista diversa
+    if (normalizedCurrent !== targetPath) {
+      if (normalizedCurrent === '/tornei') {
+        // 1. Se usciamo dalla home (Tornei) per andare in Bacheca o Profilo:
+        // Aggiungiamo un passo alla cronologia così il tasto Indietro ci riporterà qui.
+        window.history.pushState(null, '', targetPath);
+      } else {
+        // 2. Se clicchiamo tra Bacheca e Profilo, o torniamo a Tornei usando il menu:
+        // Sostituiamo l'URL senza allungare la cronologia in modo infinito!
+        window.history.replaceState(null, '', targetPath);
+      }
     }
   }, [view]);
 

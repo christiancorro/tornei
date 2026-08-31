@@ -174,20 +174,20 @@ export default function OnboardingBanner({ profile }) {
                                             <p>
                                                 Benvenuto o benvenuta in <strong>Volley FVG</strong>, un portale nato per aggregare in un unico posto tutti i tornei di green volley e di beach volley del Friuli (e sì, anche Venezia Giulia) e dintorni.
                                             </p>
-                                            <ul className="list-disc pl-5 flex flex-col gap-2">
-                                                <li>
-                                                    In <strong>tornei</strong> troverai la <strong>lista</strong> e la <strong>mappa</strong> dei prossimi tornei. Puoi usare i filtri in alto per affinare la ricerca del tuo prossimo torneo!
+                                            <ul className="list-disc pl-5 flex flex-col gap-3">
+                                                <li className="leading-relaxed">
+                                                    In <strong className="px-2.5 py-0.5 mx-0.5 border-2 border-black/20 rounded-full whitespace-nowrap">Tornei</strong> troverai la <strong>lista</strong> e la <strong>mappa</strong> dei tornei. Puoi usare i filtri in alto per affinare la ricerca del tuo prossimo torneo.
                                                 </li>
-                                                <li>
-                                                    Usa la <strong>bacheca</strong> per pubblicare annunci e trovare la tua prossima squadra o nuovi compagni.
+                                                <li className="leading-relaxed">
+                                                    Usa la <strong className="px-2.5 py-0.5 mx-0.5 border-2 border-black/20 rounded-full whitespace-nowrap">Bacheca</strong> per pubblicare annunci e trovare la tua prossima squadra o nuovi compagni.
                                                 </li>
-                                                <li>
-                                                    Vai su <strong>Il mio profilo</strong> per aggiungere nuovi tornei e molto altro.
+                                                <li className="leading-relaxed">
+                                                    Vai su <strong className="px-2.5 py-0.5 mx-0.5 border-2 border-black/20 rounded-full whitespace-nowrap">Il mio profilo</strong> per aggiungere nuovi tornei e molto altro.
                                                 </li>
                                             </ul>
 
-                                            <p className="text-sm mt-1 px-3 py-2.5 rounded-xl border border-black/10 bg-black/5">
-                                                🚧 Il sito è in continuo sviluppo. Ogni tuo suggerimento è super ben accetto: inviaci le tue idee (o segnalaci problemi) usando la sezione <strong>Suggerimenti</strong> nela pagina del tuo profilo.
+                                            <p className="text-sm mt-1 px-3 py-2.5 rounded-xl border border-black/10 bg-black/5 leading-relaxed">
+                                                🚧 Il sito è in continuo sviluppo. Ogni tuo suggerimento è super ben accetto: inviaci le tue idee (o segnalaci problemi) usando la sezione <strong className="px-2.5 py-0.5 mx-0.5 border-2 border-black/20 rounded-full whitespace-nowrap">Suggerimenti</strong> nella pagina del tuo profilo.
                                             </p>
                                         </div>
                                     </div>
@@ -211,7 +211,7 @@ export default function OnboardingBanner({ profile }) {
                                             Resta aggiornato
                                         </p>
                                         <p className="text-base mt-1" style={{ color: INK, opacity: 0.8 }}>
-                                            Vuoi sapere quando esce un nuovo torneo? Attiva le notifiche per non perderti nulla. Potrai scegliere cosa seguire (niente spam) e disattivarle quando vuoi.
+                                            Vuoi sapere quando esce un nuovo torneo? Attiva le notifiche per non perderti nulla. Potrai scegliere cosa seguire (niente spam) e disattivarle quando vuoi dalle <strong className="px-2.5 py-0.5 mx-0.5 border-2 border-black/20 rounded-full whitespace-nowrap">Impostazioni</strong>.
                                         </p>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-3 mt-1">

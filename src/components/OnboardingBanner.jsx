@@ -171,7 +171,7 @@ export default function OnboardingBanner({ profile }) {
 
                                         <div className="text-base mt-3 flex flex-col gap-3" style={{ color: INK, opacity: 0.85 }}>
                                             <p>
-                                                Benvenuto o benvenuta in <strong>Volley FVG</strong>, un portale nato per aggregare in un unico posto tutti i tornei di green volley e di beach volley del Friuli (e sì, anche Venezia Giulia) e dintorni.
+                                                Benvenuto o benvenuta in <strong>Volley FVG</strong>, un portale nato per aggregare in un unico posto tutti i tornei di green volley e di beach volley in FVG e dintorni.
                                             </p>
                                             <ul className="list-disc pl-5 flex flex-col gap-3">
                                                 <li className="leading-relaxed">

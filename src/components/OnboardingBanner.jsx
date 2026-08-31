@@ -162,7 +162,6 @@ export default function OnboardingBanner({ profile }) {
                         <div key={step} className="ban-testo min-w-0 flex-1 flex flex-col gap-3">
 
                             {/* STEP 1 */}
-                            {/* STEP 1 */}
                             {step === 1 && (
                                 <>
                                     <div className="pr-6 sm:pr-0">
@@ -193,7 +192,14 @@ export default function OnboardingBanner({ profile }) {
                                     </div>
                                     <div className="flex flex-wrap gap-2 mt-3 justify-end">
                                         <button
-                                            onClick={() => setStep(2)}
+                                            onClick={() => {
+                                                setStep(2);
+                                                // Usiamo un piccolissimo ritardo per dare il tempo a React di
+                                                // aggiornare il testo e cambiare l'altezza prima di calcolare il centro
+                                                setTimeout(() => {
+                                                    corpoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                }, 50);
+                                            }}
                                             className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-regular transition-transform active:scale-95"
                                             style={{ backgroundColor: INK, color: '#fff' }}
                                         >

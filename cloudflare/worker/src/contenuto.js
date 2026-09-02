@@ -704,7 +704,7 @@ export const DESCRIZIONE_SITO = [
 
 export const AUTORE = {
   nome: 'Christian Corrò',
-  ruolo: 'Ricercatore',
+  ruolo: 'Dottorando',
   ente: 'Università degli Studi di Udine',
   enteUrl: 'https://www.uniud.it/',
   profilo: 'https://dmif.uniud.it/it/didattica/dottorato/iai/dottorandi/christian-corro?set_language=it',

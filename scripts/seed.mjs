@@ -12,12 +12,14 @@
      node scripts/seed.mjs --seed                 → carica i dati di esempio
      node scripts/seed.mjs --list                 → elenca utenti e ruoli
 --------------------------------------------------------- */
+// ESEMPIO
+// node scripts/seed.mjs --delete-user christian.corro@mail.it  
+
+
 import { readFileSync } from 'node:fs';
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
-
-import { INITIAL_TOURNAMENTS, INITIAL_ANNUNCI } from '../src/data.js';
 
 const serviceAccount = JSON.parse(readFileSync('./serviceAccount.json', 'utf8'));
 initializeApp({ credential: cert(serviceAccount) });
@@ -135,37 +137,6 @@ async function listUsers() {
   });
 }
 
-async function seed(adminEmail) {
-  const admin = adminEmail ? await getAuth().getUserByEmail(adminEmail) : null;
-
-  let batch = db.batch();
-  INITIAL_TOURNAMENTS.forEach(({ id, ...t }) => {
-    batch.set(db.collection('tornei').doc(), {
-      ...t,
-      status: 'published',
-      authorId: admin?.uid ?? 'seed',
-      authorName: admin?.displayName ?? 'Seed',
-      authorEmail: admin?.email ?? '',
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-  });
-  await batch.commit();
-  console.log(`✓ ${INITIAL_TOURNAMENTS.length} tornei caricati`);
-
-  batch = db.batch();
-  INITIAL_ANNUNCI.forEach(({ id, data, ...a }) => {
-    batch.set(db.collection('annunci').doc(), {
-      ...a,
-      authorId: admin?.uid ?? 'seed',
-      authorName: admin?.displayName ?? 'Seed',
-      data: new Date(data).toISOString(),
-      createdAt: new Date(data),
-    });
-  });
-  await batch.commit();
-  console.log(`✓ ${INITIAL_ANNUNCI.length} annunci caricati`);
-}
 
 const args = process.argv.slice(2);
 const flag = (name) => {
@@ -182,8 +153,6 @@ try {
     await setRole(flag('--admin'), 'admin');
   } else if (flag('--organizer')) {
     await setRole(flag('--organizer'), 'organizer');
-  } else if (args.includes('--seed')) {
-    await seed(flag('--as'));
   } else {
     console.log(
       'Usa: --list | --admin <email> | --organizer <email> | --delete-user <email> | --seed [--as <email>]'

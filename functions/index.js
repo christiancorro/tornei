@@ -339,3 +339,32 @@ exports.notificaNuovoMessaggio = onDocumentCreated(
     logger.info('[push] nuovo messaggio', { conv: event.params.convId, ...esito });
   },
 );
+
+/* ---------------------------------------------------------
+   6. Nuovo utente registrato: notifica agli admin.
+
+      Stesso pattern delle notifiche di servizio (tornei in coda,
+      richieste): segnala qualcosa da guardare, non va a tutti.
+
+      Presuppone che alla registrazione l'app scriva un documento
+      in `users/{uid}` — la stessa collection da cui tokenDegliAdmin
+      legge chi sono gli admin. Se invece il segnale giusto fosse la
+      creazione dell'utente in Firebase Auth (prima ancora che
+      esista un profilo in Firestore), qui serve un trigger diverso,
+      non un onDocumentCreated su Firestore. */
+exports.notificaNuovoUtente = onDocumentCreated('users/{userId}', async (event) => {
+  const utente = event.data?.data();
+  if (!utente) return;
+
+  const nome = utente.nome || utente.displayName || utente.email || 'un nuovo utente';
+
+  const tokens = await senzaAutore(await tokenDegliAdmin(), event.params.userId);
+  const esito = await invia(tokens, {
+    titolo: 'Nuovo utente registrato',
+    corpo: taglia(nome, 60),
+    url: `${SITO}/?vista=admin`,
+    tag: `nuovo-utente-${event.params.userId}`,
+  });
+
+  logger.info('[push] nuovo utente', { id: event.params.userId, ...esito });
+});

@@ -17,6 +17,14 @@ import { MESI_BREVI } from '../../constants';
    si può trascinare anche toccando la pista, non solo la
    maniglia — al dito centrare un cerchietto è scomodo.
 
+   Le due date sono mostrate in due fumetti FISSI, uno ancorato
+   in basso a sinistra e uno in basso a destra della pista — non
+   seguono più le maniglie. Questo evita completamente il
+   problema (che c'era prima) di due fumetti mobili che si
+   sovrappongono o escono dal riquadro quando le maniglie sono
+   vicine o agli estremi: da fermi agli angoli non collidono mai,
+   quindi non serve calcolare offset né misurare larghezze.
+
    FLUIDITÀ — due velocità
    I filtri si aggiornano MENTRE si trascina: la lista e i pin
    seguono la maniglia, non aspettano che la si molli. Il rischio,
@@ -59,10 +67,6 @@ const COMMIT_TASTIERA_MS = 220;
    inizia a notare il ritardo. È un tetto, non un ritardo: il primo
    aggiornamento parte subito. */
 const COMMIT_TRASCINAMENTO_MS = 90;
-
-/* Spazio minimo fra i due fumetti: sotto questa distanza si
-   sfalsano in verticale invece di stare sulla stessa riga. */
-const GAP_FUMETTI = 8;
 
 /* Dove cade "oggi" sulla pista, in percentuale.
 
@@ -136,119 +140,86 @@ function clamp(valore, min, max) {
 
 /* ---------------------------------------------------------
    Geometria verticale (px dentro .drs-inner), dall'alto:
-      0 → 23   fumetto ALZATO (solo quando i due si sfalsano)
-     27 → 57   fumetti a riposo, con la punta
-     58 → 88   maniglie (26px, 30px al tocco) centrate sulla pista
-     70 → 76   pista
-     57 → 89   riga verticale del segnaposto "oggi"
-     91 → 107  etichetta "oggi"
-   Totale 108px. I 27px in cima sono lo spazio in cui sale il
-   fumetto quando le due date sono vicine: sta lì vuoto il resto
-   del tempo, ma è l'unico modo di avere lo sfalsamento verticale
-   senza che il fumetto esca dal riquadro dei filtri.
+       0 -> 35   fumetti fissi: uno a sinistra, uno a destra
+                 (8px di padding sopra e sotto + line-height 15px
+                 + 2px di bordo per lato)
+      40 -> 80   fascia di tocco attorno alla pista
+      42 -> 74   riga verticale del segnaposto "oggi"
+      57 -> 63   pista
+      47 -> 73   maniglie (26px, 30px al tocco) centrate sulla pista
+      76 -> 94   etichetta "oggi"
+   Totale 99px.
 --------------------------------------------------------- */
 const CSS = `
 .drs {
   position: relative;
   /* Padding laterale: le maniglie agli estremi (0% e 100%) sono
      centrate sul bordo della pista, quindi metà cerchio starebbe
-     fuori. Il padding gli fa spazio, e ci fa stare anche il
-     fumetto della data quando è tutto a sinistra o a destra. */
-  padding: 0 34px;
+     fuori. Il padding gli fa spazio. */
+  padding: 0 16px;
   user-select: none;
 }
 
 .drs-inner {
   position: relative;
-  height: 108px;
+  height: 99px;
   overflow: visible;
 }
 
+/* I due fumetti con le date: fissi in basso, uno per lato. Non
+   seguono più le maniglie, quindi non serve nessun calcolo di
+   posizione: stanno sempre nello stesso punto e cambia solo il
+   testo dentro.
+
+   Padding di 8px sopra e sotto (uguale su mobile e desktop) più
+   un line-height in px, non "1": un valore in pixel fissa
+   l'altezza della riga di testo indipendentemente dai metrics del
+   font, così l'altezza totale del fumetto (8+8 padding + 15
+   line-height + 2+2 bordo = 35px) è sempre la stessa e lo scarto
+   di 5px verso la fascia di tocco (che parte a 40px, vedi
+   geometria sopra) non dipende dal rendering. */
 .drs-bubble {
-  --drs-bubble-y: 0px;
-  --drs-bubble-scale: 0.94;
-
   position: absolute;
-  top: 27px;
-  left: 0;
-  min-width: 88px;
+  top: 0;
+  box-sizing: border-box;
+  min-width: 100px;
   text-align: center;
-  padding: 5px 9px;
+  text-transform: lowercase;
+  padding: 8px 9px;
   border-radius: 999px;
-  background: ${INK};
-  color: #fff8ef;
-  font-size: 12.5px;
+  color: ${INK};
+  font-size: 13.5px;
   font-weight: 600;
-  line-height: 1;
-  box-shadow: 0 8px 20px rgba(34, 48, 31, 0.16);
-
-  /* --drs-bubble-dx e' lo scostamento laterale che tiene il fumetto
-     dentro al riquadro quando la maniglia e' vicina a un estremo.
-     Lo calcola il layout effect, che sa quanto e' largo davvero una
-     volta scritta la data dentro. La punta lo annulla e resta
-     agganciata alla maniglia. */
-  transform:
-    translateX(-50%)
-    translateX(var(--drs-bubble-dx, 0px))
-    translateY(var(--drs-bubble-y))
-    scale(var(--drs-bubble-scale));
-
-  /* Solo il top e' in transizione: e' il movimento verticale
-     dello sfalsamento a dover essere morbido. La posizione
-     orizzontale invece deve restare incollata alla maniglia, quindi
-     il left non e' mai in transizione. */
-  transition:
-    top 180ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 90ms ease,
-    box-shadow 90ms ease;
-
+  line-height: 15px;
+  border: solid 2px #c5c5bd;
+  box-shadow: 0 0px 0px rgba(34, 48, 31, 0.16);
+  transition: transform 90ms ease, box-shadow 90ms ease;
   white-space: nowrap;
-  max-width: 100%;
   z-index: 20;
   pointer-events: none;
 }
 
+/* .drs-inner è inset di 16px rispetto a .drs (il padding che fa
+   spazio ai cerchietti delle maniglie a 0% e 100%). I fumetti,
+   invece, devono allinearsi al bordo vero del widget, non a
+   quello (rientrato) della pista: da qui l'offset negativo pari
+   al padding di .drs, ripreso identico nella media query mobile
+   dove quel padding scende a 15px. */
+.drs-bubble-from {
+top:5px;
+  left: -6px;
+}
+
+.drs-bubble-to {
+top:5px;
+  right: -10px;
+}
+
+/* Il fumetto della maniglia in mano si mette leggermente in
+   evidenza, così è chiaro quale valore si sta muovendo anche se
+   il fumetto non è più attaccato al dito. */
 .drs-bubble.is-active {
-  --drs-bubble-y: -1px;
-  --drs-bubble-scale: 1.05;
-  box-shadow: 0 12px 28px rgba(34, 48, 31, 0.28);
-}
-
-/* Il fumetto che sale quando i due sono troppo vicini per stare
-   sulla stessa riga. Sale sempre quello NON in mano: la data che
-   si sta muovendo resta al suo posto, sotto il dito. */
-.drs-bubble.is-alzato {
-  top: 0;
-}
-
-/* Mentre si trascina resta in transizione solo il top: lo
-   scostamento orizzontale fa parte della transform, e smussarlo
-   vorrebbe dire vedere il fumetto arrivare in ritardo sulla
-   maniglia. Lo sfalsamento verticale invece deve restare morbido
-   anche in mezzo al gesto — è il momento in cui succede. */
-.drs-inner.is-dragging .drs-bubble {
-  transition: top 180ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.drs-inner.is-dragging .drs-handle {
-  transition: none;
-}
-
-.drs-bubble-tip {
-  position: absolute;
-  /* La punta resta sulla maniglia anche quando il fumetto e' stato
-     scostato per non sovrapporsi all'altro: annullo lo scostamento.
-     Diviso per la scala del fumetto perche' la punta sta nelle sue
-     coordinate: senza, lo scostamento verrebbe rimpicciolito (o
-     ingrandito) insieme al resto e la punta resterebbe indietro di
-     qualche pixel proprio quando e' scostata di piu'. */
-  left: calc(50% - var(--drs-bubble-dx, 0px) / var(--drs-bubble-scale, 1));
-  bottom: -6px;
-  width: 14px;
-  height: 8px;
-  transform: translateX(-50%);
-  color: ${INK};
-  pointer-events: none;
+  transform: scale(1);
 }
 
 /* Fascia invisibile attorno alla pista: allarga la zona in cui il
@@ -258,7 +229,7 @@ const CSS = `
   position: absolute;
   left: 0;
   right: 0;
-  top: 53px;
+  top: 40px;
   height: 40px;
   z-index: 2;
   cursor: pointer;
@@ -269,7 +240,7 @@ const CSS = `
   position: absolute;
   left: 0;
   right: 0;
-  top: 70px;
+  top: 57px;
   height: 6px;
   border-radius: 999px;
   background: rgba(34, 48, 31, 0.12);
@@ -278,8 +249,8 @@ const CSS = `
 
 .drs-track-active {
   position: absolute;
-  top: 68px;
-  height: 10px;
+  top: 56px;
+  height: 8px;
   border-radius: 999px;
   background: ${SUN};
   box-shadow: 0 6px 16px rgba(245, 165, 36, 0.4);
@@ -289,7 +260,7 @@ const CSS = `
 
 .drs-dot {
   position: absolute;
-  top: 73px;
+  top: 60px;
   transform: translate(-50%, -50%);
   border-radius: 999px;
   background: rgba(34, 48, 31, 0.28);
@@ -308,12 +279,12 @@ const CSS = `
   width: 5px;
   height: 5px;
   background: ${INK};
-  box-shadow: 0 0 0 5px rgba(245, 165, 36, 0.5);
+  box-shadow: 0 0 0 4px rgba(245, 165, 36, 0.5);
 }
 
 .drs-handle {
   position: absolute;
-  top: 73px;
+  top: 60px;
   left: 0;
   width: 26px;
   height: 26px;
@@ -349,9 +320,13 @@ const CSS = `
   outline-offset: 3px;
 }
 
+.drs-inner.is-dragging .drs-handle {
+  transition: none;
+}
+
 .drs-today {
   position: absolute;
-  top: 57px;
+  top: 46px;
   left: 0;
   transform: translateX(-50%);
   z-index: 4;
@@ -384,7 +359,6 @@ const CSS = `
   transform: translateX(-50%);
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(34, 48, 31, 0.08);
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -410,13 +384,21 @@ const CSS = `
 
 @media (max-width: 640px) {
   .drs {
-    padding: 0 30px;
+    padding: 0 15px;
   }
 
   .drs-bubble {
-    min-width: 78px;
-    padding: 5px 8px;
-    font-size: 11.5px;
+    min-width: 100px;
+    padding: 8px;
+    font-size: 13px;
+  }
+
+  .drs-bubble-from {
+    left: -10px;
+  }
+
+  .drs-bubble-to {
+    right: -12px;
   }
 
   /* Al dito serve un bersaglio più grande di quello del mouse. */
@@ -442,17 +424,6 @@ const CSS = `
 }
 `;
 
-function Punta() {
-  return (
-    <svg className="drs-bubble-tip" viewBox="0 0 16 9" aria-hidden="true">
-      <path
-        d="M1.4 0.2H14.6C15.25 0.2 15.55 1 15.08 1.45L9.15 7.55C8.5 8.22 7.5 8.22 6.85 7.55L0.92 1.45C0.45 1 0.75 0.2 1.4 0.2Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
 /* I puntini non si spostano mai: le loro posizioni dipendono solo
    dalle date dei tornei. Li tengo in un componente memoizzato così
    React non li ripercorre ad ogni pixel di trascinamento; a
@@ -476,31 +447,6 @@ const Puntini = memo(function Puntini({ posizioni }) {
   );
 });
 
-/* Rientro nel riquadro: quanto spostare un fumetto perché non esca
-   dal pannello dei filtri quando la sua maniglia è vicina a un
-   estremo. Solo i bordi — la collisione FRA i due fumetti si
-   risolve in verticale (uno sale), non spostandoli di lato.
-
-   Zero quasi sempre: serve solo negli ultimi pixel della pista. */
-export function scostamentoBordo(x, w, larghezza, padSx, padDx) {
-  const min = w / 2 - padSx;
-  const max = larghezza + padDx - w / 2;
-
-  // Fumetto più largo dello spazio disponibile: lo lascio centrato
-  // sulla maniglia invece di incastrarlo storto.
-  if (max < min) return 0;
-
-  return clamp(x, min, max) - x;
-}
-
-/* I due fumetti stanno sulla stessa riga? Il confronto è sulle
-   posizioni FINALI, quelle dopo il rientro nel riquadro: due
-   fumetti spinti insieme contro un bordo si sovrapporrebbero
-   anche se le maniglie sono lontane. */
-export function troppoVicini(centroA, wA, centroB, wB) {
-  return centroB - centroA < wA / 2 + wB / 2 + GAP_FUMETTI;
-}
-
 export default function DateRangeSlider({
   minIso,
   maxIso,
@@ -511,52 +457,12 @@ export default function DateRangeSlider({
   dates = [],
 }) {
   const innerRef = useRef(null);
-  const fromBubbleRef = useRef(null);
-  const toBubbleRef = useRef(null);
 
   /* Quale maniglia è "in mano": serve per lo stile (quella attiva è
-     più grande) e per sapere se c'è un gesto in corso. */
+     più grande, e il suo fumetto si mette in evidenza) e per sapere
+     se c'è un gesto in corso. */
   const [attiva, setAttiva] = useState(null);
   const trascinaRef = useRef(null);
-
-  /* Larghezza della pista. È uno stato e non una misura al volo
-     perché al ridimensionamento della finestra il componente deve
-     ridisegnarsi (i fumetti vanno riposizionati). */
-  const [larghezza, setLarghezza] = useState(0);
-
-  /* Padding del contenitore: lo leggo una volta e ad ogni resize,
-     non ad ogni frame. getComputedStyle costringe il browser a
-     ricalcolare il layout sul momento, e in mezzo a un
-     trascinamento è proprio il genere di lavoro da non fare. */
-  const padRef = useRef({ sx: 0, dx: 0 });
-
-  useLayoutEffect(() => {
-    const el = innerRef.current;
-    if (!el) return undefined;
-
-    const misura = () => {
-      setLarghezza(el.clientWidth);
-
-      const contenitore = el.parentElement;
-      if (!contenitore) return;
-      const stile = window.getComputedStyle(contenitore);
-      padRef.current = {
-        sx: parseFloat(stile.paddingLeft) || 0,
-        dx: parseFloat(stile.paddingRight) || 0,
-      };
-    };
-
-    misura();
-
-    if (typeof ResizeObserver === 'undefined') {
-      window.addEventListener('resize', misura);
-      return () => window.removeEventListener('resize', misura);
-    }
-
-    const ro = new ResizeObserver(misura);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
 
   const minDay = giornoDaIso(minIso);
   const maxDay = giornoDaIso(maxIso);
@@ -851,47 +757,18 @@ export default function DateRangeSlider({
   const mostraOggi =
     todayDay != null && todayDay >= minDay && todayDay <= maxDay;
 
-  /* Ritocchi dopo ogni render (niente array di dipendenze: le
-     posizioni cambiano ad ogni movimento e la data scritta dentro
-     al fumetto può cambiare larghezza):
-       • scosto i fumetti quel tanto che basta perché non si
-         sovrappongano fra loro né escano dal riquadro;
-       • accendo i puntini dentro l'intervallo.
-     Tutto scritto direttamente sul DOM: sono ritocchi visivi, e
-     passare per lo stato vorrebbe dire un render in più per ogni
-     frame di trascinamento. */
+  /* Accende i puntini dentro l'intervallo, scritto direttamente sul
+     DOM invece che tramite stato: durante il trascinamento
+     cambierebbe ad ogni frame, e passare per lo stato vorrebbe dire
+     un render in più ogni volta. Salta il giro se l'intervallo non
+     è cambiato (le maniglie possono muoversi di un pixel senza
+     scavalcare nessuna data). */
   const ultimoIntervalloRef = useRef(null);
 
   useLayoutEffect(() => {
     const inner = innerRef.current;
-    const fumettoA = fromBubbleRef.current;
-    const fumettoB = toBubbleRef.current;
-    if (!inner || !fumettoA || !fumettoB) return;
+    if (!inner) return;
 
-    if (larghezza > 0) {
-      const xA = (fromPct / 100) * larghezza;
-      const xB = (toPct / 100) * larghezza;
-      const wA = fumettoA.offsetWidth;
-      const wB = fumettoB.offsetWidth;
-
-      const dxA = scostamentoBordo(xA, wA, larghezza, padRef.current.sx, padRef.current.dx);
-      const dxB = scostamentoBordo(xB, wB, larghezza, padRef.current.sx, padRef.current.dx);
-
-      fumettoA.style.setProperty('--drs-bubble-dx', `${dxA}px`);
-      fumettoB.style.setProperty('--drs-bubble-dx', `${dxB}px`);
-
-      /* Date vicine: uno dei due sale, così restano leggibili
-         entrambi. Sale quello NON in mano — la data che si sta
-         muovendo resta dov'è, sotto il dito. A riposo (nessuna
-         maniglia in mano) sale quella di fine. */
-      const vicini = troppoVicini(xA + dxA, wA, xB + dxB, wB);
-
-      fumettoA.classList.toggle('is-alzato', vicini && attiva === 'to');
-      fumettoB.classList.toggle('is-alzato', vicini && attiva !== 'to');
-    }
-
-    // I puntini cambiano solo quando cambia l'intervallo: se le
-    // maniglie non hanno scavalcato nessuna data, salto il giro.
     const precedente = ultimoIntervalloRef.current;
     if (precedente && precedente.from === fromDay && precedente.to === toDay) return;
     ultimoIntervalloRef.current = { from: fromDay, to: toDay };
@@ -907,24 +784,6 @@ export default function DateRangeSlider({
       <style>{CSS}</style>
 
       <div className={`drs-inner ${attiva ? 'is-dragging' : ''}`} ref={innerRef}>
-        <div
-          ref={fromBubbleRef}
-          className={`drs-bubble ${attiva === 'from' ? 'is-active' : ''}`}
-          style={{ left: `${fromPct}%` }}
-        >
-          {formatta(isoDaGiorno(fromDay))}
-          <Punta />
-        </div>
-
-        <div
-          ref={toBubbleRef}
-          className={`drs-bubble ${attiva === 'to' ? 'is-active' : ''}`}
-          style={{ left: `${toPct}%` }}
-        >
-          {formatta(isoDaGiorno(toDay))}
-          <Punta />
-        </div>
-
         <div className="drs-track" />
         <div
           className="drs-track-active"
@@ -983,6 +842,14 @@ export default function DateRangeSlider({
           aria-valuenow={toDay}
           aria-valuetext={formatta(isoDaGiorno(toDay))}
         />
+
+        <div className={`drs-bubble drs-bubble-from ${attiva === 'from' ? 'is-active' : ''}`}>
+          {formatta(isoDaGiorno(fromDay))}
+        </div>
+
+        <div className={`drs-bubble drs-bubble-to ${attiva === 'to' ? 'is-active' : ''}`}>
+          {formatta(isoDaGiorno(toDay))}
+        </div>
       </div>
     </div>
   );

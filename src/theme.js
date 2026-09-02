@@ -3,7 +3,7 @@
    sun. Kept as plain hex + inline style throughout so nothing
    depends on Tailwind's JIT/arbitrary-value features.
 --------------------------------------------------------- */
-export const SAND = '#fffefb';
+export const SAND = '#fffbf5';
 export const CARD_BG = '#ffffff';
 export const INK = '#282828';
 export const SUN = '#F5A524';

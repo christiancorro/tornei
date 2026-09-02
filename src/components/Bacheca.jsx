@@ -252,7 +252,7 @@ export function BachecaComposer({
         open ? 'bacheca-composer-shell--open' : 'bacheca-composer-shell--closed',
       ].join(' ')}
       style={{
-        backgroundColor: open ? noteBg : SAND,
+        backgroundColor: open ? noteBg : '#fcfaf8',
         borderColor: open ? accent : 'rgba(34,48,31,0.12)',
         color: INK,
         '--tw-ring-color': open ? accent : 'rgba(34,48,31,0.18)',
@@ -593,7 +593,7 @@ export default function Bacheca({
       ) : (
         <div
           className="rounded-lg border-2 p-4 sm:p-5 mb-8 flex items-center gap-3"
-          style={{ backgroundColor: SAND, borderColor: 'rgba(34,48,31,0.12)' }}
+          style={{ backgroundColor: '#fcfaf8', borderColor: 'rgba(34,48,31,0.12)' }}
         >
           <CircleUserRound size={22} className="shrink-0" style={{ color: INK, opacity: 0.45 }} />
           <p className="text-sm" style={{ color: INK, opacity: 0.7 }}>

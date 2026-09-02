@@ -66,7 +66,8 @@ const CSS_FILTRI = `
 }
 
 .filtri-extra-pannello {
-  margin-top: 0.75rem;
+  margin-top: 0rem;
+  padding:5px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -293,9 +294,9 @@ export default function Header({
       {view === 'tornei' && (
         <>
           {/* SEARCH + FILTERS */}
-          <div className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: SAND, borderColor: 'rgba(34,48,31,0.15)', }}>
+          <div className="sticky top-0 z-20 shadow-sm pt-3" style={{ backgroundColor: SAND, borderColor: 'rgba(34,48,31,0.15)', }}>
             <style>{CSS_FILTRI}</style>
-            <div className="max-w-[69rem] mx-auto px-4 sm:px-6 lg:px-8 py-2 space-y-3">
+            <div className="max-w-[69rem] mx-auto px-4 sm:px-6 lg:px-8 py-0 space-y-3">
               <div ref={rowRef} className="flex items-center gap-2 overflow-x-auto no-scrollbar">
                 {/* Ricerca a scomparsa: da icona a campo, spingendo i filtri a destra */}
                 <div
@@ -442,7 +443,7 @@ export default function Header({
               >
                 <div className="filtri-extra-interno">
                   <div
-                    className="filtri-extra-pannello border-2 rounded-xl px-1.5 py-1 sm:px-3"
+                    className="filtri-extra-pannello border-2 rounded-xl py-2 px-1.5 mb-3 sm:px-3"
                     style={{ borderColor: 'rgba(34,48,31,0.15)' }}
                   >
                     <DateRangeSlider

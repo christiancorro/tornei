@@ -10,12 +10,15 @@ import {
   doc,
   addDoc,
   deleteDoc,
+  updateDoc,
   onSnapshot,
   query,
   where,
   orderBy,
   limit,
   serverTimestamp,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore';
 
 import { db, COL_ANNUNCI } from '../firebase';
@@ -26,11 +29,17 @@ const TIPI = ['cerca_squadra', 'cerca_giocatore'];
 export const MAX_TESTO = 600;
 
 function fromFirestore(snap) {
-  const d = snap.data();
+  /* `responders` resta qui dentro: alla UI serve il numero, non
+     l'elenco di chi ha scritto. */
+  const { responders, ...d } = snap.data();
   return {
     ...d,
     id: snap.id,
     data: d.data ?? d.createdAt?.toDate?.().toISOString() ?? '',
+    /* Utenti unici per costruzione: `responders` è una lista di uid
+       riempita con arrayUnion, quindi chi scrive dieci messaggi allo
+       stesso annuncio ci compare una volta sola. Vedi addResponder. */
+    risposte: Array.isArray(responders) ? responders.length : 0,
   };
 }
 
@@ -71,10 +80,39 @@ export async function createAnnuncio({ tipo, testo }, profile) {
     data: new Date().toISOString(),
     rotazione: Number((Math.random() * 8 - 4).toFixed(1)),
     createdAt: serverTimestamp(),
+    // Nasce vuoto: così il conteggio parte da 0 senza casi speciali.
+    // (Gli annunci creati prima di questo campo non ce l'hanno: sia
+    // fromFirestore sia le regole trattano l'assenza come lista vuota.)
+    responders: [],
   });
   return ref_.id;
 }
 
 export function deleteAnnuncio(id) {
   return deleteDoc(doc(db, COL_ANNUNCI, id));
+}
+
+/* ---------------------------------------------------------
+   Conteggio risposte.
+
+   Sull'annuncio non teniamo un contatore ma la lista degli uid di
+   chi ha aperto un thread: `arrayUnion` è idempotente, quindi il
+   secondo messaggio della stessa persona non gonfia il totale e non
+   dobbiamo prima leggere il documento per sapere se c'era già.
+   Il numero mostrato è la lunghezza della lista.
+
+   Le regole lasciano aggiungere SOLO il proprio uid e SOLO questo
+   campo; la rimozione è dell'admin (cancellazione di un thread).
+   Vedi firestore.rules, match /annunci/{id}.
+--------------------------------------------------------- */
+function annuncioRef(id) {
+  return doc(db, COL_ANNUNCI, id);
+}
+
+export function addResponder(annuncioId, uid) {
+  return updateDoc(annuncioRef(annuncioId), { responders: arrayUnion(uid) });
+}
+
+export function removeResponder(annuncioId, uid) {
+  return updateDoc(annuncioRef(annuncioId), { responders: arrayRemove(uid) });
 }

@@ -28,6 +28,7 @@ import {
 } from 'firebase/firestore';
 
 import { db, COL_CONVERSAZIONI, SUB_MESSAGGI } from '../firebase';
+import { addResponder, removeResponder } from './annunci';
 
 /* Tetto alto perché non vogliamo limitare l'utente nella scrittura,
    ma un tappo serve comunque: un documento Firestore non può superare
@@ -39,6 +40,18 @@ export const MAX_MESSAGGIO = 10000;
 
 export function conversationId(annuncioId, senderUid) {
   return `${annuncioId}__${senderUid}`;
+}
+
+/* L'inverso di conversationId. Serve alla cancellazione, che ha in
+   mano solo l'id del thread e deve sapere a quale annuncio e a quale
+   utente si riferisce senza rileggere niente.
+   Lo split è sul PRIMO `__`: l'id di un annuncio è generato da
+   Firestore (solo lettere e cifre), quindi il doppio underscore non
+   può che essere il separatore. */
+export function parseConversationId(convId) {
+  const i = (convId ?? '').indexOf('__');
+  if (i < 0) return { annuncioId: '', senderUid: '' };
+  return { annuncioId: convId.slice(0, i), senderUid: convId.slice(i + 2) };
 }
 
 function convRef(convId) {
@@ -127,6 +140,16 @@ export async function replyToAnnuncio(annuncio, sender, testo) {
     lastMessage: clean.slice(0, 140),
   }, { merge: true });
 
+  /* Il contatore sulla nota in bacheca. Per lo stesso motivo per cui
+     non facciamo getDoc qui sopra non sappiamo se il thread è appena
+     nato o esisteva già — e non ci serve saperlo: addResponder usa
+     arrayUnion, quindi riscrivere allo stesso annuncio non conta due
+     volte. Il catch è voluto: se questa scrittura viene rifiutata
+     (regole non ancora aggiornate, rete che cade) il messaggio è già
+     partito, e un conteggio indietro di uno è meno grave di una
+     risposta che sembra fallita all'utente. */
+  addResponder(annuncio.id, sender.uid).catch(() => { });
+
   // `unread` non sta qui di proposito: con merge lo azzererebbe a
   // ogni nuovo messaggio. Ci pensa increment() in sendMessage, che
   // funziona anche su un campo che non esiste ancora.
@@ -164,6 +187,15 @@ export async function deleteConversation(convId) {
   const snap = await getDocs(messagesRef(convId));
   await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
   await deleteDoc(convRef(convId));
+
+  /* Sparito il thread, sparisce anche la risposta: togliamo l'uid di
+     chi aveva scritto dal conteggio della nota. Se l'annuncio non
+     c'è più (cancellato prima del thread) l'update fallisce, ed è
+     giusto che passi liscio — non c'è più niente da aggiornare. */
+  const { annuncioId, senderUid } = parseConversationId(convId);
+  if (annuncioId && senderUid) {
+    await removeResponder(annuncioId, senderUid).catch(() => { });
+  }
 }
 
 export function otherParticipant(conv, uid) {

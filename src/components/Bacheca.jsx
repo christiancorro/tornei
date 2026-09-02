@@ -366,6 +366,24 @@ export function BachecaComposer({
   );
 }
 
+/* ---------------------------------------------------------
+   Quante persone hanno scritto a un annuncio.
+
+   `post.risposte` conta UTENTI, non messaggi: lato dati un utente
+   entra una volta sola nel conteggio dell'annuncio, per quante
+   volte scriva (vedi `responders` nel service degli annunci).
+
+   La riga meta è una frase, non una tabella: uno "0" secco lì in
+   mezzo si legge come un dato mancante più che come "non ha
+   ancora risposto nessuno", quindi lo zero ha una parola sua.
+--------------------------------------------------------- */
+export function etichettaRisposte(n) {
+  const q = Number(n) || 0;
+  if (q === 0) return 'nessuna risposta';
+  if (q === 1) return '1 risposta';
+  return `${q} risposte`;
+}
+
 export function BachecaNote({ post, onDelete, canDelete, canReply, onReply, isNew }) {
   const [removing, setRemoving] = useState(false);
   const isSquadra = post.tipo === 'cerca_squadra';
@@ -426,8 +444,17 @@ export function BachecaNote({ post, onDelete, canDelete, canReply, onReply, isNe
       <p className="text-2sm sm:text-2sm font-regular leading-snug whitespace-pre-wrap break-words" style={{ color: INK }}>
         {post.testo}
       </p>
+      {/* Autore · data · quanto tempo fa · quante risposte.
+          I separatori sono scritti a mano come {' · '}: andando a
+          capo fra due espressioni JSX lo spazio sparirebbe e le
+          voci si attaccherebbero fra loro. */}
       <div className="mt-3 text-xs" style={{ color: INK, opacity: 0.45 }}>
-        {post.authorName ? `${post.authorName} · ` : ''}{formatDataBreve(post.data)} · {timeAgo(post.data)}
+        {post.authorName ? `${post.authorName} · ` : ''}
+        {formatDataBreve(post.data).toLowerCase()}
+        {' · '}
+        {timeAgo(post.data)}
+        {' · '}
+        {etichettaRisposte(post.risposte)}
       </div>
 
       {canReply && (
@@ -507,7 +534,7 @@ function SchelettroBacheca({ quanti = 6 }) {
             <span className="bacheca-skel-riga" style={{ width: '100%', height: 11, marginBottom: 7 }} />
             <span className="bacheca-skel-riga" style={{ width: '88%', height: 11, marginBottom: 7 }} />
             <span className="bacheca-skel-riga" style={{ width: '54%', height: 11 }} />
-            <span className="bacheca-skel-riga mt-4" style={{ width: 74, height: 9 }} />
+            <span className="bacheca-skel-riga mt-4" style={{ width: 118, height: 9 }} />
           </div>
         ))}
       </div>

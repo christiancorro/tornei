@@ -128,9 +128,48 @@ service cloud.firestore {
         && request.resource.data.testo is string
         && request.resource.data.testo.size() > 0
         && request.resource.data.testo.size() <= 600
-        && request.resource.data.tipo in ['cerca_squadra', 'cerca_giocatore'];
+        && request.resource.data.tipo in ['cerca_squadra', 'cerca_giocatore']
+        /* Il conteggio risposte nasce vuoto: nessuno pubblica un
+           annuncio che parte già con dieci risposte. */
+        && request.resource.data.get('responders', []) == [];
 
-      allow update: if false;
+      /* --- Conteggio risposte ----------------------------------------
+         Era `if false`, ed era il motivo per cui il numero non si
+         muoveva: chi risponde non è l'autore dell'annuncio, quindi la
+         sua write veniva rifiutata (in silenzio, per come il client
+         ingoia l'errore).
+
+         Un annuncio resta immutabile in tutto tranne che in un campo:
+         `responders`, la lista di chi ha aperto un thread. La coppia
+         di hasOnly qui sotto dice una cosa sola, in due direzioni:
+         l'unico uid che può comparire o sparire dalla lista è il
+         proprio.
+
+           nuova ⊆ vecchia + [io]   → non posso aggiungere altri
+           vecchia ⊆ nuova + [io]   → non posso togliere altri
+
+         Vale anche per la write che non cambia niente (arrayUnion su
+         un uid già presente): affectedKeys() resta vuoto e passa. Il
+         client la rimanda a ogni risposta senza prima leggere, quindi
+         deve poter essere un no-op.
+
+         `get('responders', [])` è per gli annunci pubblicati prima
+         che il campo esistesse: senza default, leggerlo su quei
+         documenti fa fallire la regola invece di valere "lista vuota".
+
+         L'admin può togliere anche l'uid di un altro: succede quando
+         cancella un thread dalla moderazione. */
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['responders'])
+        && (
+          isAdmin()
+          || (
+            isActive()
+            && request.resource.data.responders
+                 .hasOnly(resource.data.get('responders', []).concat([request.auth.uid]))
+            && resource.data.get('responders', [])
+                 .hasOnly(request.resource.data.responders.concat([request.auth.uid]))
+          )
+        );
 
       allow delete: if isAdmin()
         || (isActive() && resource.data.authorId == request.auth.uid);
@@ -223,8 +262,11 @@ service cloud.firestore {
     // nessuno le può editare (nemmeno l'admin). Cancellare sì,
     // ma solo l'admin.
     allow update: if false;
+    // NB: le risposte hanno `fromId`, non `authorId` (vedi la create
+    // qui sopra). Con `authorId` questo ramo non era mai vero e la
+    // cancellazione restava di fatto solo dell'admin.
     allow delete: if isAdmin()
-  || (isSignedIn() && resource.data.authorId == request.auth.uid);
+  || (isSignedIn() && resource.data.get('fromId', '') == request.auth.uid);
   }
 }
 

@@ -140,21 +140,54 @@ export async function replyToAnnuncio(annuncio, sender, testo) {
     lastMessage: clean.slice(0, 140),
   }, { merge: true });
 
-  /* Il contatore sulla nota in bacheca. Per lo stesso motivo per cui
-     non facciamo getDoc qui sopra non sappiamo se il thread è appena
-     nato o esisteva già — e non ci serve saperlo: addResponder usa
-     arrayUnion, quindi riscrivere allo stesso annuncio non conta due
-     volte. Il catch è voluto: se questa scrittura viene rifiutata
-     (regole non ancora aggiornate, rete che cade) il messaggio è già
-     partito, e un conteggio indietro di uno è meno grave di una
-     risposta che sembra fallita all'utente. */
-  addResponder(annuncio.id, sender.uid).catch(() => { });
+  // Il conteggio sulla nota lo aggiorna sendMessage, qui sotto:
+  // vale anche per i thread aperti prima che il campo esistesse.
 
   // `unread` non sta qui di proposito: con merge lo azzererebbe a
   // ogni nuovo messaggio. Ci pensa increment() in sendMessage, che
   // funziona anche su un campo che non esiste ancora.
   await sendMessage(convId, sender.uid, annuncio.authorId, clean);
   return convId;
+}
+
+/* ---------------------------------------------------------
+   Il conteggio "n risposte" sull'annuncio.
+
+   Sta qui e non in replyToAnnuncio di proposito: un thread aperto
+   PRIMA che il campo esistesse non passa più da replyToAnnuncio,
+   e senza questo resterebbe fuori dal conteggio per sempre. Messo
+   su sendMessage invece si ripara da solo — al primo messaggio
+   successivo di chi l'ha aperto l'uid rientra al suo posto.
+
+   Conta solo chi ha aperto il thread (`fromId === senderUid`): le
+   risposte dell'autore dell'annuncio non sono "risposte ricevute".
+
+   La Set evita di rimandare la stessa write a ogni messaggio: il
+   server la ignorerebbe comunque (arrayUnion su un uid già dentro
+   non cambia niente) ma la pagheremmo lo stesso. Si popola solo
+   dopo un successo, così un errore viene ritentato.
+--------------------------------------------------------- */
+const responderSincronizzati = new Set();
+
+function syncResponder(convId, fromId) {
+  const { annuncioId, senderUid } = parseConversationId(convId);
+  if (!annuncioId || fromId !== senderUid) return;
+  if (responderSincronizzati.has(convId)) return;
+
+  addResponder(annuncioId, fromId)
+    .then(() => responderSincronizzati.add(convId))
+    .catch((err) => {
+      /* Non rilanciamo: il messaggio è già partito e una risposta che
+         sembra fallita è peggio di un conteggio indietro di uno. Ma
+         il silenzio totale nasconde il caso più comune — le regole
+         non ancora deployate — quindi almeno lo scriviamo. */
+      console.warn(
+        '[bacheca] conteggio risposte non aggiornato per',
+        annuncioId,
+        '—',
+        err?.code || err?.message || err
+      );
+    });
 }
 
 export async function sendMessage(convId, fromId, toId, testo) {
@@ -175,6 +208,9 @@ export async function sendMessage(convId, fromId, toId, testo) {
     lastFrom: fromId,
     [`unread.${toId}`]: increment(1),
   });
+
+  // Fire-and-forget: non blocca l'invio. Vedi syncResponder sopra.
+  syncResponder(convId, fromId);
 }
 
 export function markAsRead(convId, uid) {
